@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:8.3.7
+    container_name: moodly-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - moodly-mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host localhost:27017 --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mongodb-init:
+    image: mongo:8.3.7
+    container_name: moodly-mongodb-init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        state="$$(mongosh --quiet --host mongodb:27017 --eval 'try { rs.status(); print("INITIALIZED"); } catch (error) { print(error.codeName); }')"
+        case "$$state" in
+          *INITIALIZED*)
+            echo "Replica set rs0 is already initialised."
+            ;;
+          *NotYetInitialized*)
+            echo "Initialising replica set rs0..."
+            mongosh --host mongodb:27017 --eval 'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongodb:27017" }] })'
+            ;;
+          *)
+            echo "Unable to determine replica-set state: $$state"
+            exit 1
+            ;;
+        esac
+
+volumes:
+  moodly-mongodb-data:

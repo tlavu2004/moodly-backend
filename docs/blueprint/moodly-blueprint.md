@@ -14,7 +14,7 @@
 ### Git Workflow
 
 **Branch strategy:** One short-lived branch per phase, created directly from the latest `main`.  
-**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behaviour, and broad refactors in one commit.  
+**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behavior, and broad refactors in one commit.  
 **When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`.  
 **Merge strategy:** Squash Merge each completed phase branch directly into `main`. Include the phase's automated/manual tests in the same branch and squash them with the implementation; do not create separate test branches or standalone test commits on `main`.
 
@@ -182,33 +182,36 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is not connected yet, and no feature module implementation has started.
 
-| Area                                 | Status            | Evidence / next step                                                        |
-|--------------------------------------|-------------------|-----------------------------------------------------------------------------|
-| Spring Boot application skeleton     | `[ ]` Not started | Create the Spring Boot application structure.                               |
-| MongoDB dependency                   | `[ ]` Not started | Add the MongoDB starter dependency to `pom.xml`.                            |
-| Web and validation dependencies      | `[ ]` Not started | Add WebMVC and Validation starters.                                         |
-| Modular-monolith packages            | `[ ]` Not started | Create `auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`. |
-| MongoDB Docker/replica set           | `[ ]` Not started | Add pinned Docker Compose configuration.                                    |
-| MongoDB connection                   | `[ ]` Not started | Add `spring.data.mongodb.uri` and verify with `mongosh`.                    |
-| Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                              |
-| Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                  |
-| Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                    |
-| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.               |
-| JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                |
+| Area                                 | Status            | Evidence / next step                                                                       |
+|--------------------------------------|-------------------|--------------------------------------------------------------------------------------------|
+| Spring Boot application skeleton     | `[x]` Setup       | Create the Spring Boot application structure.                                              |
+| MongoDB dependency                   | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                                           |
+| Web and validation dependencies      | `[x]` Setup       | Add WebMVC and Validation starters.                                                        |
+| Modular-monolith packages            | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                                  |
+| MongoDB Docker/replica set           | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.                      |
+| MongoDB connection                   | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                                         |
+| Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                                             |
+| Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                                 |
+| Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                                   |
+| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.                              |
+| JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                               |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
 #### Setup (30 minutes)
 
-- [ ] Create one Spring Boot application.
-- [ ] Add the MongoDB starter dependency to `pom.xml`.
-- [ ] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
-- [ ] Keep module boundaries explicit: controllers and repositories should not be imported directly by unrelated feature modules.
-- [ ] Run a pinned MongoDB version locally with Docker Compose, mapped to port 27017.
-- [ ] Configure `spring.data.mongodb.uri` in `application.yaml`.
-- [ ] Verify the connection through MongoDB Compass or `mongosh`.
+- [x] Create one Spring Boot application.
+- [x] Add the MongoDB starter dependency to `pom.xml`.
+- [x] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
+- [x] Document explicit module boundaries in `docs/architecture.md`; enforce them with an architecture test once controllers and repositories are added.
+- [x] Define the reproducible MongoDB replica-set Docker Compose configuration below, mapped to port 27017.
+- [x] Configure `spring.data.mongodb.uri` in `application.yaml`.
+- [x] Verify the connection through `mongosh`: MongoDB is healthy and replica set `rs0` reports one `PRIMARY` member.
 
-**Commit checkpoint:** `chore(app): bootstrap modular Moodly with local MongoDB`
+> [!Note]
+> `mongod --replSet rs0` enables replica-set mode but does not initialize a replica set by itself. `rs.initiate()` creates the single-node replica-set configuration required by MongoDB Change Streams in Phase 2; the `mongodb-init` service checks the status first so repeated `docker compose up` runs remain safe and idempotent.
+
+**Commit checkpoint:** `chore(application): initialize Moodly application with MongoDB setup and modular structure`
 
 #### Model and Repository (30–45 minutes)
 
@@ -257,7 +260,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Infrastructure and Index Setup
 
-- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialise the replica set and verify it with `rs.status()`.
+- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
 - [ ] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
 - [ ] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
 - [ ] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
@@ -272,7 +275,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 - [ ] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
 - [ ] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
 - [ ] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
-- [ ] Keep the transformation deliberately denormalised: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
+- [ ] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
 - [ ] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
 - [ ] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
 
@@ -316,8 +319,8 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 
 #### User Registration and Credentials
 
-- [ ] Create the `users` collection and its unique email index. Define a `User` document with an internal ID, normalised email, password hash, and timestamps.
-- [ ] Add `POST /auth/register`; validate email format and password requirements, normalise email consistently, reject duplicate emails, and never return `passwordHash`.
+- [ ] Create the `users` collection and its unique email index. Define a `User` document with an internal ID, normalized email, password hash, and timestamps.
+- [ ] Add `POST /auth/register`; validate email format and password requirements, normalize email consistently, reject duplicate emails, and never return `passwordHash`.
 - [ ] Hash passwords with BCrypt using Spring Security's `PasswordEncoder`; never log, return, or store plaintext passwords.
 - [ ] Add `POST /auth/login`; verify the password hash and return a short-lived access token plus a refresh token.
 
@@ -360,8 +363,8 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 ### Data extensions
 
 - **Track by time rather than by day:** Replace `daily_entries` with `mood_logs` containing detailed timestamps. Learn time-series schema design and consider MongoDB Time Series Collections.
-- **Flexible habit targets:** Track quantities instead of only done/not done—for example, “drink water: 6/8 glasses.” This explores semi-structured data modelling.
-- **Roles and authorisation:** Add roles such as `USER` and `ADMIN` only after the single-user ownership model is complete.
+- **Flexible habit targets:** Track quantities instead of only done/not done—for example, “drink water: 6/8 glasses.” This explores semi-structured data modeling.
+- **Roles and authorization:** Add roles such as `USER` and `ADMIN` only after the single-user ownership model is complete.
 
 ### MongoDB feature extensions
 
@@ -374,7 +377,7 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 ### Architecture extensions
 
 - Apply Clean Architecture layers (`domain` / `application` / `infrastructure`) to observe how a document database changes the persistence layer compared with a relational database.
-- Implement a filterable entry-list feature twice—once with a repository query and once with a MongoDB aggregation—to compare the modelling trade-offs.
+- Implement a filterable entry-list feature twice—once with a repository query and once with a MongoDB aggregation—to compare the modeling trade-offs.
 
 ---
 

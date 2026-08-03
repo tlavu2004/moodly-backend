@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: moodly
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/moodly?replicaSet=rs0}
