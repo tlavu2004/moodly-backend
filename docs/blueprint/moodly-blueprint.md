@@ -441,9 +441,9 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint:** `feat(validation): add request validation and global exception handling`
 
-- [ ] Write a concise README explaining how to run the project.
+- [x] Write a concise README explaining how to run the project.
 
-**Commit checkpoint (only if implemented):** `docs(readme): document local setup and API usage`
+**Commit checkpoint (only if implemented):** `docs(readme): document local setup and project overview`
 
 ### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
