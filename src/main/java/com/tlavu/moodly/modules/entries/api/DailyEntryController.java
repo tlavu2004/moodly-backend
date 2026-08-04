@@ -45,8 +45,14 @@ public class DailyEntryController {
 	public List<DailyEntry> findBetween(
 			@RequestHeader("X-User-Id") String userId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+				@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
 	) {
+		if (from.isAfter(to)) {
+			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
+		}
+		if (from.isAfter(LocalDate.now()) || to.isAfter(LocalDate.now())) {
+			throw new IllegalArgumentException("Entry dates must not be in the future.");
+		}
 		return dailyEntryService.findBetween(userId, from, to);
 	}
 }

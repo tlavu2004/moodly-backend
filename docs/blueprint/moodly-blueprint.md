@@ -436,10 +436,10 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 #### Polish (optional, if time remains)
 
-- [ ] Add basic validation: mood score must be 1–5; date must not be in the future.
-- [ ] Add a minimal `GlobalExceptionHandler`.
+- [x] Add basic validation: mood score must be 1–5; date ranges must not be reversed or in the future.
+- [x] Add a minimal `GlobalExceptionHandler`.
 
-**Commit checkpoint:** `feat(validation): validate requests and standardise API errors`
+**Commit checkpoint:** `feat(validation): add request validation and global exception handling`
 
 - [ ] Write a concise README explaining how to run the project.
 
