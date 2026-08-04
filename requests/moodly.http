@@ -42,3 +42,15 @@ Content-Type: application/json
 ### Query entries by date range
 GET {{baseUrl}}/entries?from=2026-08-01&to=2026-08-31
 X-User-Id: {{userId}}
+
+### Get current habit streak
+GET {{baseUrl}}/habits/{{habitId}}/streak
+X-User-Id: {{userId}}
+
+### Get weekly mood trend
+GET {{baseUrl}}/stats/mood-trend?period=week
+X-User-Id: {{userId}}
+
+### Get most missed habits
+GET {{baseUrl}}/stats/most-missed-habits
+X-User-Id: {{userId}}

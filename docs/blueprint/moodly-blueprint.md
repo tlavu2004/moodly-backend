@@ -237,10 +237,200 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 #### Aggregation Pipeline (60–90 minutes; core learning section)
 
-- [ ] Implement `GET /stats/mood-trend?period=week` using `$group` by week (`$week` or `$dateTrunc`) and `$avg`.
-- [ ] Implement `GET /stats/most-missed-habits` using `$unwind`, `$match`, `$group`, and `$sort`.
-- [ ] Implement `GET /habits/{id}/streak` by loading entries in descending date order and calculating the streak in the application layer. MongoDB aggregation is not a particularly clear fit for consecutive-day streaks.
-- [ ] Test every pipeline directly in `mongosh` before implementing it in Java, so that each stage's output is understood.
+- [x] Implement `GET /stats/mood-trend?period=week` using `$dateTrunc`, `$group`, and `$avg`.
+- [x] Implement `GET /stats/most-missed-habits` using `$unwind`, `$match`, `$group`, and `$sort`.
+- [x] Implement `GET /habits/{id}/streak` by loading entries in descending date order and calculating the streak in the application layer. MongoDB aggregation is not a particularly clear fit for consecutive-day streaks.
+- [x] Test every pipeline directly in DataGrip/DBeaver and understand each stage's output.
+
+#### Run the Pipelines in DataGrip or DBeaver
+
+Connect either MongoDB client to the local replica set with this connection string:
+
+```text
+mongodb://localhost:27017/moodly?replicaSet=rs0
+```
+
+- **DataGrip:** create a MongoDB data source, paste the connection string, test the connection, then open a MongoDB query console for the `moodly` database.
+- **DBeaver:** create a new MongoDB connection, use host `localhost`, port `27017`, database `moodly`, and set the replica-set name to `rs0` if the driver exposes that option. Open the MongoDB shell/editor after the connection succeeds.
+- Run the mood-trend pipeline one stage at a time: first `$match`, then add `$project` with `$dateTrunc`, then `$group`/`$avg`, and finally `$sort`. Observe each intermediate result before adding the next stage.
+- Run the most-missed pipeline one stage at a time: `$match`, `$unwind`, `$match` for `habits.done: false`, `$group`, then `$sort`.
+- Streak is calculated in Java rather than an aggregation pipeline. In the console, inspect its input by running a `find` for the user and sorting `date: -1`; verify that a missing day or `done: false` should break the streak.
+
+Use a dedicated test user (for example, `user_pipeline_demo`) and seed a few entries with mood scores plus both completed and missed habit logs. Delete only that test user's entries after the exercise.
+
+#### Guided Pipeline Test
+
+- **Step 1 — Seed isolated demo data.** In the MongoDB console, run the following once. It creates two weeks of mood data plus both completed and missed habits for `user_pipeline_demo`.
+
+```javascript
+const userId = "user_pipeline_demo";
+
+// Seed three daily entries for one isolated demo user.
+db.daily_entries.insertMany([
+  {
+    userId,
+    date: ISODate("2026-07-27T00:00:00Z"),
+    mood: { score: 3, tags: ["calm"], note: "First week" },
+    habits: [
+      { habitId: "exercise", done: true, note: null },
+      { habitId: "reading", done: false, note: null }
+    ]
+  },
+  {
+    userId,
+    date: ISODate("2026-07-28T00:00:00Z"),
+    mood: { score: 5, tags: ["productive"], note: "Good day" },
+    habits: [
+      { habitId: "exercise", done: true, note: null },
+      { habitId: "reading", done: false, note: null }
+    ]
+  },
+  {
+    userId,
+    date: ISODate("2026-08-03T00:00:00Z"),
+    mood: { score: 2, tags: ["tired"], note: "New week" },
+    habits: [
+      { habitId: "exercise", done: false, note: null }
+    ]
+  }
+]);
+```
+
+- **Step 2 — Run and inspect the mood-trend stages.** Start with `$match`, then add `$project`/`$dateTrunc`, then `$group`/`$avg`, and finally `$sort`. Run each block separately and inspect its output before moving to the next stage.
+
+```javascript
+// Stage 1: keep only this user's entries that contain a mood score.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    }
+]);
+
+// Stage 2: project the score and calculate the Monday of its week.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            date: 1,
+            score: "$mood.score",
+            weekStart: {
+                $dateTrunc: {
+                    date: "$date",
+                    unit: "week",
+                    startOfWeek: "monday",
+                    timezone: "Asia/Bangkok"
+                }
+            }
+        }
+    }
+]);
+
+// Stage 3: group by week and calculate average score and entry count.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    },
+    {
+        $group: {
+            _id: {
+                $dateTrunc: {
+                    date: "$date",
+                    unit: "week",
+                    startOfWeek: "monday",
+                    timezone: "Asia/Bangkok"
+                }
+            },
+            averageScore: { $avg: "$mood.score" },
+            entryCount: { $sum: 1 }
+        }
+    },
+    { $sort: { _id: 1 } }
+]);
+```
+
+- **Step 3 — Run and inspect the most-missed-habits stages.** Observe how `$unwind` turns each array element into a separate document, then see how the false entries are grouped and sorted.
+
+```javascript
+// Stage 1: keep all entries for this user.
+db.daily_entries.aggregate([
+    { $match: { userId } }
+]);
+
+// Stage 2: expand the habits array into one result per habit log.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" }
+]);
+
+// Stage 3: keep only missed habits.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } }
+]);
+
+// Stage 4: count misses by habit ID.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } },
+    {
+        $group: {
+            _id: "$habits.habitId",
+            missedCount: { $sum: 1 }
+        }
+    }
+]);
+
+// Stage 5: show the most frequently missed habits first.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } },
+    {
+        $group: {
+            _id: "$habits.habitId",
+            missedCount: { $sum: 1 }
+        }
+    },
+    { $sort: { missedCount: -1 } }
+]);
+```
+
+- **Step 4 — Inspect streak input.** Streak is calculated in Java rather than an aggregation pipeline, so inspect the entries in descending date order:
+
+```javascript
+// The application reads this order and checks consecutive completed days.
+db.daily_entries.find(
+    {
+        userId,
+        date: { $lte: new Date() }
+    },
+    {
+        _id: 0,
+        date: 1,
+        habits: 1
+    }
+).sort({ date: -1 });
+```
+
+Verify that a missing day, a missing habit log, or `done: false` breaks the streak. After observing all outputs, clean up only the demo user's data:
+
+```javascript
+db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
+```
 
 **Commit checkpoint:** `feat(stats): add mood trend, missed habit, and streak statistics`
 

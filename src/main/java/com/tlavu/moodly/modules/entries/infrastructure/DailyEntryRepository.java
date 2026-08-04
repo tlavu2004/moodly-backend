@@ -12,5 +12,7 @@ public interface DailyEntryRepository extends MongoRepository<DailyEntry, String
 
 	List<DailyEntry> findByUserIdAndDateBetweenOrderByDateAsc(String userId, LocalDate from, LocalDate to);
 
+	List<DailyEntry> findByUserIdAndDateLessThanEqualOrderByDateDesc(String userId, LocalDate date);
+
 	void deleteByUserId(String userId);
 }
