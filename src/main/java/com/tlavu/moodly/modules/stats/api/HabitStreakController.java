@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.stats.api;
 
 import com.tlavu.moodly.modules.stats.application.StatsService;
+import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
 import java.time.LocalDate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,10 +20,10 @@ public class HabitStreakController {
 	}
 
 	@GetMapping("/{habitId}/streak")
-	public HabitStreakResponse currentStreak(
+	public ApiResponse<HabitStreakResponse> currentStreak(
 			@PathVariable String habitId,
 			@RequestHeader("X-User-Id") String userId
 	) {
-		return statsService.calculateCurrentStreak(userId, habitId, LocalDate.now());
+		return ApiResponse.success(statsService.calculateCurrentStreak(userId, habitId, LocalDate.now()));
 	}
 }

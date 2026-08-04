@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class StatsAggregationRepository {
 
-	private static final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
+	private static final ZoneId HO_CHI_MINH_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private final MongoTemplate mongoTemplate;
 
@@ -26,14 +26,16 @@ public class StatsAggregationRepository {
 	}
 
 	public List<MoodTrendResponse> findWeeklyMoodTrend(String userId) {
-		var weekStart = new Document("$dateTrunc", new Document("date", "$date")
+		Document weekStart = new Document("$dateTrunc", new Document("date", "$date")
 				.append("unit", "week")
 				.append("startOfWeek", "monday")
-				.append("timezone", BANGKOK_ZONE.getId()));
-		var group = new Document("$group", new Document("_id", weekStart)
+				.append("timezone", HO_CHI_MINH_ZONE.getId()));
+
+		Document group = new Document("$group", new Document("_id", weekStart)
 				.append("averageScore", new Document("$avg", "$mood.score"))
 				.append("entryCount", new Document("$sum", 1)));
-		var aggregation = Aggregation.newAggregation(
+
+		Aggregation aggregation = Aggregation.newAggregation(
 				Aggregation.match(Criteria.where("userId").is(userId).and("mood.score").exists(true)),
 				Aggregation.stage(group.toJson()),
 				Aggregation.sort(Sort.Direction.ASC, "_id")
@@ -46,7 +48,7 @@ public class StatsAggregationRepository {
 	}
 
 	public List<MostMissedHabitResponse> findMostMissedHabits(String userId) {
-		var aggregation = Aggregation.newAggregation(
+		Aggregation aggregation = Aggregation.newAggregation(
 				Aggregation.match(Criteria.where("userId").is(userId)),
 				Aggregation.unwind("habits"),
 				Aggregation.match(Criteria.where("habits.done").is(false)),
@@ -76,6 +78,6 @@ public class StatsAggregationRepository {
 	}
 
 	private LocalDate toLocalDate(Date date) {
-		return date.toInstant().atZone(BANGKOK_ZONE).toLocalDate();
+		return date.toInstant().atZone(HO_CHI_MINH_ZONE).toLocalDate();
 	}
 }

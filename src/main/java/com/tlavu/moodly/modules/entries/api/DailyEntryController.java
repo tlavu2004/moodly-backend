@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.entries.api;
 
 import com.tlavu.moodly.modules.entries.application.DailyEntryService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
+import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,23 +27,23 @@ public class DailyEntryController {
 	}
 
 	@PatchMapping("/today")
-	public DailyEntry updateTodayHabit(
+	public ApiResponse<DailyEntry> updateTodayHabit(
 			@RequestHeader("X-User-Id") String userId,
 			@Valid @RequestBody UpdateHabitLogRequest request
 	) {
-		return dailyEntryService.updateHabitLog(userId, LocalDate.now(), request);
+		return ApiResponse.success(dailyEntryService.updateHabitLog(userId, LocalDate.now(), request));
 	}
 
 	@PutMapping("/today/mood")
-	public DailyEntry setTodayMood(
+	public ApiResponse<DailyEntry> setTodayMood(
 			@RequestHeader("X-User-Id") String userId,
 			@Valid @RequestBody SetMoodRequest request
 	) {
-		return dailyEntryService.setMood(userId, LocalDate.now(), request);
+		return ApiResponse.success(dailyEntryService.setMood(userId, LocalDate.now(), request));
 	}
 
 	@GetMapping
-	public List<DailyEntry> findBetween(
+	public ApiResponse<List<DailyEntry>> findBetween(
 			@RequestHeader("X-User-Id") String userId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
 				@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
@@ -53,6 +54,6 @@ public class DailyEntryController {
 		if (from.isAfter(LocalDate.now()) || to.isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Entry dates must not be in the future.");
 		}
-		return dailyEntryService.findBetween(userId, from, to);
+		return ApiResponse.success(dailyEntryService.findBetween(userId, from, to));
 	}
 }

@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.habits.api;
 
 import com.tlavu.moodly.modules.habits.application.HabitService;
 import com.tlavu.moodly.modules.habits.domain.Habit;
+import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -25,15 +26,15 @@ public class HabitController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public Habit create(
+	public ApiResponse<Habit> create(
 			@RequestHeader("X-User-Id") String userId,
 			@Valid @RequestBody CreateHabitRequest request
 	) {
-		return habitService.create(userId, request);
+		return ApiResponse.success(habitService.create(userId, request));
 	}
 
 	@GetMapping
-	public List<Habit> findActive(@RequestHeader("X-User-Id") String userId) {
-		return habitService.findActive(userId);
+	public ApiResponse<List<Habit>> findActive(@RequestHeader("X-User-Id") String userId) {
+		return ApiResponse.success(habitService.findActive(userId));
 	}
 }

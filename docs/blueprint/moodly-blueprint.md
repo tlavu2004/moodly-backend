@@ -160,6 +160,8 @@ The three document examples above are assigned to variables intentionally: this 
 | `POST`   | `/auth/login`                   | Authenticate and receive access and refresh tokens (introduced in Phase 3).    |
 | `POST`   | `/auth/refresh`                 | Exchange a valid refresh token for a new access token (introduced in Phase 3). |
 
+All successful API responses use the same envelope: `{ "success": true, "data": ..., "timestamp": ... }`. Failed responses set `success` to `false` and provide details in `error` instead of `data`.
+
 ---
 
 ## 4. Detailed Implementation Checklist
@@ -327,7 +329,7 @@ db.daily_entries.aggregate([
                     date: "$date",
                     unit: "week",
                     startOfWeek: "monday",
-                    timezone: "Asia/Bangkok"
+                    timezone: "Asia/Ho_Chi_Minh"
                 }
             }
         }
@@ -349,7 +351,7 @@ db.daily_entries.aggregate([
                     date: "$date",
                     unit: "week",
                     startOfWeek: "monday",
-                    timezone: "Asia/Bangkok"
+                    timezone: "Asia/Ho_Chi_Minh"
                 }
             },
             averageScore: { $avg: "$mood.score" },
