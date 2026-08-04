@@ -215,13 +215,14 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 #### Model and Repository (30–45 minutes)
 
-- [ ] Create a `Habit` class for the `habits` document.
-- [ ] Create a `DailyEntry` class with nested `Mood` and `HabitLog` classes for the `daily_entries` document.
-- [ ] Create `HabitRepository extends MongoRepository<Habit, String>`.
-- [ ] Create `DailyEntryRepository extends MongoRepository<DailyEntry, String>`.
-- [ ] Create a unique `(userId, date)` index, then intentionally insert a duplicate to observe the duplicate-key error.
+- [x] Create a `Habit` class for the `habits` document.
+- [x] Create a `DailyEntry` class with nested `Mood` and `HabitLog` classes for the `daily_entries` document.
+- [x] Create `HabitRepository extends MongoRepository<Habit, String>`.
+- [x] Create `DailyEntryRepository extends MongoRepository<DailyEntry, String>`.
+- [x] Create a unique `(userId, date)` index.
+- [x] Run `DailyEntryRepositoryIntegrationTest` against the local MongoDB instance to observe the duplicate-key error.
 
-**Commit checkpoint:** `feat(mongodb): add habit and daily entry persistence`
+**Commit checkpoint:** `feat(mongodb): implement DailyEntry and Habit entities with repositories`
 
 #### Core API (45–60 minutes)
 
