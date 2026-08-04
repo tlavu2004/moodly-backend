@@ -13,22 +13,24 @@ import org.springframework.dao.DuplicateKeyException;
 @SpringBootTest
 class DailyEntryRepositoryIntegrationTest {
 
+	private static final String TEST_USER_ID = "__test_duplicate_user__";
+
 	@Autowired
 	private DailyEntryRepository dailyEntryRepository;
 
 	@AfterEach
 	void cleanUp() {
-		dailyEntryRepository.deleteAll();
+		dailyEntryRepository.deleteByUserId(TEST_USER_ID);
 	}
 
 	@Test
 	void rejectsDuplicateEntryForTheSameUserAndDate() {
 		var date = LocalDate.of(2026, 8, 4);
-		dailyEntryRepository.save(new DailyEntry("user_123", date));
+		dailyEntryRepository.save(new DailyEntry(TEST_USER_ID, date));
 
 		assertThrows(
 			DuplicateKeyException.class,
-			() -> dailyEntryRepository.save(new DailyEntry("user_123", date))
+			() -> dailyEntryRepository.save(new DailyEntry(TEST_USER_ID, date))
 		);
 	}
 }

@@ -55,6 +55,7 @@ public class DailyEntry {
 	}
 
 	@Getter
+	@Setter
 	public static class HabitLog {
 
 		private String habitId;

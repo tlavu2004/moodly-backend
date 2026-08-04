@@ -226,14 +226,14 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 #### Core API (45–60 minutes)
 
-- [ ] Implement `POST /habits` to create a habit.
-- [ ] Implement `GET /habits` to return active habits.
-- [ ] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using `findAndModify` or an upsert.
-- [ ] Implement `PUT /entries/today/mood` to set today's mood.
-- [ ] Implement `GET /entries?from=&to=` to query entries by date range.
-- [ ] Write a `.http` test file for all endpoints above, with named variables and repeatable request scenarios.
+- [x] Implement `POST /habits` to create a habit.
+- [x] Implement `GET /habits` to return active habits.
+- [x] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using repository lookup followed by save.
+- [x] Implement `PUT /entries/today/mood` to set today's mood.
+- [x] Implement `GET /entries?from=&to=` to query entries by date range.
+- [x] Write `requests/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
 
-**Commit checkpoint:** `feat(entries): add habit and mood entry APIs`
+**Commit checkpoint:** `feat(entries): add DailyEntry service and controller with habit and mood management`
 
 #### Aggregation Pipeline (60–90 minutes; core learning section)
 
