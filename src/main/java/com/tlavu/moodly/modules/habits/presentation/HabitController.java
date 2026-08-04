@@ -1,8 +1,8 @@
-package com.tlavu.moodly.modules.habits.api;
+package com.tlavu.moodly.modules.habits.presentation;
 
 import com.tlavu.moodly.modules.habits.application.HabitService;
 import com.tlavu.moodly.modules.habits.domain.Habit;
-import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;

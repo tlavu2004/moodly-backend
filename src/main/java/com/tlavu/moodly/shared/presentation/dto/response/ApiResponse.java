@@ -1,7 +1,7 @@
-package com.tlavu.moodly.shared.api.dto.response;
+package com.tlavu.moodly.shared.presentation.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.tlavu.moodly.shared.api.dto.error.ApiError;
+import com.tlavu.moodly.shared.presentation.dto.error.ApiError;
 
 import java.time.Instant;
 

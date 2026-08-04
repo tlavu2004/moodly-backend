@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.habits.api;
+package com.tlavu.moodly.modules.habits.presentation;
 
 import jakarta.validation.constraints.NotBlank;
 

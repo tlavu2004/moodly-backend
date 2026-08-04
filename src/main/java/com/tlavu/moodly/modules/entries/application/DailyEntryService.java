@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.entries.application;
 
-import com.tlavu.moodly.modules.entries.api.SetMoodRequest;
-import com.tlavu.moodly.modules.entries.api.UpdateHabitLogRequest;
+import com.tlavu.moodly.modules.entries.presentation.SetMoodRequest;
+import com.tlavu.moodly.modules.entries.presentation.UpdateHabitLogRequest;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import java.time.Instant;

@@ -1,8 +1,8 @@
-package com.tlavu.moodly.shared.api.advice;
+package com.tlavu.moodly.shared.presentation.advice;
 
-import com.tlavu.moodly.shared.api.dto.error.ApiError;
-import com.tlavu.moodly.shared.api.dto.error.FieldErrorResponse;
-import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.error.ApiError;
+import com.tlavu.moodly.shared.presentation.dto.error.FieldErrorResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
 import jakarta.servlet.http.HttpServletRequest;

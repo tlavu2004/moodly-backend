@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.habits.application;
 
-import com.tlavu.moodly.modules.habits.api.CreateHabitRequest;
+import com.tlavu.moodly.modules.habits.presentation.CreateHabitRequest;
 import com.tlavu.moodly.modules.habits.domain.Habit;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.stats.api;
 
 import com.tlavu.moodly.modules.stats.application.StatsService;
-import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;

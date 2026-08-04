@@ -1,8 +1,8 @@
-package com.tlavu.moodly.modules.entries.api;
+package com.tlavu.moodly.modules.entries.presentation;
 
 import com.tlavu.moodly.modules.entries.application.DailyEntryService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
-import com.tlavu.moodly.shared.api.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
