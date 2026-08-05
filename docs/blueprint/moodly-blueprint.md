@@ -182,7 +182,7 @@ Complete and test one phase before starting the next phase. Keep tests in the sa
 
 This track applies to the whole project rather than to Phase 1 alone. Update it whenever a foundational capability becomes available.
 
-**Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is not connected yet, and no feature module implementation has started.
+**Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is connected and verified locally, and Phase 1 feature modules have started.
 
 | Area                                 | Status            | Evidence / next step                                                                       |
 |--------------------------------------|-------------------|--------------------------------------------------------------------------------------------|
