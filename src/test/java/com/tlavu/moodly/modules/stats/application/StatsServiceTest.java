@@ -62,6 +62,24 @@ class StatsServiceTest {
 		verify(entryReadService).findOnOrBefore("user-1", today);
 	}
 
+	@Test
+	void returnsZeroStreakWhenNoEntriesExist() {
+		var today = LocalDate.of(2026, 8, 5);
+		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of());
+
+		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+	}
+
+	@Test
+	void returnsZeroStreakWhenTodayDoesNotContainTheHabitLog() {
+		var today = LocalDate.of(2026, 8, 5);
+		var entry = new DailyEntry("user-1", today);
+		entry.getHabits().add(new DailyEntry.HabitLog("reading", true, null));
+		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(entry));
+
+		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+	}
+
 	private DailyEntry entry(LocalDate date, boolean done) {
 		var entry = new DailyEntry("user-1", date);
 		entry.getHabits().add(new DailyEntry.HabitLog("exercise", done, null));
