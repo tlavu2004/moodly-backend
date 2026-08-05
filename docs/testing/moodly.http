@@ -1,6 +1,8 @@
 @baseUrl = http://localhost:8080
 @userId = user_123
 @habitId = replace-with-created-habit-id
+@maintenanceKey = moodly-local-maintenance
+@cdcEntryId = replace-with-created-entry-id
 
 ### Create a habit
 POST {{baseUrl}}/habits
@@ -54,3 +56,22 @@ X-User-Id: {{userId}}
 ### Get most missed habits
 GET {{baseUrl}}/stats/most-missed-habits
 X-User-Id: {{userId}}
+
+### CDC verification: inspect listener health and failed-event count
+GET {{baseUrl}}/actuator/health
+
+### CDC verification: inspect an indexed entry
+# Set cdcEntryId at the top from the response to the entry update request.
+GET http://localhost:9200/daily_entries_search/_doc/{{cdcEntryId}}
+
+### CDC verification: duplicate-safe full rebuild
+POST {{baseUrl}}/internal/cdc/reindex
+X-Maintenance-Key: {{maintenanceKey}}
+
+### CDC verification: replay one dead-letter after Elasticsearch recovers
+POST {{baseUrl}}/internal/cdc/dead-letters/replace-with-dead-letter-id/replay
+X-Maintenance-Key: {{maintenanceKey}}
+
+### CDC verification: delete (no entry-delete API exists yet)
+# Run this in mongosh, then the indexed-entry request above should return 404.
+# db.daily_entries.deleteOne({ _id: ObjectId("your-entry-id") })

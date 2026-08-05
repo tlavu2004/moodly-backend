@@ -18,11 +18,15 @@ public class CdcHealthIndicator implements HealthIndicator {
 	@Override
 	public Health health() {
 		var builder = monitor.isListenerHealthy() ? Health.up() : Health.down();
-		return builder
+		builder
 				.withDetail("listenerHealthy", monitor.isListenerHealthy())
-				.withDetail("failedEventCount", monitor.getFailedEventCount())
-				.withDetail("lastFailureAt", monitor.getLastFailureAt())
-				.withDetail("lastFailure", monitor.getLastFailure())
-				.build();
+				.withDetail("failedEventCount", monitor.getFailedEventCount());
+		if (monitor.getLastFailureAt() != null) {
+			builder.withDetail("lastFailureAt", monitor.getLastFailureAt());
+		}
+		if (monitor.getLastFailure() != null) {
+			builder.withDetail("lastFailure", monitor.getLastFailure());
+		}
+		return builder.build();
 	}
 }

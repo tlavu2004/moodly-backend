@@ -233,7 +233,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 - [x] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using repository lookup followed by save.
 - [x] Implement `PUT /entries/today/mood` to set today's mood.
 - [x] Implement `GET /entries?from=&to=` to query entries by date range.
-- [x] Write `requests/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
+- [x] Write `docs/testing/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
 
 **Commit checkpoint:** `feat(entries): add DailyEntry service and controller with habit and mood management`
 
@@ -494,7 +494,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 **Commit checkpoint:** `feat(cdc): add retry mechanism, dead-letter handling, and health monitoring for CDC events`
 
-- [ ] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
+- [x] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
 
 **Commit checkpoint:** `test(cdc): cover change stream recovery and Elasticsearch failures`
 

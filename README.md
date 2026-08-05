@@ -61,7 +61,11 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
    header. CDC state and its failed-event count are available at
    `GET /actuator/health`.
 
-4. Open `requests/moodly.http` in an HTTP client and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
+   The CDC verification scenarios in `docs/testing/moodly.http` cover insert,
+   update, reindex/duplicate delivery, dead-letter replay, and health. The
+   delete scenario uses `mongosh` until an entry-delete API is introduced.
+
+4. Open `docs/testing/moodly.http` with the VS Code REST Client extension and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
 
 ## Test
 

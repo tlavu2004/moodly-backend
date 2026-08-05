@@ -21,3 +21,9 @@ moodly:
   search:
     index:
       initialization-enabled: true
+
+management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
