@@ -6,6 +6,8 @@ Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoD
 
 Requirements: Java 25, Maven, and Docker Desktop.
 
+Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present.
+
 1. Start MongoDB as a single-node replica set:
 
    ```bash
