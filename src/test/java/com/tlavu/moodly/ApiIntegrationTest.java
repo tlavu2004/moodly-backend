@@ -1,0 +1,119 @@
+package com.tlavu.moodly;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
+import com.tlavu.moodly.support.MongoTestConfiguration;
+import java.time.LocalDate;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(MongoTestConfiguration.class)
+class ApiIntegrationTest {
+
+	private static final String USER_ID = "__test_phase1_api_user__";
+
+	@Autowired
+	private MockMvc mockMvc;
+	@Autowired
+	private DailyEntryRepository dailyEntryRepository;
+	@Autowired
+	private HabitRepository habitRepository;
+
+	@AfterEach
+	void cleanUp() {
+		dailyEntryRepository.deleteByUserId(USER_ID);
+		habitRepository.deleteAll(habitRepository.findByUserIdAndActiveTrue(USER_ID));
+	}
+
+	@Test
+	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
+		var today = LocalDate.now();
+
+		mockMvc.perform(post("/habits")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"daily\"}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.name").value("Exercise"));
+
+		mockMvc.perform(get("/habits").header("X-User-Id", USER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(1))
+				.andExpect(jsonPath("$.data[0].name").value("Exercise"));
+
+		mockMvc.perform(patch("/entries/today")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"habitId\":\"exercise\",\"done\":true,\"note\":\"Completed\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.habits[0].done").value(true));
+
+		mockMvc.perform(patch("/entries/today")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"habitId\":\"reading\",\"done\":false,\"note\":\"Missed\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.habits.length()").value(2));
+
+		mockMvc.perform(put("/entries/today/mood")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"score\":4,\"tags\":[\"calm\"],\"note\":\"Good day\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.mood.score").value(4));
+
+		mockMvc.perform(get("/entries")
+					.header("X-User-Id", USER_ID)
+					.param("from", today.toString())
+					.param("to", today.toString()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.length()").value(1));
+
+		mockMvc.perform(get("/stats/mood-trend")
+					.header("X-User-Id", USER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data[0].averageScore").value(4.0));
+
+		mockMvc.perform(get("/stats/most-missed-habits")
+					.header("X-User-Id", USER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
+				.andExpect(jsonPath("$.data[0].missedCount").value(1));
+
+		mockMvc.perform(get("/habits/exercise/streak")
+					.header("X-User-Id", USER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.currentStreak").value(1));
+	}
+
+	@Test
+	void returnsStandardValidationErrorForInvalidRequest() throws Exception {
+		mockMvc.perform(post("/habits")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"\",\"targetFrequency\":\"\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.error.errors.length()").value(2));
+	}
+}

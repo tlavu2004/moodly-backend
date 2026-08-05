@@ -40,7 +40,7 @@ public class DailyEntryService {
 	}
 
 	public List<DailyEntry> findBetween(String userId, LocalDate from, LocalDate to) {
-		return dailyEntryRepository.findByUserIdAndDateBetweenOrderByDateAsc(userId, from, to);
+		return dailyEntryRepository.findByUserIdAndDateRange(userId, from, to);
 	}
 
 	private DailyEntry getOrCreate(String userId, LocalDate date) {

@@ -447,6 +447,16 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint (only if implemented):** `docs(readme): document local setup and project overview`
 
+#### Automated Test Coverage
+
+- [x] Add unit tests for `HabitService`, `DailyEntryService`, and `EntryReadService`, covering creation, updates, timestamps, and repository delegation.
+- [x] Add unit tests for `StatsService`, covering aggregation delegation and streak boundaries caused by an incomplete habit or missing date.
+- [x] Keep repository and aggregation integration tests against a Testcontainers-managed MongoDB replica set.
+- [x] Add a Phase 1 API integration test covering the CRUD/statistics happy path, the standard `ApiResponse` envelope, and validation errors.
+- [x] Run the complete suite through `make test` with Docker Desktop running.
+
+**Commit checkpoint:** `test(phase1): cover MongoDB core services and APIs`
+
 ### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
 Elasticsearch is a derived search index only. MongoDB remains the source of truth; the request/response flow must not write directly to Elasticsearch.
