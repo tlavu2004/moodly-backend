@@ -6,3 +6,10 @@ spring:
   data:
     mongodb:
       auto-index-creation: true
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+
+moodly:
+  search:
+    index:
+      initialization-enabled: true

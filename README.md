@@ -8,7 +8,7 @@ Requirements: Java 25, Maven, and Docker Desktop.
 
 Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present.
 
-1. Start MongoDB as a single-node replica set:
+1. Start MongoDB as a single-node replica set and Elasticsearch:
 
    ```bash
    make local-up
@@ -21,10 +21,25 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
    make local-replica-status
    ```
 
+   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the
+   `moodly-elasticsearch-local-data` Docker volume.
+
 3. Run the application:
 
    ```bash
    make local-run
+   ```
+
+   On startup, Moodly creates `daily_entries_search` only when it does not already
+   exist. The mapping is deliberately not mutated at startup, so mapping changes
+   remain an explicit migration decision.
+
+   Verify the cluster, index, and mapping after the application has started:
+
+   ```bash
+   make local-elasticsearch-status
+   curl http://localhost:9200/_cat/indices/daily_entries_search?v
+   curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
 4. Open `requests/moodly.http` in an HTTP client and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.

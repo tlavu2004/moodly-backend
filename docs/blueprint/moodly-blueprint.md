@@ -195,7 +195,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                                             |
 | Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                                 |
 | Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                                   |
-| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.                              |
+| Elasticsearch and CDC                | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next.              |
 | JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                               |
 
 ### Phase 1 — MongoDB Core (Evening 1)
@@ -464,14 +464,14 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Infrastructure and Index Setup
 
-- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
-- [ ] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
-- [ ] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
-- [ ] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
-- [ ] Map `userId` and `date` as exact/filterable fields, `mood.score` as a numeric field, and `mood.note`, `habits.note`, and `mood.tags` as searchable fields. Add keyword subfields only where filtering or aggregation is needed.
-- [ ] Create the index and mapping through an idempotent startup component or a versioned setup script; verify them with Elasticsearch's index and mapping APIs.
+- [x] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
+- [x] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
+- [x] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
+- [x] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
+- [x] Map `userId` and `date` as exact/filterable fields, `mood.score` as a numeric field, and `mood.note`, `habits.note`, and `mood.tags` as searchable fields. Add keyword subfields only where filtering or aggregation is needed.
+- [x] Create the index and mapping through an idempotent startup component or a versioned setup script; verify them with Elasticsearch's index and mapping APIs.
 
-**Commit checkpoint:** `chore(search): add Elasticsearch and MongoDB replica-set infrastructure`
+**Commit checkpoint:** `feat(search): integrate Elasticsearch for daily entry indexing and setup`
 
 #### Change Stream Synchronisation Service
 
