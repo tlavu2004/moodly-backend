@@ -456,7 +456,7 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 - [x] Add Phase 1 API integration tests covering the CRUD/statistics happy path, the standard `ApiResponse` envelope, and validation/error contracts: missing user header, invalid habit and mood payloads, malformed JSON, invalid date ranges, and an unsupported statistics period.
 - [x] Run the complete suite through `make test` with Docker Desktop running.
 
-**Commit checkpoint:** `test(phase1): cover MongoDB core services and APIs`
+**Commit checkpoint:** `test(mongo-core): enhance integration tests for MongoDB core services and API validation`
 
 ### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
