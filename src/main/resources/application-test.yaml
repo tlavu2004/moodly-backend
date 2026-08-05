@@ -1,0 +1,3 @@
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27018/moodly_test?directConnection=true}

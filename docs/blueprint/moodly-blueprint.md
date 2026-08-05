@@ -206,12 +206,12 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 - [x] Add the MongoDB starter dependency to `pom.xml`.
 - [x] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
 - [x] Document explicit module boundaries in `docs/architecture.md`; enforce them with an architecture test once controllers and repositories are added.
-- [x] Define the reproducible MongoDB replica-set Docker Compose configuration below, mapped to port 27017.
-- [x] Configure `spring.data.mongodb.uri` in `application.yaml`.
+- [x] Define reproducible local and test MongoDB replica-set Compose configurations, using `.env.local` and `.env.test` respectively.
+- [x] Configure the shared `application.yaml`, `application-local.yaml`, and `application-test.yaml` profiles. Maven integration tests use a Testcontainers-managed replica set rather than either Compose database.
 - [x] Verify the connection through `mongosh`: MongoDB is healthy and replica set `rs0` reports one `PRIMARY` member.
 
 > [!Note]
-> `mongod --replSet rs0` enables replica-set mode but does not initialize a replica set by itself. `rs.initiate()` creates the single-node replica-set configuration required by MongoDB Change Streams in Phase 2; the `mongodb-init` service checks the status first so repeated `docker compose up` runs remain safe and idempotent.
+> `mongod --replSet rs0` enables replica-set mode but does not initialize a replica set by itself. `rs.initiate()` creates the single-node replica-set configuration required by MongoDB Change Streams in Phase 2; each `mongodb-init` service checks the status first so repeated Compose runs remain safe and idempotent. Maven integration tests use Testcontainers with the same pinned MongoDB image and a single-node replica set, keeping CI independent of either Compose environment.
 
 **Commit checkpoint:** `chore(application): initialize Moodly application with MongoDB setup and modular structure`
 

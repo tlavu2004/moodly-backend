@@ -9,28 +9,36 @@ Requirements: Java 25, Maven, and Docker Desktop.
 1. Start MongoDB as a single-node replica set:
 
    ```bash
-   docker compose up -d
+   make local-up
    ```
 
 2. Verify MongoDB:
 
    ```bash
-   docker compose ps
-   docker compose exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
+   make local-status
+   make local-replica-status
    ```
 
 3. Run the application:
 
    ```bash
-   mvn spring-boot:run
+   make local-run
    ```
 
 4. Open `requests/moodly.http` in an HTTP client and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
 
 ## Test
 
+`mvn test` starts an isolated `mongo:8.3.7` replica set with Testcontainers; it does not use the local Docker Compose database. Docker Desktop must be running.
+
 ```bash
-mvn test
+make test
+```
+
+For a manually inspectable test database, start the separate test Compose environment on port `27018`:
+
+```bash
+make test-up
 ```
 
 See `docs/blueprint/moodly-blueprint.md` for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.
