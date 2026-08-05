@@ -44,8 +44,6 @@ class ApiIntegrationTest {
 
 	@Test
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
-		var today = LocalDate.now();
-
 		mockMvc.perform(post("/habits")
 					.header("X-User-Id", USER_ID)
 					.contentType(MediaType.APPLICATION_JSON)
@@ -80,10 +78,15 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.mood.score").value(4));
 
+		var entryDate = dailyEntryRepository
+				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, LocalDate.now())
+				.getFirst()
+				.getDate();
+
 		mockMvc.perform(get("/entries")
 					.header("X-User-Id", USER_ID)
-					.param("from", today.toString())
-					.param("to", today.toString()))
+					.param("from", entryDate.toString())
+					.param("to", entryDate.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.length()").value(1));
