@@ -116,4 +116,64 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
 				.andExpect(jsonPath("$.error.errors.length()").value(2));
 	}
+
+	@Test
+	void returnsErrorWhenUserHeaderIsMissing() throws Exception {
+		mockMvc.perform(get("/habits"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("MISSING_REQUIRED_HEADER"));
+	}
+
+	@Test
+	void returnsValidationErrorWhenMoodScoreIsOutsideAllowedRange() throws Exception {
+		mockMvc.perform(put("/entries/today/mood")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"score\":6,\"tags\":[],\"note\":null}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.error.errors[0].field").value("score"));
+	}
+
+	@Test
+	void returnsInvalidRequestErrorForMalformedJson() throws Exception {
+		mockMvc.perform(post("/habits")
+					.header("X-User-Id", USER_ID)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{invalid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void rejectsInvalidEntryDateRanges() throws Exception {
+		var today = LocalDate.now();
+
+		mockMvc.perform(get("/entries")
+					.header("X-User-Id", USER_ID)
+					.param("from", today.toString())
+					.param("to", today.minusDays(1).toString()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+		mockMvc.perform(get("/entries")
+					.header("X-User-Id", USER_ID)
+					.param("from", today.plusDays(1).toString())
+					.param("to", today.plusDays(1).toString()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void rejectsUnsupportedMoodTrendPeriod() throws Exception {
+		mockMvc.perform(get("/stats/mood-trend")
+					.header("X-User-Id", USER_ID)
+					.param("period", "month"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
 }
