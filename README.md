@@ -54,6 +54,13 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
    This temporary header guard will be replaced by authenticated admin access in
    Phase 3.
 
+   Failed Elasticsearch deliveries are retried three times with exponential
+   backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters`
+   collection and can be replayed with
+   `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance
+   header. CDC state and its failed-event count are available at
+   `GET /actuator/health`.
+
 4. Open `requests/moodly.http` in an HTTP client and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
 
 ## Test

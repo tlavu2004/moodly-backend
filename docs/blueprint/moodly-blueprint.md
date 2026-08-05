@@ -487,12 +487,12 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Failure Handling and Verification
 
-- [ ] Make Elasticsearch writes idempotent so a duplicate Change Stream delivery is safe.
-- [ ] Retry transient Elasticsearch failures with bounded exponential backoff and clear structured logs.
-- [ ] After retries are exhausted, save the event metadata, error, attempt count, and payload or document ID to a temporary MongoDB dead-letter collection. Provide a small replay mechanism after the fault is resolved.
-- [ ] Monitor listener health and failed-event count; fail or degrade clearly if the listener cannot be established.
+- [x] Make Elasticsearch writes idempotent so a duplicate Change Stream delivery is safe.
+- [x] Retry transient Elasticsearch failures with bounded exponential backoff and clear structured logs.
+- [x] After retries are exhausted, save the event metadata, error, attempt count, and payload or document ID to a temporary MongoDB dead-letter collection. Provide a small replay mechanism after the fault is resolved.
+- [x] Monitor listener health and failed-event count; fail or degrade clearly if the listener cannot be established.
 
-**Commit checkpoint:** `feat(cdc): add retry, dead-letter handling, and reindex recovery`
+**Commit checkpoint:** `feat(cdc): add retry mechanism, dead-letter handling, and health monitoring for CDC events`
 
 - [ ] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
 

@@ -2,11 +2,13 @@ package com.tlavu.moodly.modules.cdc.infrastructure;
 
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.tlavu.moodly.modules.cdc.application.CdcDeliveryService;
+import com.tlavu.moodly.modules.cdc.application.CdcMonitor;
 import com.tlavu.moodly.modules.cdc.application.DailyEntryReindexService;
-import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.cdc.domain.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonDocument;
 import org.jspecify.annotations.NonNull;
@@ -30,30 +32,34 @@ public class DailyEntryChangeStreamListener {
 
 	private final DefaultMessageListenerContainer listenerContainer;
 	private final CdcResumeTokenRepository resumeTokenRepository;
-	private final DailyEntrySearchWriter searchWriter;
+	private final CdcDeliveryService deliveryService;
 	private final DailyEntryReindexService reindexService;
+	private final CdcMonitor monitor;
 	private Subscription subscription;
 
 	public DailyEntryChangeStreamListener(
 			MongoTemplate mongoTemplate,
 			CdcResumeTokenRepository resumeTokenRepository,
-			DailyEntrySearchWriter searchWriter,
-			DailyEntryReindexService reindexService
+			CdcDeliveryService deliveryService,
+			DailyEntryReindexService reindexService,
+			CdcMonitor monitor
 	) {
 		this.listenerContainer = new DefaultMessageListenerContainer(mongoTemplate);
 		this.resumeTokenRepository = resumeTokenRepository;
-		this.searchWriter = searchWriter;
+		this.deliveryService = deliveryService;
 		this.reindexService = reindexService;
+		this.monitor = monitor;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
 	public synchronized void start() {
 		listenerContainer.start();
 		register(resumeTokenRepository.findById(STREAM_ID).map(CdcResumeToken::getToken).orElse(null));
+		monitor.listenerStarted();
 	}
 
 	private void register(String resumeToken) {
-		var builder = ChangeStreamRequest.<DailyEntry>builder(this::onMessage)
+		var builder = ChangeStreamRequest.builder(this::onMessage)
 				.collection("daily_entries")
 				.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
 		if (resumeToken != null) {
@@ -65,23 +71,29 @@ public class DailyEntryChangeStreamListener {
 
 	private void onMessage(Message<ChangeStreamDocument<org.bson.Document>, DailyEntry> message) {
 		try {
-			var raw = message.getRaw();
+			var raw = Objects.requireNonNull(message.getRaw(), "Change Stream message has no raw event");
+			var resumeToken = Objects.requireNonNull(raw.getResumeToken(), "Change Stream event has no resume token");
+			var eventId = resumeToken.toString();
 			if (raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.DELETE) {
-				searchWriter.delete(raw.getDocumentKey().getObjectId("_id").getValue().toHexString());
+				var documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
+				var entryId = Objects.requireNonNull(documentKey.getObjectId("_id"), "Delete event has no entry ID")
+						.getValue().toHexString();
+				deliveryService.deliverDelete(eventId, entryId);
 			} else if (raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.INSERT
 					|| raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.UPDATE
 					|| raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.REPLACE) {
-				searchWriter.index(message.getBody());
+				deliveryService.deliverUpsert(eventId, raw.getOperationType().getValue(), message.getBody());
 			} else {
 				return;
 			}
-			resumeTokenRepository.save(new CdcResumeToken(STREAM_ID, raw.getResumeToken().toString(), Instant.now()));
+			resumeTokenRepository.save(new CdcResumeToken(STREAM_ID, resumeToken.toString(), Instant.now()));
 		} catch (Exception exception) {
 			throw new IllegalStateException("Could not synchronize a daily_entries change event", exception);
 		}
 	}
 
 	private synchronized void onListenerFailure(@NonNull Throwable exception) {
+		monitor.listenerFailed(exception);
 		if (!isExpiredResumeToken(exception)) {
 			log.error("daily_entries Change Stream stopped unexpectedly.", exception);
 			return;
@@ -93,6 +105,7 @@ public class DailyEntryChangeStreamListener {
 			resumeTokenRepository.deleteById(STREAM_ID);
 			reindexService.reindex();
 			register(null);
+			monitor.listenerStarted();
 		} catch (Exception recoveryFailure) {
 			log.error("Could not recover daily_entries Change Stream with a full reindex.", recoveryFailure);
 		}

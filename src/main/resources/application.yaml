@@ -14,6 +14,9 @@ moodly:
   cdc:
     enabled: true
     maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY:}
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 200
 
   search:
     index:
