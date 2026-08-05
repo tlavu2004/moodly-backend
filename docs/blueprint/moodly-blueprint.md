@@ -500,12 +500,12 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Search API
 
-- [ ] Implement `GET /entries/search?q=&from=&to=` against Elasticsearch, with required `q` validation and optional date filters.
-- [ ] Filter every search query by the current user's `userId`. Until Phase 3 is complete, keep this temporary user-context mechanism isolated so it can be replaced by `SecurityContext`.
-- [ ] Return search-oriented fields (highlight/snippet, entry ID, date, matching content) and fetch MongoDB only when an authoritative full entry is required.
-- [ ] Document eventual consistency: an entry can be saved to MongoDB before it appears in search results.
+- [x] Implement `GET /entries/search?q=&from=&to=` against Elasticsearch, with required `q` validation and optional date filters.
+- [x] Filter every search query by the current user's `userId`. Until Phase 3 is complete, keep this temporary user-context mechanism isolated so it can be replaced by `SecurityContext`.
+- [x] Return search-oriented fields (highlight/snippet, entry ID, date, matching content) and fetch MongoDB only when an authoritative full entry is required.
+- [x] Document eventual consistency: an entry can be saved to MongoDB before it appears in search results.
 
-**Commit checkpoint:** `feat(search): add entry search API`
+**Commit checkpoint:** `feat(search): implement entry search API with Elasticsearch integration`
 
 #### CDC Trade-offs
 

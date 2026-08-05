@@ -60,6 +60,11 @@ X-User-Id: {{userId}}
 ### CDC verification: inspect listener health and failed-event count
 GET {{baseUrl}}/actuator/health
 
+### Search indexed mood notes, habit notes, and mood tags
+# Search is eventually consistent: wait briefly after saving the entry.
+GET {{baseUrl}}/entries/search?q=tired&from=2026-08-01&to=2026-08-31
+X-User-Id: {{userId}}
+
 ### CDC verification: inspect an indexed entry
 # Set cdcEntryId at the top from the response to the entry update request.
 GET http://localhost:9200/daily_entries_search/_doc/{{cdcEntryId}}
