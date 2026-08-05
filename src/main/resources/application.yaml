@@ -10,6 +10,11 @@ spring:
     uris: ${ELASTICSEARCH_URI:http://localhost:9200}
 
 moodly:
+
+  cdc:
+    enabled: true
+    maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY:}
+
   search:
     index:
       initialization-enabled: true

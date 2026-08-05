@@ -42,6 +42,18 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
    curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
+   The Change Stream listener resumes from its MongoDB-stored checkpoint after a
+   restart. To rebuild the derived index deliberately, set
+   `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+
+   ```bash
+   curl -X POST http://localhost:8080/internal/cdc/reindex \
+     -H "X-Maintenance-Key: your-local-secret"
+   ```
+
+   This temporary header guard will be replaced by authenticated admin access in
+   Phase 3.
+
 4. Open `requests/moodly.http` in an HTTP client and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
 
 ## Test

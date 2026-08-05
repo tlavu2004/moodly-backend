@@ -475,15 +475,15 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Change Stream Synchronisation Service
 
-- [ ] Create a dedicated internal `cdc` module responsible only for synchronising `daily_entries` into Elasticsearch; it is part of the same deployable modular monolith, not an independently deployed service.
-- [ ] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
-- [ ] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
-- [ ] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
-- [ ] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
-- [ ] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
-- [ ] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
+- [x] Create a dedicated internal `cdc` module responsible only for synchronising `daily_entries` into Elasticsearch; it is part of the same deployable modular monolith, not an independently deployed service.
+- [x] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
+- [x] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
+- [x] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
+- [x] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
+- [x] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
+- [x] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
 
-**Commit checkpoint:** `feat(cdc): sync daily entries to Elasticsearch through change streams`
+**Commit checkpoint:** `feat(cdc): implement Change Data Capture for daily entries with Elasticsearch integration`
 
 #### Failure Handling and Verification
 

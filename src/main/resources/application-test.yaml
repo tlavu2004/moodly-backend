@@ -3,6 +3,8 @@ spring:
     uri: ${MONGODB_URI:mongodb://localhost:27018/moodly_test?replicaSet=rs0}
 
 moodly:
+  cdc:
+    enabled: false
   search:
     index:
       initialization-enabled: false

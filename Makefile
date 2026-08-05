@@ -25,10 +25,10 @@ local-elasticsearch-status:
 	$(LOCAL_COMPOSE) exec elasticsearch curl -fsS "http://localhost:9200/_cluster/health?pretty"
 
 local-run: local-up
-	SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 local-build-run: local-up
-	mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
+	set -a; . ./.env.local; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
 
 local-logs:
 	$(LOCAL_COMPOSE) logs -f mongodb elasticsearch
