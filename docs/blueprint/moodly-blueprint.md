@@ -14,7 +14,7 @@
 ### Git Workflow
 
 **Branch strategy:** One short-lived branch per phase, created directly from the latest `main`.  
-**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behaviour, and broad refactors in one commit.  
+**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behavior, and broad refactors in one commit.  
 **When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`.  
 **Merge strategy:** Squash Merge each completed phase branch directly into `main`. Include the phase's automated/manual tests in the same branch and squash them with the implementation; do not create separate test branches or standalone test commits on `main`.
 
@@ -160,6 +160,8 @@ The three document examples above are assigned to variables intentionally: this 
 | `POST`   | `/auth/login`                   | Authenticate and receive access and refresh tokens (introduced in Phase 3).    |
 | `POST`   | `/auth/refresh`                 | Exchange a valid refresh token for a new access token (introduced in Phase 3). |
 
+All successful API responses use the same envelope: `{ "success": true, "data": ..., "timestamp": ... }`. Failed responses set `success` to `false` and provide details in `error` instead of `data`.
+
 ---
 
 ## 4. Detailed Implementation Checklist
@@ -180,76 +182,270 @@ Complete and test one phase before starting the next phase. Keep tests in the sa
 
 This track applies to the whole project rather than to Phase 1 alone. Update it whenever a foundational capability becomes available.
 
-**Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is not connected yet, and no feature module implementation has started.
+**Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is connected and verified locally, and Phase 1 feature modules have started.
 
-| Area                                 | Status            | Evidence / next step                                                        |
-|--------------------------------------|-------------------|-----------------------------------------------------------------------------|
-| Spring Boot application skeleton     | `[ ]` Not started | Create the Spring Boot application structure.                               |
-| MongoDB dependency                   | `[ ]` Not started | Add the MongoDB starter dependency to `pom.xml`.                            |
-| Web and validation dependencies      | `[ ]` Not started | Add WebMVC and Validation starters.                                         |
-| Modular-monolith packages            | `[ ]` Not started | Create `auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`. |
-| MongoDB Docker/replica set           | `[ ]` Not started | Add pinned Docker Compose configuration.                                    |
-| MongoDB connection                   | `[ ]` Not started | Add `spring.data.mongodb.uri` and verify with `mongosh`.                    |
-| Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                              |
-| Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                  |
-| Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                    |
-| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.               |
-| JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                |
+| Area                                 | Status            | Evidence / next step                                                                       |
+|--------------------------------------|-------------------|--------------------------------------------------------------------------------------------|
+| Spring Boot application skeleton     | `[x]` Setup       | Create the Spring Boot application structure.                                              |
+| MongoDB dependency                   | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                                           |
+| Web and validation dependencies      | `[x]` Setup       | Add WebMVC and Validation starters.                                                        |
+| Modular-monolith packages            | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                                  |
+| MongoDB Docker/replica set           | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.                      |
+| MongoDB connection                   | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                                         |
+| Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                                             |
+| Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                                 |
+| Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                                   |
+| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.                              |
+| JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                               |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
 #### Setup (30 minutes)
 
-- [ ] Create one Spring Boot application.
-- [ ] Add the MongoDB starter dependency to `pom.xml`.
-- [ ] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
-- [ ] Keep module boundaries explicit: controllers and repositories should not be imported directly by unrelated feature modules.
-- [ ] Run a pinned MongoDB version locally with Docker Compose, mapped to port 27017.
-- [ ] Configure `spring.data.mongodb.uri` in `application.yaml`.
-- [ ] Verify the connection through MongoDB Compass or `mongosh`.
+- [x] Create one Spring Boot application.
+- [x] Add the MongoDB starter dependency to `pom.xml`.
+- [x] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
+- [x] Document explicit module boundaries in `docs/architecture.md`; enforce them with an architecture test once controllers and repositories are added.
+- [x] Define reproducible local and test MongoDB replica-set Compose configurations, using `.env.local` and `.env.test` respectively.
+- [x] Configure the shared `application.yaml`, `application-local.yaml`, and `application-test.yaml` profiles. Maven integration tests use a Testcontainers-managed replica set rather than either Compose database.
+- [x] Verify the connection through `mongosh`: MongoDB is healthy and replica set `rs0` reports one `PRIMARY` member.
 
-**Commit checkpoint:** `chore(app): bootstrap modular Moodly with local MongoDB`
+> [!Note]
+> `mongod --replSet rs0` enables replica-set mode but does not initialize a replica set by itself. `rs.initiate()` creates the single-node replica-set configuration required by MongoDB Change Streams in Phase 2; each `mongodb-init` service checks the status first so repeated Compose runs remain safe and idempotent. Maven integration tests use Testcontainers with the same pinned MongoDB image and a single-node replica set, keeping CI independent of either Compose environment.
+
+**Commit checkpoint:** `chore(application): initialize Moodly application with MongoDB setup and modular structure`
 
 #### Model and Repository (30–45 minutes)
 
-- [ ] Create a `Habit` class for the `habits` document.
-- [ ] Create a `DailyEntry` class with nested `Mood` and `HabitLog` classes for the `daily_entries` document.
-- [ ] Create `HabitRepository extends MongoRepository<Habit, String>`.
-- [ ] Create `DailyEntryRepository extends MongoRepository<DailyEntry, String>`.
-- [ ] Create a unique `(userId, date)` index, then intentionally insert a duplicate to observe the duplicate-key error.
+- [x] Create a `Habit` class for the `habits` document.
+- [x] Create a `DailyEntry` class with nested `Mood` and `HabitLog` classes for the `daily_entries` document.
+- [x] Create `HabitRepository extends MongoRepository<Habit, String>`.
+- [x] Create `DailyEntryRepository extends MongoRepository<DailyEntry, String>`.
+- [x] Create a unique `(userId, date)` index.
+- [x] Run `DailyEntryRepositoryIntegrationTest` against the local MongoDB instance to observe the duplicate-key error.
 
-**Commit checkpoint:** `feat(mongodb): add habit and daily entry persistence`
+**Commit checkpoint:** `feat(mongodb): implement DailyEntry and Habit entities with repositories`
 
 #### Core API (45–60 minutes)
 
-- [ ] Implement `POST /habits` to create a habit.
-- [ ] Implement `GET /habits` to return active habits.
-- [ ] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using `findAndModify` or an upsert.
-- [ ] Implement `PUT /entries/today/mood` to set today's mood.
-- [ ] Implement `GET /entries?from=&to=` to query entries by date range.
-- [ ] Write a `.http` test file for all endpoints above, with named variables and repeatable request scenarios.
+- [x] Implement `POST /habits` to create a habit.
+- [x] Implement `GET /habits` to return active habits.
+- [x] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using repository lookup followed by save.
+- [x] Implement `PUT /entries/today/mood` to set today's mood.
+- [x] Implement `GET /entries?from=&to=` to query entries by date range.
+- [x] Write `requests/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
 
-**Commit checkpoint:** `feat(entries): add habit and mood entry APIs`
+**Commit checkpoint:** `feat(entries): add DailyEntry service and controller with habit and mood management`
 
 #### Aggregation Pipeline (60–90 minutes; core learning section)
 
-- [ ] Implement `GET /stats/mood-trend?period=week` using `$group` by week (`$week` or `$dateTrunc`) and `$avg`.
-- [ ] Implement `GET /stats/most-missed-habits` using `$unwind`, `$match`, `$group`, and `$sort`.
-- [ ] Implement `GET /habits/{id}/streak` by loading entries in descending date order and calculating the streak in the application layer. MongoDB aggregation is not a particularly clear fit for consecutive-day streaks.
-- [ ] Test every pipeline directly in `mongosh` before implementing it in Java, so that each stage's output is understood.
+- [x] Implement `GET /stats/mood-trend?period=week` using `$dateTrunc`, `$group`, and `$avg`.
+- [x] Implement `GET /stats/most-missed-habits` using `$unwind`, `$match`, `$group`, and `$sort`.
+- [x] Implement `GET /habits/{id}/streak` by loading entries in descending date order and calculating the streak in the application layer. MongoDB aggregation is not a particularly clear fit for consecutive-day streaks.
+- [x] Test every pipeline directly in DataGrip/DBeaver and understand each stage's output.
+
+#### Run the Pipelines in DataGrip or DBeaver
+
+Connect either MongoDB client to the local replica set with this connection string:
+
+```text
+mongodb://localhost:27017/moodly?replicaSet=rs0
+```
+
+- **DataGrip:** create a MongoDB data source, paste the connection string, test the connection, then open a MongoDB query console for the `moodly` database.
+- **DBeaver:** create a new MongoDB connection, use host `localhost`, port `27017`, database `moodly`, and set the replica-set name to `rs0` if the driver exposes that option. Open the MongoDB shell/editor after the connection succeeds.
+- Run the mood-trend pipeline one stage at a time: first `$match`, then add `$project` with `$dateTrunc`, then `$group`/`$avg`, and finally `$sort`. Observe each intermediate result before adding the next stage.
+- Run the most-missed pipeline one stage at a time: `$match`, `$unwind`, `$match` for `habits.done: false`, `$group`, then `$sort`.
+- Streak is calculated in Java rather than an aggregation pipeline. In the console, inspect its input by running a `find` for the user and sorting `date: -1`; verify that a missing day or `done: false` should break the streak.
+
+Use a dedicated test user (for example, `user_pipeline_demo`) and seed a few entries with mood scores plus both completed and missed habit logs. Delete only that test user's entries after the exercise.
+
+#### Guided Pipeline Test
+
+- **Step 1 — Seed isolated demo data.** In the MongoDB console, run the following once. It creates two weeks of mood data plus both completed and missed habits for `user_pipeline_demo`.
+
+```javascript
+const userId = "user_pipeline_demo";
+
+// Seed three daily entries for one isolated demo user.
+db.daily_entries.insertMany([
+  {
+    userId,
+    date: ISODate("2026-07-27T00:00:00Z"),
+    mood: { score: 3, tags: ["calm"], note: "First week" },
+    habits: [
+      { habitId: "exercise", done: true, note: null },
+      { habitId: "reading", done: false, note: null }
+    ]
+  },
+  {
+    userId,
+    date: ISODate("2026-07-28T00:00:00Z"),
+    mood: { score: 5, tags: ["productive"], note: "Good day" },
+    habits: [
+      { habitId: "exercise", done: true, note: null },
+      { habitId: "reading", done: false, note: null }
+    ]
+  },
+  {
+    userId,
+    date: ISODate("2026-08-03T00:00:00Z"),
+    mood: { score: 2, tags: ["tired"], note: "New week" },
+    habits: [
+      { habitId: "exercise", done: false, note: null }
+    ]
+  }
+]);
+```
+
+- **Step 2 — Run and inspect the mood-trend stages.** Start with `$match`, then add `$project`/`$dateTrunc`, then `$group`/`$avg`, and finally `$sort`. Run each block separately and inspect its output before moving to the next stage.
+
+```javascript
+// Stage 1: keep only this user's entries that contain a mood score.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    }
+]);
+
+// Stage 2: project the score and calculate the Monday of its week.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            date: 1,
+            score: "$mood.score",
+            weekStart: {
+                $dateTrunc: {
+                    date: "$date",
+                    unit: "week",
+                    startOfWeek: "monday",
+                    timezone: "Asia/Ho_Chi_Minh"
+                }
+            }
+        }
+    }
+]);
+
+// Stage 3: group by week and calculate average score and entry count.
+db.daily_entries.aggregate([
+    {
+        $match: {
+            userId,
+            "mood.score": { $exists: true }
+        }
+    },
+    {
+        $group: {
+            _id: {
+                $dateTrunc: {
+                    date: "$date",
+                    unit: "week",
+                    startOfWeek: "monday",
+                    timezone: "Asia/Ho_Chi_Minh"
+                }
+            },
+            averageScore: { $avg: "$mood.score" },
+            entryCount: { $sum: 1 }
+        }
+    },
+    { $sort: { _id: 1 } }
+]);
+```
+
+- **Step 3 — Run and inspect the most-missed-habits stages.** Observe how `$unwind` turns each array element into a separate document, then see how the false entries are grouped and sorted.
+
+```javascript
+// Stage 1: keep all entries for this user.
+db.daily_entries.aggregate([
+    { $match: { userId } }
+]);
+
+// Stage 2: expand the habits array into one result per habit log.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" }
+]);
+
+// Stage 3: keep only missed habits.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } }
+]);
+
+// Stage 4: count misses by habit ID.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } },
+    {
+        $group: {
+            _id: "$habits.habitId",
+            missedCount: { $sum: 1 }
+        }
+    }
+]);
+
+// Stage 5: show the most frequently missed habits first.
+db.daily_entries.aggregate([
+    { $match: { userId } },
+    { $unwind: "$habits" },
+    { $match: { "habits.done": false } },
+    {
+        $group: {
+            _id: "$habits.habitId",
+            missedCount: { $sum: 1 }
+        }
+    },
+    { $sort: { missedCount: -1 } }
+]);
+```
+
+- **Step 4 — Inspect streak input.** Streak is calculated in Java rather than an aggregation pipeline, so inspect the entries in descending date order:
+
+```javascript
+// The application reads this order and checks consecutive completed days.
+db.daily_entries.find(
+    {
+        userId,
+        date: { $lte: new Date() }
+    },
+    {
+        _id: 0,
+        date: 1,
+        habits: 1
+    }
+).sort({ date: -1 });
+```
+
+Verify that a missing day, a missing habit log, or `done: false` breaks the streak. After observing all outputs, clean up only the demo user's data:
+
+```javascript
+db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
+```
 
 **Commit checkpoint:** `feat(stats): add mood trend, missed habit, and streak statistics`
 
 #### Polish (optional, if time remains)
 
-- [ ] Add basic validation: mood score must be 1–5; date must not be in the future.
-- [ ] Add a minimal `GlobalExceptionHandler`.
+- [x] Add basic validation: mood score must be 1–5; date ranges must not be reversed or in the future.
+- [x] Add a minimal `GlobalExceptionHandler`.
 
-**Commit checkpoint:** `feat(validation): validate requests and standardise API errors`
+**Commit checkpoint:** `feat(validation): add request validation and global exception handling`
 
-- [ ] Write a concise README explaining how to run the project.
+- [x] Write a concise README explaining how to run the project.
 
-**Commit checkpoint (only if implemented):** `docs(readme): document local setup and API usage`
+**Commit checkpoint (only if implemented):** `docs(readme): document local setup and project overview`
 
 ### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
@@ -257,7 +453,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Infrastructure and Index Setup
 
-- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialise the replica set and verify it with `rs.status()`.
+- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
 - [ ] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
 - [ ] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
 - [ ] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
@@ -272,7 +468,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 - [ ] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
 - [ ] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
 - [ ] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
-- [ ] Keep the transformation deliberately denormalised: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
+- [ ] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
 - [ ] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
 - [ ] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
 
@@ -316,8 +512,8 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 
 #### User Registration and Credentials
 
-- [ ] Create the `users` collection and its unique email index. Define a `User` document with an internal ID, normalised email, password hash, and timestamps.
-- [ ] Add `POST /auth/register`; validate email format and password requirements, normalise email consistently, reject duplicate emails, and never return `passwordHash`.
+- [ ] Create the `users` collection and its unique email index. Define a `User` document with an internal ID, normalized email, password hash, and timestamps.
+- [ ] Add `POST /auth/register`; validate email format and password requirements, normalize email consistently, reject duplicate emails, and never return `passwordHash`.
 - [ ] Hash passwords with BCrypt using Spring Security's `PasswordEncoder`; never log, return, or store plaintext passwords.
 - [ ] Add `POST /auth/login`; verify the password hash and return a short-lived access token plus a refresh token.
 
@@ -360,8 +556,8 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 ### Data extensions
 
 - **Track by time rather than by day:** Replace `daily_entries` with `mood_logs` containing detailed timestamps. Learn time-series schema design and consider MongoDB Time Series Collections.
-- **Flexible habit targets:** Track quantities instead of only done/not done—for example, “drink water: 6/8 glasses.” This explores semi-structured data modelling.
-- **Roles and authorisation:** Add roles such as `USER` and `ADMIN` only after the single-user ownership model is complete.
+- **Flexible habit targets:** Track quantities instead of only done/not done—for example, “drink water: 6/8 glasses.” This explores semi-structured data modeling.
+- **Roles and authorization:** Add roles such as `USER` and `ADMIN` only after the single-user ownership model is complete.
 
 ### MongoDB feature extensions
 
@@ -374,7 +570,7 @@ Moodly owns its users and authentication flow. It issues and verifies its own to
 ### Architecture extensions
 
 - Apply Clean Architecture layers (`domain` / `application` / `infrastructure`) to observe how a document database changes the persistence layer compared with a relational database.
-- Implement a filterable entry-list feature twice—once with a repository query and once with a MongoDB aggregation—to compare the modelling trade-offs.
+- Implement a filterable entry-list feature twice—once with a repository query and once with a MongoDB aggregation—to compare the modeling trade-offs.
 
 ---
 

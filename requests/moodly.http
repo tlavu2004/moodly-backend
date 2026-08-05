@@ -1,0 +1,56 @@
+@baseUrl = http://localhost:8080
+@userId = user_123
+@habitId = replace-with-created-habit-id
+
+### Create a habit
+POST {{baseUrl}}/habits
+X-User-Id: {{userId}}
+Content-Type: application/json
+
+{
+  "name": "Exercise",
+  "icon": "🏃",
+  "targetFrequency": "daily"
+}
+
+### List active habits
+GET {{baseUrl}}/habits
+X-User-Id: {{userId}}
+
+### Mark a habit as done today
+PATCH {{baseUrl}}/entries/today
+X-User-Id: {{userId}}
+Content-Type: application/json
+
+{
+  "habitId": "{{habitId}}",
+  "done": true,
+  "note": "30-minute run"
+}
+
+### Set today's mood
+PUT {{baseUrl}}/entries/today/mood
+X-User-Id: {{userId}}
+Content-Type: application/json
+
+{
+  "score": 4,
+  "tags": ["productive", "tired"],
+  "note": "I was tired today because I stayed up late."
+}
+
+### Query entries by date range
+GET {{baseUrl}}/entries?from=2026-08-01&to=2026-08-31
+X-User-Id: {{userId}}
+
+### Get current habit streak
+GET {{baseUrl}}/habits/{{habitId}}/streak
+X-User-Id: {{userId}}
+
+### Get weekly mood trend
+GET {{baseUrl}}/stats/mood-trend?period=week
+X-User-Id: {{userId}}
+
+### Get most missed habits
+GET {{baseUrl}}/stats/most-missed-habits
+X-User-Id: {{userId}}

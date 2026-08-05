@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: moodly
+  profiles:
+    default: local
+  data:
+    mongodb:
+      auto-index-creation: true
