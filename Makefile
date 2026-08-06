@@ -1,4 +1,4 @@
-.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-run local-build-run local-logs local-clean test cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-run test-build-run test-logs test-clean config-local config-test
+.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-run local-build-run local-logs local-clean test cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-run test-cdc-run test-build-run test-logs test-clean config-local config-test
 
 LOCAL_COMPOSE = docker compose -p moodly-local --env-file .env.local -f docker-compose.local.yml
 TEST_COMPOSE = docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml
@@ -65,6 +65,9 @@ test-elasticsearch-status:
 
 test-run: test-up
 	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+
+test-cdc-run: test-up
+	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test,cdc-test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-build-run: test-up
 	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)

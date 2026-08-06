@@ -1,3 +1,7 @@
+spring:
+  mongodb:
+    uri: mongodb://${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}?replicaSet=${MONGODB_REPLICA_SET}
+
 moodly:
   cdc:
     enabled: ${MOODLY_CDC_ENABLED}

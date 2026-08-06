@@ -17,7 +17,7 @@ moodly:
   cdc:
     enabled: ${MOODLY_CDC_ENABLED}
     stream-id: ${MOODLY_CDC_STREAM_ID}
-    maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY}
+    maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY:}
     retry:
       max-attempts: ${MOODLY_CDC_RETRY_MAX_ATTEMPTS}
       initial-backoff-ms: ${MOODLY_CDC_RETRY_INITIAL_BACKOFF_MS}
