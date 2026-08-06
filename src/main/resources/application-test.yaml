@@ -1,3 +1,6 @@
-spring:
-  mongodb:
-    uri: ${MONGODB_URI:mongodb://localhost:27018/moodly_test?replicaSet=rs0}
+moodly:
+  cdc:
+    enabled: ${MOODLY_CDC_ENABLED}
+  search:
+    index:
+      initialization-enabled: ${MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED}

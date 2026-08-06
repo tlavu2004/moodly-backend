@@ -10,7 +10,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "daily_entries")
+@Document(collection = "#{@environment.getProperty('moodly.entries.collection-name')}")
 @CompoundIndex(name = "user_date_unique", def = "{ 'userId': 1, 'date': 1 }", unique = true)
 @Getter
 @Setter

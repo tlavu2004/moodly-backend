@@ -179,4 +179,5 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 	}
+
 }

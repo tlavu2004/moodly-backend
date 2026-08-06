@@ -1,0 +1,21 @@
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "userId": { "type": "keyword" },
+      "date": { "type": "date" },
+      "mood": {
+        "properties": {
+          "score": { "type": "integer" },
+          "note": { "type": "text" },
+          "tags": { "type": "text" }
+        }
+      },
+      "habits": {
+        "properties": {
+          "note": { "type": "text" }
+        }
+      }
+    }
+  }
+}

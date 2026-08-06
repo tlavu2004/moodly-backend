@@ -195,7 +195,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                                             |
 | Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                                 |
 | Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                                   |
-| Elasticsearch and CDC                | `[ ]` Not started | Implement Phase 2 after MongoDB Change Streams prerequisites.                              |
+| Elasticsearch and CDC                | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next.              |
 | JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                               |
 
 ### Phase 1 — MongoDB Core (Evening 1)
@@ -233,7 +233,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 - [x] Implement `PATCH /entries/today` to upsert a habit log in today's entry, using repository lookup followed by save.
 - [x] Implement `PUT /entries/today/mood` to set today's mood.
 - [x] Implement `GET /entries?from=&to=` to query entries by date range.
-- [x] Write `requests/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
+- [x] Write `docs/testing/moodly.http` to exercise all endpoints above with named variables and repeatable request scenarios.
 
 **Commit checkpoint:** `feat(entries): add DailyEntry service and controller with habit and mood management`
 
@@ -464,48 +464,48 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Infrastructure and Index Setup
 
-- [ ] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
-- [ ] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
-- [ ] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
-- [ ] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
-- [ ] Map `userId` and `date` as exact/filterable fields, `mood.score` as a numeric field, and `mood.note`, `habits.note`, and `mood.tags` as searchable fields. Add keyword subfields only where filtering or aggregation is needed.
-- [ ] Create the index and mapping through an idempotent startup component or a versioned setup script; verify them with Elasticsearch's index and mapping APIs.
+- [x] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
+- [x] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
+- [x] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
+- [x] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
+- [x] Map `userId` and `date` as exact/filterable fields, `mood.score` as a numeric field, and `mood.note`, `habits.note`, and `mood.tags` as searchable fields. Add keyword subfields only where filtering or aggregation is needed.
+- [x] Create the index and mapping through an idempotent startup component or a versioned setup script; verify them with Elasticsearch's index and mapping APIs.
 
-**Commit checkpoint:** `chore(search): add Elasticsearch and MongoDB replica-set infrastructure`
+**Commit checkpoint:** `feat(search): integrate Elasticsearch for daily entry indexing and setup`
 
 #### Change Stream Synchronisation Service
 
-- [ ] Create a dedicated internal `cdc` module responsible only for synchronising `daily_entries` into Elasticsearch; it is part of the same deployable modular monolith, not an independently deployed service.
-- [ ] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
-- [ ] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
-- [ ] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
-- [ ] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
-- [ ] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
-- [ ] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
+- [x] Create a dedicated internal `cdc` module responsible only for synchronising `daily_entries` into Elasticsearch; it is part of the same deployable modular monolith, not an independently deployed service.
+- [x] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
+- [x] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
+- [x] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
+- [x] Keep the transformation deliberately denormalized: include searchable mood content, habit notes, tags, date, and `userId` in the search document. Do not make Elasticsearch the data source for entry details.
+- [x] Persist the last successfully processed resume token in a small MongoDB collection. On restart, resume from that token; if it is no longer valid, log the condition and run a controlled reindex.
+- [x] Build an explicit reindex command or protected maintenance endpoint that reads all MongoDB `daily_entries` in batches and rebuilds the Elasticsearch index.
 
-**Commit checkpoint:** `feat(cdc): sync daily entries to Elasticsearch through change streams`
+**Commit checkpoint:** `feat(cdc): implement Change Data Capture for daily entries with Elasticsearch integration`
 
 #### Failure Handling and Verification
 
-- [ ] Make Elasticsearch writes idempotent so a duplicate Change Stream delivery is safe.
-- [ ] Retry transient Elasticsearch failures with bounded exponential backoff and clear structured logs.
-- [ ] After retries are exhausted, save the event metadata, error, attempt count, and payload or document ID to a temporary MongoDB dead-letter collection. Provide a small replay mechanism after the fault is resolved.
-- [ ] Monitor listener health and failed-event count; fail or degrade clearly if the listener cannot be established.
+- [x] Make Elasticsearch writes idempotent so a duplicate Change Stream delivery is safe.
+- [x] Retry transient Elasticsearch failures with bounded exponential backoff and clear structured logs.
+- [x] After retries are exhausted, save the event metadata, error, attempt count, and payload or document ID to a temporary MongoDB dead-letter collection. Provide a small replay mechanism after the fault is resolved.
+- [x] Monitor listener health and failed-event count; fail or degrade clearly if the listener cannot be established.
 
-**Commit checkpoint:** `feat(cdc): add retry, dead-letter handling, and reindex recovery`
+**Commit checkpoint:** `feat(cdc): add retry mechanism, dead-letter handling, and health monitoring for CDC events`
 
-- [ ] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
+- [x] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
 
 **Commit checkpoint:** `test(cdc): cover change stream recovery and Elasticsearch failures`
 
 #### Search API
 
-- [ ] Implement `GET /entries/search?q=&from=&to=` against Elasticsearch, with required `q` validation and optional date filters.
-- [ ] Filter every search query by the current user's `userId`. Until Phase 3 is complete, keep this temporary user-context mechanism isolated so it can be replaced by `SecurityContext`.
-- [ ] Return search-oriented fields (highlight/snippet, entry ID, date, matching content) and fetch MongoDB only when an authoritative full entry is required.
-- [ ] Document eventual consistency: an entry can be saved to MongoDB before it appears in search results.
+- [x] Implement `GET /entries/search?q=&from=&to=` against Elasticsearch, with required `q` validation and optional date filters.
+- [x] Filter every search query by the current user's `userId`. Until Phase 3 is complete, keep this temporary user-context mechanism isolated so it can be replaced by `SecurityContext`.
+- [x] Return search-oriented fields (highlight/snippet, entry ID, date, matching content) and fetch MongoDB only when an authoritative full entry is required.
+- [x] Document eventual consistency: an entry can be saved to MongoDB before it appears in search results.
 
-**Commit checkpoint:** `feat(search): add entry search API`
+**Commit checkpoint:** `feat(search): implement entry search API with Elasticsearch integration`
 
 #### CDC Trade-offs
 
