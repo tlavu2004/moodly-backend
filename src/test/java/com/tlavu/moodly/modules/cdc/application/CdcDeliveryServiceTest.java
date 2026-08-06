@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.cdc.domain.CdcDeadLetter;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -106,6 +107,32 @@ class CdcDeliveryServiceTest {
 
 		verify(searchWriter).delete("entry-1");
 		verifyNoInteractions(retrySleeper);
+	}
+
+	@Test
+	void retriesRateLimitedElasticsearchFailures() throws Exception {
+		var rateLimited = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(rateLimited.status()).thenReturn(429);
+		doThrow(rateLimited).doNothing().when(searchWriter).delete("entry-1");
+		var service = service();
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(retrySleeper).sleep(Duration.ofMillis(1));
+	}
+
+	@Test
+	void retriesServerSideElasticsearchFailures() throws Exception {
+		var serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(serverFailure.status()).thenReturn(503);
+		doThrow(serverFailure).doNothing().when(searchWriter).delete("entry-1");
+		var service = service();
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(retrySleeper).sleep(Duration.ofMillis(1));
 	}
 
 	@Test
