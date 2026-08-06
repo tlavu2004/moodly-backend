@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.cdc.application.CdcDeliveryService;
 import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.cdc.domain.CdcResumeToken;
+import com.tlavu.moodly.modules.cdc.infrastructure.CdcResumeTokenRepository;
+import com.tlavu.moodly.modules.cdc.infrastructure.DailyEntryChangeStreamListener;
 import com.tlavu.moodly.modules.search.application.EntrySearchService;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
@@ -50,6 +53,10 @@ class CdcSearchInfrastructureIntegrationTest {
 	private MockMvc mockMvc;
 	@Autowired
 	private EntrySearchService entrySearchService;
+	@Autowired
+	private DailyEntryChangeStreamListener listener;
+	@Autowired
+	private CdcResumeTokenRepository resumeTokenRepository;
 
 	@AfterEach
 	void cleanUp() throws Exception {
@@ -120,6 +127,22 @@ class CdcSearchInfrastructureIntegrationTest {
 		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].entryId").value(own.getId()));
+	}
+
+	@Test
+	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
+		var first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
+		cdcSearchTestSupport.awaitIndexed(first.getId());
+		var tokenBeforeRestart = resumeTokenRepository.findById("daily_entries_cdc_test")
+				.map(CdcResumeToken::getToken).orElseThrow();
+
+		listener.stop();
+		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
+		listener.start();
+
+		cdcSearchTestSupport.awaitIndexed(second.getId());
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+				.hasValueSatisfying(token -> assertThat(token).isNotEqualTo(tokenBeforeRestart));
 	}
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {

@@ -85,6 +85,15 @@ public class DailyEntryChangeStreamListener {
 		monitor.listenerStarted();
 	}
 
+	/** Stops the stream without deleting its persisted resume token. */
+	public synchronized void stop() {
+		if (subscription != null) {
+			listenerContainer.remove(subscription);
+			subscription = null;
+		}
+		listenerContainer.stop();
+	}
+
 	private void register(String resumeToken) {
 		var builder = ChangeStreamRequest.builder(this::onMessage)
 				.collection(collectionName)
