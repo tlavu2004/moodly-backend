@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure;
 
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.ApplicationArguments;
@@ -20,7 +22,11 @@ public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
 	private final DailyEntrySearchIndexManager indexManager;
 
 	@Override
-	public void run(@NonNull ApplicationArguments args) throws Exception {
-		indexManager.createIfMissing();
+	public void run(@NonNull ApplicationArguments args) {
+		try {
+			indexManager.createIfMissing();
+		} catch (IOException exception) {
+			throw new SearchInfrastructureUnavailableException("Elasticsearch index initialization is unavailable", exception);
+		}
 	}
 }

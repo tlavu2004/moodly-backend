@@ -13,6 +13,7 @@ public enum GlobalErrorCode implements ErrorCode {
 	MISSING_REQUIRED_HEADER("MISSING_REQUIRED_HEADER", "A required request header is missing."),
 	DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "A document with the same unique key already exists."),
 	FORBIDDEN("FORBIDDEN", "You are not allowed to perform this operation."),
+	SEARCH_UNAVAILABLE("SEARCH_UNAVAILABLE", "Search is temporarily unavailable."),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred.");
 
 	private final String code;

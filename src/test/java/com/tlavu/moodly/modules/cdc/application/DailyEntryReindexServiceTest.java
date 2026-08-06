@@ -1,6 +1,8 @@
 package com.tlavu.moodly.modules.cdc.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -8,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -70,5 +74,16 @@ class DailyEntryReindexServiceTest {
 
 		assertThat(service.reindex().indexedEntries()).isEqualTo(1);
 		verify(searchWriter).index(entry);
+	}
+
+	@Test
+	void mapsElasticsearchIoFailureToSearchInfrastructureUnavailable() throws Exception {
+		doThrow(new IOException("down")).when(indexManager).recreate();
+		var service = new DailyEntryReindexService(dailyEntryRepository, searchWriter, indexManager, 2);
+
+		assertThatThrownBy(service::reindex)
+				.isInstanceOf(SearchInfrastructureUnavailableException.class)
+				.hasMessage("Elasticsearch reindex is unavailable")
+				.hasCauseInstanceOf(IOException.class);
 	}
 }

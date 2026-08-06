@@ -65,6 +65,21 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void preservesTheInterruptFlagAndStoresDeadLetterWhenRetrySleepIsInterrupted() throws Exception {
+		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
+		doThrow(new InterruptedException("shutdown")).when(retrySleeper).sleep(Duration.ofMillis(1));
+		var service = service();
+
+		try {
+			service.deliverDelete("event-1", "entry-1");
+
+			verify(deadLetterRepository).save(any(CdcDeadLetter.class));
+		} finally {
+			assertThat(Thread.interrupted()).isTrue();
+		}
+	}
+
+	@Test
 	void storesDeadLetterAfterTransientRetriesAreExhausted() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		var service = service();

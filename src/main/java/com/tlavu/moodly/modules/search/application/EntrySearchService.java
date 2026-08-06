@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -72,7 +73,7 @@ public class EntrySearchService {
 					})
 					.toList();
 		} catch (IOException exception) {
-			throw new IllegalStateException("Elasticsearch search is unavailable", exception);
+			throw new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", exception);
 		}
 	}
 
