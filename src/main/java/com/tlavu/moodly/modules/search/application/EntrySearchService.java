@@ -62,11 +62,12 @@ public class EntrySearchService {
 
 			return response.hits().hits().stream()
 					.filter(hit -> hit.source() != null)
-					.map(hit -> new EntrySearchResult(
-							hit.id(),
-							hit.source().date(),
-							Map.copyOf(hit.highlight())
-					))
+					.map(hit -> {
+						var highlights = hit.highlight() == null
+								? Map.<String, List<String>>of()
+								: Map.copyOf(hit.highlight());
+						return new EntrySearchResult(hit.id(), hit.source().date(), highlights);
+					})
 					.toList();
 		} catch (IOException exception) {
 			throw new IllegalStateException("Elasticsearch search is unavailable", exception);
