@@ -2,15 +2,6 @@
 
 Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and self-issued JWT authentication.
 
-## API documentation
-
-After starting the application locally, open Swagger UI at `http://localhost:8080/swagger-ui`.
-The generated OpenAPI document is available at `http://localhost:8080/api-docs`.
-
-## Continuous integration
-
-GitHub Actions runs `./mvnw --batch-mode verify` for every pull request and every push to `main`. The test suite uses Testcontainers, so the CI runner must have Docker available.
-
 ## Local setup
 
 Requirements: Java 25, Maven, and Docker Desktop.

@@ -197,7 +197,6 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                      |
 | Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next. |
 | Auth0 authentication and Cloudinary avatars | `[ ]` Not started | Implement Phase 3 and deploy the demo after the core APIs exist.              |
-| OpenAPI documentation and CI                | `[ ]` Not started | Add Swagger UI/OpenAPI and require a passing GitHub Actions build before deploy. |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
@@ -665,16 +664,6 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 **Commit checkpoint:** `chore(local): configure Auth0 and Cloudinary development services`
 
-#### API Documentation and Delivery Gate
-
-- [ ] Add Springdoc OpenAPI with Swagger UI. Serve the generated contract at `/api-docs` and interactive documentation at `/swagger-ui`; describe the bearer JWT scheme now so Phase 3 endpoints can opt into it without changing the contract design.
-- [ ] Add concise OpenAPI annotations to controllers and request/response DTOs as they are implemented. Do not document internal CDC maintenance endpoints as public API.
-- [ ] Add a GitHub Actions workflow that runs `./mvnw --batch-mode verify` on every pull request and push to `main`. It must run Testcontainers-based tests on a Docker-capable Ubuntu runner and use Java 25.
-- [ ] Before enabling provider deployment, make the CI workflow a required GitHub branch-protection check for `main`. Then configure Render and Vercel (when the frontend exists) to deploy only from merged `main`, never from an unreviewed pull-request branch.
-- [ ] Verify locally that `/swagger-ui` loads and `/api-docs` returns the current OpenAPI document. Verify a pull request receives the CI result before merge.
-
-**Commit checkpoint:** `chore(platform): add OpenAPI documentation and CI gate`
-
 #### Auth0 Identity and Spring Security
 
 - [ ] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
@@ -713,6 +702,18 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 - [ ] Document free-tier limitations: Render may sleep, so CDC indexing can pause until the backend wakes and resumes; Bonsai sandbox and provider quotas are demo-grade; no component has an HA or backup guarantee in this plan.
 
 **Commit checkpoint:** `docs(deploy): document hosted demo workflow and limits`
+
+### Pre-Deployment API Documentation and CI/CD Gate
+
+Complete this gate only after all Phase 3 local backend checks pass and before connecting Render or Vercel to the repository.
+
+- [ ] Add `org.springdoc:springdoc-openapi-starter-webmvc-ui` at version `3.1.0` and configure Swagger UI at `/swagger-ui` plus the generated OpenAPI document at `/api-docs`.
+- [ ] Describe the bearer JWT scheme and add concise OpenAPI annotations to public controllers and request/response DTOs. Do not include internal CDC maintenance endpoints in the public API contract.
+- [ ] Verify Swagger UI and the OpenAPI document locally, then make the contract available to the frontend before frontend implementation begins.
+- [ ] Add a GitHub Actions workflow that runs `./mvnw --batch-mode verify` on every pull request and push to `main`, using Java 25 and a Docker-capable Ubuntu runner for Testcontainers.
+- [ ] Require the CI workflow as a branch-protection check on `main`. Configure Render and Vercel (when the frontend exists) to deploy only commits merged into `main` after the required check passes.
+
+**Commit checkpoint:** `chore(platform): add OpenAPI documentation and CI/CD gate`
 
 ---
 
@@ -759,8 +760,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 ### 7.1 Prepare the repository and configuration
 
 - [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
-- [ ] Confirm `/swagger-ui` loads locally and `/api-docs` returns the generated API contract. Update public endpoint descriptions and request/response schemas before treating the contract as frontend-ready.
-- [ ] Push the GitHub Actions workflow and confirm its `Build and test` check passes on a pull request. Make this check required on `main` before connecting any deployment provider.
+- [ ] Complete the Pre-Deployment API Documentation and CI/CD Gate after Phase 3 local verification passes.
 - [ ] Keep the existing `.env.local.example` and `.env.test.example` as the templates for their respective local environments. Add `src/main/resources/application-production.yaml` with environment-variable placeholders only; do **not** create or commit a `.env.production` file. Render Dashboard is the source of production variable values. The production profile needs at least:
 
    ```dotenv
