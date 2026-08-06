@@ -25,5 +25,5 @@ moodly:
 management:
   endpoint:
     health:
-      show-components: always
-      show-details: always
+      show-components: when_authorized
+      show-details: when_authorized
