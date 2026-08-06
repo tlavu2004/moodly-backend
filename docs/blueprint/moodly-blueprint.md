@@ -536,16 +536,16 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 ##### Integration Tests — MongoDB + Elasticsearch Testcontainers
 
-- [ ] Startup/index contract: start the CDC profile, assert the configured index exists, and inspect its mapping to verify exact `userId`/date fields and searchable `mood.note`, `mood.tags`, and `habits.note` fields.
-- [ ] Insert synchronization: save a new `DailyEntry` to MongoDB and await one Elasticsearch document with the same ID and the expected denormalized content.
-- [ ] Update/replace synchronization: change mood text, tags, habit notes, and score; await the updated Elasticsearch document and assert stale searchable values are gone.
-- [ ] Delete synchronization: delete a MongoDB entry and await Elasticsearch returning no document for its ID.
-- [ ] Duplicate delivery: invoke delivery twice with the same event/document and assert one Elasticsearch document remains, no duplicate is possible, and no dead letter is created.
+- [x] Startup/index contract: start the CDC profile, assert the configured index exists, and inspect its mapping to verify exact `userId`/date fields and searchable `mood.note`, `mood.tags`, and `habits.note` fields.
+- [x] Insert synchronization: save a new `DailyEntry` to MongoDB and await one Elasticsearch document with the same ID and the expected denormalized content.
+- [x] Update/replace synchronization: change mood text, tags, habit notes, and score; await the updated Elasticsearch document and assert stale searchable values are gone.
+- [x] Delete synchronization: delete a MongoDB entry and await Elasticsearch returning no document for its ID.
+- [x] Duplicate delivery: invoke delivery twice with the same event/document and assert one Elasticsearch document remains, no duplicate is possible, and no dead letter is created.
 - [ ] Resume token/restart: process an event, capture the persisted token, recreate or restart the listener, then create another entry; assert the second event is indexed once and the token advances without a full reindex.
-- [ ] Reindex recovery: seed multiple MongoDB pages, remove/corrupt the derived index, call reindex, and assert the recreated index has every source entry exactly once and the returned count matches MongoDB.
+- [x] Reindex recovery: seed multiple MongoDB pages, remove/corrupt the derived index, call reindex, and assert the recreated index has every source entry exactly once and the returned count matches MongoDB.
 - [ ] Elasticsearch outage and recovery: stop or make the Elasticsearch container unreachable after MongoDB accepts a write operation; assert the core MongoDB write still succeeds, retry attempts are bounded, a dead letter is stored, and listener health degrades. Restore Elasticsearch, replay the dead letter, and await the recovered document plus healthy monitor state.
-- [ ] Expired resume token recovery: cover the listener's history-lost branch with a focused listener test; add a container-level scenario only if the MongoDB oplog can be deterministically advanced to invalidate a token without making the suite flaky.
-- [ ] Search API end-to-end: index entries for two users, query through `GET /entries/search`, and assert full-text matches/highlights, optional `from`/`to` boundaries, no cross-user result leakage, blank/reversed parameter errors, and eventual-consistency polling before assertions.
+- [x] Expired resume token recovery: cover the listener's history-lost branch with a focused listener test; add a container-level scenario only if the MongoDB oplog can be deterministically advanced to invalidate a token without making the suite flaky.
+- [x] Search API end-to-end: index entries for two users, query through `GET /entries/search`, and assert full-text matches/highlights, optional `from`/`to` boundaries, no cross-user result leakage, blank/reversed parameter errors, and eventual-consistency polling before assertions.
 
 ##### Manual Verification — `docs/testing/moodly.http` and Docker
 

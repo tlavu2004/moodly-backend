@@ -15,6 +15,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
@@ -38,6 +39,7 @@ public class DailyEntryChangeStreamListener {
 	private final String streamId;
 	private Subscription subscription;
 
+	@Autowired
 	public DailyEntryChangeStreamListener(
 			MongoTemplate mongoTemplate,
 			CdcResumeTokenRepository resumeTokenRepository,

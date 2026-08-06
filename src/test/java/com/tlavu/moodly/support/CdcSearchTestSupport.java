@@ -1,8 +1,8 @@
 package com.tlavu.moodly.support;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.tlavu.moodly.modules.cdc.domain.CdcDeadLetter;
 import com.tlavu.moodly.modules.cdc.domain.CdcResumeToken;
+import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
@@ -44,7 +44,7 @@ public class CdcSearchTestSupport {
 	public void awaitIndexed(String entryId) throws Exception {
 		AsyncTestAwaiter.until(
 				"Elasticsearch document " + entryId + " to be indexed",
-				() -> elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntry.class).found(),
+				() -> elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).found(),
 				() -> describeDocument(entryId)
 		);
 	}
@@ -52,16 +52,8 @@ public class CdcSearchTestSupport {
 	public void awaitRemoved(String entryId) throws Exception {
 		AsyncTestAwaiter.until(
 				"Elasticsearch document " + entryId + " to be removed",
-				() -> !elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntry.class).found(),
+				() -> !elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).found(),
 				() -> describeDocument(entryId)
-		);
-	}
-
-	public void awaitDeadLetter(String eventId) throws Exception {
-		AsyncTestAwaiter.until(
-				"CDC dead letter " + eventId,
-				() -> deadLetterRepository.findAll().stream().map(CdcDeadLetter::getEventId).anyMatch(eventId::equals),
-				() -> "dead-letter event IDs=" + deadLetterRepository.findAll().stream().map(CdcDeadLetter::getEventId).toList()
 		);
 	}
 
@@ -75,7 +67,7 @@ public class CdcSearchTestSupport {
 	private String describeDocument(String entryId) {
 		try {
 			return "Elasticsearch document present=" + elasticsearchClient
-					.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntry.class)
+				.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class)
 					.found();
 		} catch (Exception exception) {
 			return "Elasticsearch lookup failed: " + exception.getMessage();
