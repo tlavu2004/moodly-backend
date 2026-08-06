@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.application.EntrySearchService;
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.presentation.advice.GlobalExceptionHandler;
 import java.time.LocalDate;
 import java.util.List;
@@ -77,5 +78,18 @@ class EntrySearchControllerTest {
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 
 		verifyNoInteractions(entrySearchService);
+	}
+
+	@Test
+	void returnsServiceUnavailableWhenElasticsearchCannotServeSearch() throws Exception {
+		when(entrySearchService.search(USER_ID, "tired", null, null))
+				.thenThrow(new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", new java.io.IOException("down")));
+
+		mockMvc.perform(get("/entries/search")
+					.header("X-User-Id", USER_ID)
+					.param("q", "tired"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"));
 	}
 }

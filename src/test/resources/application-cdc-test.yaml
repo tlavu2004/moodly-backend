@@ -1,0 +1,19 @@
+moodly:
+  testcontainers:
+    elasticsearch-image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:9.5.0}
+  entries:
+    collection-name: daily_entries_cdc_test
+  cdc:
+    enabled: true
+    stream-id: daily_entries_cdc_test
+    maintenance-key: cdc-test-maintenance-key
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 1
+    reindex:
+      batch-size: 2
+  search:
+    index:
+      name: daily_entries_search_cdc_test
+      mapping-resource: classpath:elasticsearch/daily_entries_search.json
+      initialization-enabled: true

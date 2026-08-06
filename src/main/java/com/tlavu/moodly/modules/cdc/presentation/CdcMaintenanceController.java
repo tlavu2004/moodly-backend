@@ -5,7 +5,6 @@ import com.tlavu.moodly.modules.cdc.application.CdcDeliveryService;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.application.exception.ForbiddenException;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,7 +39,7 @@ public class CdcMaintenanceController {
 	@PostMapping("/reindex")
 	public ResponseEntity<ApiResponse<DailyEntryReindexService.ReindexResult>> reindex(
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
-	) throws IOException {
+	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}

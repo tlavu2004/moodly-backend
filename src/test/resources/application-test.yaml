@@ -1,4 +1,6 @@
 moodly:
+  testcontainers:
+    mongodb-image: mongo:${MONGODB_VERSION:8.3.7}
   entries:
     collection-name: daily_entries
   cdc:

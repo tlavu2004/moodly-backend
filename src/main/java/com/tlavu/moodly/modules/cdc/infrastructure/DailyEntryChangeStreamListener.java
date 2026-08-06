@@ -15,6 +15,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
@@ -38,6 +39,7 @@ public class DailyEntryChangeStreamListener {
 	private final String streamId;
 	private Subscription subscription;
 
+	@Autowired
 	public DailyEntryChangeStreamListener(
 			MongoTemplate mongoTemplate,
 			CdcResumeTokenRepository resumeTokenRepository,
@@ -47,7 +49,27 @@ public class DailyEntryChangeStreamListener {
 			@Value("${moodly.entries.collection-name}") String collectionName,
 			@Value("${moodly.cdc.stream-id}") String streamId
 	) {
-		this.listenerContainer = new DefaultMessageListenerContainer(mongoTemplate);
+		this(
+				new DefaultMessageListenerContainer(mongoTemplate),
+				resumeTokenRepository,
+				deliveryService,
+				reindexService,
+				monitor,
+				collectionName,
+				streamId
+		);
+	}
+
+	DailyEntryChangeStreamListener(
+			DefaultMessageListenerContainer listenerContainer,
+			CdcResumeTokenRepository resumeTokenRepository,
+			CdcDeliveryService deliveryService,
+			DailyEntryReindexService reindexService,
+			CdcMonitor monitor,
+			String collectionName,
+			String streamId
+	) {
+		this.listenerContainer = listenerContainer;
 		this.resumeTokenRepository = resumeTokenRepository;
 		this.deliveryService = deliveryService;
 		this.reindexService = reindexService;
@@ -61,6 +83,15 @@ public class DailyEntryChangeStreamListener {
 		listenerContainer.start();
 		register(resumeTokenRepository.findById(streamId).map(CdcResumeToken::getToken).orElse(null));
 		monitor.listenerStarted();
+	}
+
+	/** Stops the stream without deleting its persisted resume token. */
+	public synchronized void stop() {
+		if (subscription != null) {
+			listenerContainer.remove(subscription);
+			subscription = null;
+		}
+		listenerContainer.stop();
 	}
 
 	private void register(String resumeToken) {
@@ -79,15 +110,16 @@ public class DailyEntryChangeStreamListener {
 			var raw = Objects.requireNonNull(message.getRaw(), "Change Stream message has no raw event");
 			var resumeToken = Objects.requireNonNull(raw.getResumeToken(), "Change Stream event has no resume token");
 			var eventId = resumeToken.toString();
-			if (raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.DELETE) {
+			var operationType = raw.getOperationType();
+			if (operationType == com.mongodb.client.model.changestream.OperationType.DELETE) {
 				var documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
 				var entryId = Objects.requireNonNull(documentKey.getObjectId("_id"), "Delete event has no entry ID")
 						.getValue().toHexString();
 				deliveryService.deliverDelete(eventId, entryId);
-			} else if (raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.INSERT
-					|| raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.UPDATE
-					|| raw.getOperationType() == com.mongodb.client.model.changestream.OperationType.REPLACE) {
-				deliveryService.deliverUpsert(eventId, raw.getOperationType().getValue(), message.getBody());
+			} else if (operationType == com.mongodb.client.model.changestream.OperationType.INSERT
+					|| operationType == com.mongodb.client.model.changestream.OperationType.UPDATE
+					|| operationType == com.mongodb.client.model.changestream.OperationType.REPLACE) {
+				deliveryService.deliverUpsert(eventId, operationType.getValue(), message.getBody());
 			} else {
 				return;
 			}

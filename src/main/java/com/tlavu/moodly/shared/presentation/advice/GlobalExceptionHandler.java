@@ -4,6 +4,7 @@ import com.tlavu.moodly.shared.presentation.dto.error.ApiError;
 import com.tlavu.moodly.shared.presentation.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.application.exception.ForbiddenException;
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -109,6 +110,20 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(
 				HttpStatus.FORBIDDEN,
 				GlobalErrorCode.FORBIDDEN,
+				request,
+				List.of(),
+				exception
+		);
+	}
+
+	@ExceptionHandler(SearchInfrastructureUnavailableException.class)
+	ResponseEntity<ApiResponse<Void>> handleSearchUnavailable(
+			SearchInfrastructureUnavailableException exception,
+			HttpServletRequest request
+	) {
+		return buildErrorResponse(
+				HttpStatus.SERVICE_UNAVAILABLE,
+				GlobalErrorCode.SEARCH_UNAVAILABLE,
 				request,
 				List.of(),
 				exception

@@ -494,7 +494,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 **Commit checkpoint:** `feat(cdc): add retry mechanism, dead-letter handling, and health monitoring for CDC events`
 
-- [x] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
+- [ ] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
 
 **Commit checkpoint:** `test(cdc): cover change stream recovery and Elasticsearch failures`
 
@@ -506,6 +506,63 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 - [x] Document eventual consistency: an entry can be saved to MongoDB before it appears in search results.
 
 **Commit checkpoint:** `feat(search): implement entry search API with Elasticsearch integration`
+
+#### Phase 2 Test Plan
+
+Run this test plan before considering Phase 2 complete. Automated tests must not share MongoDB databases, Elasticsearch indices, or users with a developer's local data. Give each test suite a unique user ID and clean up its MongoDB documents, resume tokens, dead letters, and Elasticsearch documents/index after execution.
+
+##### Test Infrastructure
+
+- [x] Add an Elasticsearch Testcontainers configuration pinned to the same `${ELASTICSEARCH_VERSION}` used by local Compose. Keep the existing MongoDB Testcontainer in replica-set mode because Change Streams are part of the test subject.
+- [x] Create a dedicated `cdc-test` profile that enables the CDC listener and index bootstrap, points Spring Data Elasticsearch at the Elasticsearch container, and uses test-only collection/index names. Keep the existing `test` profile lightweight with CDC disabled for Phase 1 tests.
+- [x] Make asynchronous assertions poll with a bounded timeout rather than `Thread.sleep`; report the last observed MongoDB/Elasticsearch state when the timeout expires.
+- [x] Provide helpers to create a `DailyEntry`, wait for an Elasticsearch document to appear/disappear, wait for a dead letter, and clear the test index. Use a unique test user ID for every scenario.
+
+##### Unit Tests
+
+- [x] `DailyEntrySearchDocument`: verify the denormalized projection preserves `userId`, date, mood score, mood note, tags, and habit notes; the writer supplies the MongoDB entry ID as the deterministic Elasticsearch document ID. Cover absent mood, empty/null tag lists, and empty/null habit lists without producing a null collection unexpectedly.
+- [x] `DailyEntrySearchWriter`: verify index and delete requests use the configured index name and the MongoDB entry ID as the deterministic Elasticsearch document ID.
+- [x] `DailyEntrySearchIndexManager`: verify create-if-missing does not overwrite an existing index, creates a missing index from the configured mapping resource, and recreate deletes then creates the same configured index.
+- [x] `CdcDeliveryService`: verify successful upsert/delete delivery, transient `IOException` and 429/5xx Elasticsearch failures retry up to the configured limit, and non-transient 4xx failures do not retry.
+- [x] `CdcDeliveryService`: after exhausted retries, verify the dead letter stores event ID, operation, entry ID, serialized payload when applicable, error, configured attempt count, and failure time; verify the monitor records the failure.
+- [x] `CdcDeliveryService` replay: verify a successful replay deletes the dead letter and updates the monitor; a failing replay retains the record, increments attempts, records the new error/time, and raises a clear exception.
+- [x] Refactor the retry delay behind an injectable sleeper/backoff collaborator before asserting retry paths, so unit tests never wait for the real exponential-backoff duration.
+- [x] `DailyEntryReindexService`: verify it recreates the index once, reads every repository page using the configured batch size, indexes every entry exactly once, and returns the total indexed count for zero, one, and multiple pages.
+- [x] `DailyEntryChangeStreamListener`: verify insert/update/replace route to upsert, delete routes to delete, only a successfully handled event advances the résumé token, and an unsupported operation does not alter the token.
+- [x] `DailyEntryChangeStreamListener`: verify a `ChangeStreamHistoryLost`/code 286 failure removes the stale token, invokes reindex, registers a fresh stream, and reports healthy again; other listener failures must remain visible as unhealthy and must not trigger reindex.
+- [x] `EntrySearchService`: verify the generated query always filters by `userId`, applies each optional date bound correctly, uses the configured index, returns an empty highlight map when Elasticsearch omits highlights, and maps `IOException` to the expected unavailable error.
+- [x] `EntrySearchController` web slice: cover successful parameter forwarding, blank `q`, reversed dates, and user-header forwarding/isolation.
+- [x] `CdcMaintenanceController` web slice: cover valid maintenance key, missing/wrong key returning the standard `FORBIDDEN` envelope, reindex response count, and replay endpoint delegation.
+
+##### Integration Tests — MongoDB + Elasticsearch Testcontainers
+
+- [x] Startup/index contract: start the CDC profile, assert the configured index exists, and inspect its mapping to verify exact `userId`/date fields and searchable `mood.note`, `mood.tags`, and `habits.note` fields.
+- [x] Insert synchronization: save a new `DailyEntry` to MongoDB and await one Elasticsearch document with the same ID and the expected denormalized content.
+- [x] Update/replace synchronization: change mood text, tags, habit notes, and score; await the updated Elasticsearch document and assert stale searchable values are gone.
+- [x] Delete synchronization: delete a MongoDB entry and await Elasticsearch returning no document for its ID.
+- [x] Duplicate delivery: invoke delivery twice with the same event/document and assert one Elasticsearch document remains, no duplicate is possible, and no dead letter is created.
+- [x] Resume token/restart: process an event, capture the persisted token, recreate or restart the listener, then create another entry; assert the second event is indexed once and the token advances without a full reindex.
+- [x] Reindex recovery: seed multiple MongoDB pages, remove/corrupt the derived index, call reindex, and assert the recreated index has every source entry exactly once and the returned count matches MongoDB.
+- [x] Elasticsearch outage and recovery (manual Docker verification): verified against the isolated `moodly-test` stack. MongoDB accepted entry `6a740b70fa2fa5cf568632f7` while Elasticsearch was stopped; CDC retried three times with 200/400 ms backoff and stored DLQ `6a740b71fa2fa5cf568632f8` with payload, error, attempts, and failure time. After Elasticsearch recovered, replay removed the DLQ and restored the Elasticsearch document with HTTP 200.
+- [x] Expired resume token recovery: cover the listener's history-lost branch with a focused listener test; add a container-level scenario only if the MongoDB oplog can be deterministically advanced to invalidate a token without making the suite flaky.
+- [x] Search API end-to-end: index entries for two users, query through `GET /entries/search`, and assert full-text matches/highlights, optional `from`/`to` boundaries, no cross-user result leakage, blank/reversed parameter errors, and eventual-consistency polling before assertions.
+
+##### Manual Verification — `docs/testing/moodly.http` and Docker
+
+- [x] Start Docker Desktop and run `make local-up`, `make local-replica-status`, and `make local-elasticsearch-status`; verified MongoDB `PRIMARY` and Elasticsearch `yellow` with one node.
+- [x] Execute create/update requests from `moodly.http`, copy the returned entry ID into `cdcEntryId`, and inspect `GET /_doc/{{cdcEntryId}}`; verified entry `6a740fd7f1c8543eac980109` with the expected mood, tags, and habit note.
+- [x] Delete the entry with the documented `mongosh` command and confirm Elasticsearch returns 404 for the document; verified for entry `6a740fd7f1c8543eac980109`.
+- [x] Restart only the application while retaining MongoDB/Elasticsearch, create another entry, and confirm the persisted resume token allows the listener to continue without missing events; verified token advancement and Elasticsearch HTTP 200 for entry `6a741008ec629352bbfbf365`.
+- [x] Stop Elasticsearch, make a MongoDB entry change, inspect retry/DLQ/Actuator logs, restore Elasticsearch, then replay the dead letter through the protected endpoint and confirm the document returns.
+- [x] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Verified two successive reindexes returned 2, matching MongoDB count 2; a wrong key returned HTTP 403.
+- [x] Search with a matching term, no-match term, date boundaries, and a second `X-User-Id`; verified one matching result with `<em>manual</em>` highlight, zero no-match results, and zero cross-user results after bounded CDC polling.
+
+##### Required Execution Order
+
+1. Run fast unit and web-slice tests on every change.
+2. Run the MongoDB + Elasticsearch Testcontainers suite for CDC/search changes and in CI.
+3. Run the manual outage/restart/reindex scenarios against `moodly-local` before the Phase 2 squash merge.
+4. Mark the existing Phase 2 verification checkbox complete only after the automated and manual sections above pass.
 
 #### CDC Trade-offs
 

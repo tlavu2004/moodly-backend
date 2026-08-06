@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.cdc.application;
 
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -27,20 +28,24 @@ public class DailyEntryReindexService {
 		this.batchSize = batchSize;
 	}
 
-	public ReindexResult reindex() throws IOException {
-		indexManager.recreate();
-		var pageRequest = PageRequest.of(0, batchSize);
-		var page = dailyEntryRepository.findAll(pageRequest);
-		long indexed = 0;
-		while (true) {
-			for (var entry : page.getContent()) {
-				searchWriter.index(entry);
-				indexed++;
+	public ReindexResult reindex() {
+		try {
+			indexManager.recreate();
+			var pageRequest = PageRequest.of(0, batchSize);
+			var page = dailyEntryRepository.findAll(pageRequest);
+			long indexed = 0;
+			while (true) {
+				for (var entry : page.getContent()) {
+					searchWriter.index(entry);
+					indexed++;
+				}
+				if (!page.hasNext()) {
+					return new ReindexResult(indexed);
+				}
+				page = dailyEntryRepository.findAll(page.nextPageable());
 			}
-			if (!page.hasNext()) {
-				return new ReindexResult(indexed);
-			}
-			page = dailyEntryRepository.findAll(page.nextPageable());
+		} catch (IOException exception) {
+			throw new SearchInfrastructureUnavailableException("Elasticsearch reindex is unavailable", exception);
 		}
 	}
 
