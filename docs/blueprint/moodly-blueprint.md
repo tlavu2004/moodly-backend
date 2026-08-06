@@ -579,16 +579,16 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 ### Phase 3 — Auth0 Authentication and Cloudinary Avatars (Evening 3)
 
-Deploy a small public demo without self-hosting identity or object storage. Auth0 owns credentials, sessions, token issuance, and refresh-token rotation. Moodly validates Auth0 access tokens and owns only app profile data and avatar metadata. Cloudinary stores, transforms, and delivers avatar images.
+Implement and verify the complete backend locally before building the frontend or deploying anything. Auth0 and Cloudinary remain hosted development services, but the Spring Boot API, MongoDB, Elasticsearch, CDC listener, and all automated/manual backend tests run locally. Auth0 owns credentials, sessions, token issuance, and refresh-token rotation; Moodly validates Auth0 access tokens and owns only app profile data and avatar metadata. Cloudinary stores, transforms, and delivers avatar images.
 
-#### Hosted Service and Deployment Configuration
+#### Local-First Service Configuration
 
-- [ ] Create an Auth0 tenant, an API with the Moodly API identifier as its audience, and a Regular Web Application or Single-Page Application client appropriate for the deployed frontend. Configure only the deployed Vercel URL and local development URL as allowed callback, logout, and web-origin URLs.
-- [ ] Create a Cloudinary Free account and an upload preset intended for signed avatar uploads. Keep the Cloudinary API secret only in backend environment variables; never expose it to the browser or commit it.
-- [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, and avatar folder. Configure Vercel with only public Auth0 client settings.
-- [ ] Keep `.env.example` limited to placeholders. Add a deployment checklist covering Vercel, Render, Atlas, Bonsai, Auth0, and Cloudinary; do not put provider secrets in Compose files or source control.
+- [ ] Create an Auth0 tenant, an API with a stable Moodly API identifier as its audience, and a local-development SPA client. Configure `http://localhost:<frontend-port>` as the allowed callback, logout, and web-origin URL. Add the deployed Vercel URL only after the frontend has been deployed.
+- [ ] Create a Cloudinary Free account and a signed upload preset intended for avatars. Configure it to accept images only, use the `moodly/avatars` folder, and set a conservative maximum upload size. Keep the Cloudinary API secret only in local backend environment variables; never expose it to a browser or commit it.
+- [ ] Extend `.env.local.example` with placeholders for the Auth0 issuer, API audience, Cloudinary cloud name, API key, API secret, upload preset, avatar folder, and local CORS origin. Add the corresponding values only to ignored `.env.local`.
+- [ ] Add `application-local.yaml` bindings for Auth0, Cloudinary, and CORS so `make local-run` uses local MongoDB/Elasticsearch/CDC plus Auth0 and Cloudinary development credentials. Keep production bindings for a later `application-production.yaml`; do not add Render or Vercel configuration yet.
 
-**Commit checkpoint:** `chore(deploy): configure Auth0 and Cloudinary demo services`
+**Commit checkpoint:** `chore(local): configure Auth0 and Cloudinary development services`
 
 #### Auth0 Identity and Spring Security
 
@@ -611,11 +611,20 @@ Deploy a small public demo without self-hosting identity or object storage. Auth
 
 **Commit checkpoint:** `feat(avatars): add Cloudinary-backed avatar uploads`
 
-#### Deployment Verification and Documentation
+#### Local Backend Verification Before Frontend Work
 
-- [ ] Extend the `.http` file with an Auth0 access token acquisition note and authenticated CRUD, search, cross-user isolation, expired/invalid/wrong-issuer/wrong-audience token, and avatar signed-upload scenarios.
-- [ ] Test a second Auth0 user cannot access the first user's MongoDB data, Bonsai search documents, or Cloudinary asset-management operations.
-- [ ] Deploy and verify the demo: Vercel frontend (if present), Render backend, Atlas Free database, Bonsai Free Sandbox, Auth0 Free, and Cloudinary Free.
+- [ ] Extend the `.http` file with an Auth0 access-token acquisition note and authenticated CRUD, search, cross-user isolation, expired/invalid/wrong-issuer/wrong-audience token, and avatar signed-upload scenarios.
+- [ ] Use two local Auth0 demo users to verify that neither local MongoDB-backed endpoints nor local Elasticsearch search reveals the other user's data, and neither user can perform Cloudinary asset-management operations for the other's avatar.
+- [ ] Run the full local stack with `make local-up` and `make local-run`; verify authenticated CRUD, CDC indexing, search, avatar upload, avatar replacement/deletion, and error handling before beginning any frontend work.
+- [ ] Do not start frontend deployment until the local backend verification checklist passes. The frontend's first responsibility is to complete Auth0 Universal Login and call these already-tested API endpoints.
+
+**Commit checkpoint:** `test(auth): verify local Auth0, CDC, and Cloudinary flows`
+
+#### Deployment Preparation After Local Verification
+
+- [ ] Add `application-production.yaml` with environment-variable placeholders only. Keep `.env.local.example` and `.env.test.example` as local/test templates; do not create or commit `.env.production`.
+- [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, avatar folder, and production CORS origin. Configure Vercel later with only public Auth0 client settings.
+- [ ] Add a deployment checklist covering Vercel, Render, Atlas, Bonsai, Auth0, and Cloudinary; do not put provider secrets in Compose files or source control.
 - [ ] Document free-tier limitations: Render may sleep, so CDC indexing can pause until the backend wakes and resumes; Bonsai sandbox and provider quotas are demo-grade; no component has an HA or backup guarantee in this plan.
 
 **Commit checkpoint:** `docs(deploy): document hosted demo workflow and limits`
@@ -665,7 +674,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 ### 7.1 Prepare the repository and configuration
 
 - [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
-- [ ] Create a `.env.example` that lists names only, never values. The production backend needs at least:
+- [ ] Keep the existing `.env.local.example` and `.env.test.example` as the templates for their respective local environments. Add `src/main/resources/application-production.yaml` with environment-variable placeholders only; do **not** create or commit a `.env.production` file. Render Dashboard is the source of production variable values. The production profile needs at least:
 
    ```dotenv
    SPRING_PROFILES_ACTIVE=production
@@ -682,7 +691,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
    APP_CORS_ALLOWED_ORIGINS=
    ```
 
-- [ ] Ensure `.env`, provider exports, Auth0 client secrets, Cloudinary API secrets, Atlas connection strings, and Bonsai credentials are ignored by Git. Commit the deployment configuration code and documentation before creating cloud resources.
+- [ ] Ensure `.env.local`, `.env.test`, any untracked local production export, provider exports, Auth0 client secrets, Cloudinary API secrets, Atlas connection strings, and Bonsai credentials are ignored by Git. Commit `application-production.yaml` with placeholders and deployment documentation before creating cloud resources.
 
 ### 7.2 Create persistent data services first
 
@@ -699,7 +708,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 ### 7.4 Deploy the backend and initialize search
 
 - [ ] **Step 10 —** Create a Render Web Service from the backend repository. Use the Maven build command required by the project and the production start command; do not run Keycloak, Garage, or a local Elasticsearch container on Render.
-- [ ] **Step 11 —** Add the environment variables from the `.env.example` list in section 7.1 to Render, using the values from Atlas, Bonsai, Auth0, and Cloudinary. Set `APP_CORS_ALLOWED_ORIGINS` temporarily to an empty or placeholder value until the Vercel URL exists; do not use `*` for an authenticated API.
+- [ ] **Step 11 —** Add the production variables referenced by `application-production.yaml` in section 7.1 to Render, using the values from Atlas, Bonsai, Auth0, and Cloudinary. Set `APP_CORS_ALLOWED_ORIGINS` temporarily to an empty or placeholder value until the Vercel URL exists; do not use `*` for an authenticated API.
 - [ ] **Step 12 —** Deploy Render and record the public backend URL, for example `https://moodly-api.onrender.com`. Verify its health endpoint and a protected endpoint returns `401` without a token. Verify the application connects to Atlas and Bonsai from Render logs without printing credentials.
 - [ ] **Step 13 —** Invoke the protected reindex/admin workflow through a controlled local operation, or start the approved reindex command once, so Bonsai has the current MongoDB documents. Confirm the index mapping, one search result, and the saved CDC resume token. Do not expose a public unauthenticated reindex endpoint.
 
