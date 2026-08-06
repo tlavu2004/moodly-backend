@@ -100,7 +100,9 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void doesNotRetryNonTransientFailures() throws Exception {
-		doThrow(new IllegalArgumentException("invalid request")).when(searchWriter).delete("entry-1");
+		var badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(badRequest.status()).thenReturn(400);
+		doThrow(badRequest).when(searchWriter).delete("entry-1");
 		var service = service();
 
 		service.deliverDelete("event-1", "entry-1");

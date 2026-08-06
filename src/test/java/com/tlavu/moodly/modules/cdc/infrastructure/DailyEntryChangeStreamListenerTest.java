@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
@@ -112,6 +114,22 @@ class DailyEntryChangeStreamListenerTest {
 		invoke("onMessage", Message.class, message);
 
 		verifyNoInteractions(deliveryService, resumeTokenRepository);
+	}
+
+	@Test
+	void doesNotAdvanceResumeTokenWhenDeliveryFails() {
+		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		when(message.getRaw()).thenReturn(raw);
+		when(message.getBody()).thenReturn(entry);
+		when(raw.getResumeToken()).thenReturn(BsonDocument.parse("{_data: 'token'}"));
+		when(raw.getOperationType()).thenReturn(OperationType.INSERT);
+		org.mockito.Mockito.doThrow(new IllegalStateException("delivery failed"))
+				.when(deliveryService).deliverUpsert(any(), any(), eq(entry));
+
+		assertThatThrownBy(() -> invoke("onMessage", Message.class, message))
+				.isInstanceOf(java.lang.reflect.InvocationTargetException.class);
+
+		verify(resumeTokenRepository, never()).save(any(CdcResumeToken.class));
 	}
 
 	@Test
