@@ -513,10 +513,10 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 ##### Test Infrastructure
 
-- [ ] Add an Elasticsearch Testcontainers configuration pinned to the same `${ELASTICSEARCH_VERSION}` used by local Compose. Keep the existing MongoDB Testcontainer in replica-set mode because Change Streams are part of the test subject.
-- [ ] Create a dedicated `cdc-test` profile that enables the CDC listener and index bootstrap, points Spring Data Elasticsearch at the Elasticsearch container, and uses test-only collection/index names. Keep the existing `test` profile lightweight with CDC disabled for Phase 1 tests.
-- [ ] Make asynchronous assertions poll with a bounded timeout rather than `Thread.sleep`; report the last observed MongoDB/Elasticsearch state when the timeout expires.
-- [ ] Provide helpers to create a `DailyEntry`, wait for an Elasticsearch document to appear/disappear, wait for a dead letter, and clear the test index. Use a unique test user ID for every scenario.
+- [x] Add an Elasticsearch Testcontainers configuration pinned to the same `${ELASTICSEARCH_VERSION}` used by local Compose. Keep the existing MongoDB Testcontainer in replica-set mode because Change Streams are part of the test subject.
+- [x] Create a dedicated `cdc-test` profile that enables the CDC listener and index bootstrap, points Spring Data Elasticsearch at the Elasticsearch container, and uses test-only collection/index names. Keep the existing `test` profile lightweight with CDC disabled for Phase 1 tests.
+- [x] Make asynchronous assertions poll with a bounded timeout rather than `Thread.sleep`; report the last observed MongoDB/Elasticsearch state when the timeout expires.
+- [x] Provide helpers to create a `DailyEntry`, wait for an Elasticsearch document to appear/disappear, wait for a dead letter, and clear the test index. Use a unique test user ID for every scenario.
 
 ##### Unit Tests
 
