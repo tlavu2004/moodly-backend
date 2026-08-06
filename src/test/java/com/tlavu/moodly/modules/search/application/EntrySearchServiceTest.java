@@ -73,6 +73,36 @@ class EntrySearchServiceTest {
 				.hasCauseInstanceOf(IOException.class);
 	}
 
+	@Test
+	void appliesOnlyTheFromDateBoundWhenToIsAbsent() throws Exception {
+		stubEmptyResponse();
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		service.search("user-1", "tired", LocalDate.of(2026, 8, 1), null);
+
+		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
+		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		assertThat(request).contains("2026-08-01", "\"gte\"").doesNotContain("\"lte\"");
+	}
+
+	@Test
+	void appliesOnlyTheToDateBoundWhenFromIsAbsent() throws Exception {
+		stubEmptyResponse();
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		service.search("user-1", "tired", null, LocalDate.of(2026, 8, 31));
+
+		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
+		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		assertThat(request).contains("2026-08-31", "\"lte\"").doesNotContain("\"gte\"");
+	}
+
+	private void stubEmptyResponse() throws Exception {
+		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
+		when(response.hits()).thenReturn(hits);
+		when(hits.hits()).thenReturn(List.of());
+	}
+
 	private Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>> anySearchRequestBuilder() {
 		return org.mockito.ArgumentMatchers.any();
 	}

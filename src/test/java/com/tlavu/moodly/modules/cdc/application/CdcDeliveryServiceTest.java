@@ -49,6 +49,19 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void deliversUpsertWithoutCreatingADeadLetter() throws Exception {
+		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		entry.setId("entry-1");
+		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenReturn("serialized-payload");
+		var service = service();
+
+		service.deliverUpsert("event-1", "insert", entry);
+
+		verify(searchWriter).index(eq("entry-1"), any(DailyEntrySearchDocument.class));
+		verifyNoInteractions(deadLetterRepository, retrySleeper);
+	}
+
+	@Test
 	void retriesTransientDeliveryAndSucceeds() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable"))
 				.doThrow(new IOException("Elasticsearch unavailable"))
