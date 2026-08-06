@@ -22,7 +22,7 @@ local-replica-status:
 	$(LOCAL_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
 
 local-elasticsearch-status:
-	$(LOCAL_COMPOSE) exec elasticsearch curl -fsS "http://localhost:9200/_cluster/health?pretty"
+	set -a; . ./.env.local; set +a; curl -fsS "http://localhost:$${ELASTICSEARCH_PORT:-9200}/_cluster/health?pretty"
 
 local-run: local-up
 	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
