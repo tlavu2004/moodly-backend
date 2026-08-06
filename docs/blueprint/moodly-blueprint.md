@@ -197,6 +197,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                      |
 | Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next. |
 | Auth0 authentication and Cloudinary avatars | `[ ]` Not started | Implement Phase 3 and deploy the demo after the core APIs exist.              |
+| OpenAPI documentation and CI                | `[ ]` Not started | Add Swagger UI/OpenAPI and require a passing GitHub Actions build before deploy. |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
@@ -588,7 +589,91 @@ Implement and verify the complete backend locally before building the frontend o
 - [ ] Extend `.env.local.example` with placeholders for the Auth0 issuer, API audience, Cloudinary cloud name, API key, API secret, upload preset, avatar folder, and local CORS origin. Add the corresponding values only to ignored `.env.local`.
 - [ ] Add `application-local.yaml` bindings for Auth0, Cloudinary, and CORS so `make local-run` uses local MongoDB/Elasticsearch/CDC plus Auth0 and Cloudinary development credentials. Keep production bindings for a later `application-production.yaml`; do not add Render or Vercel configuration yet.
 
+##### Dashboard setup guide and local configuration values
+
+Complete this guide before running the Phase 3 backend. Use the ignored `.env.local` file, never `.env.local.example`, for real values. Do not place any of the values below in a React/Vite `VITE_*` variable except the future SPA-safe Auth0 domain, client ID, and audience. In particular, Cloudinary's API secret must remain on the backend.
+
+**1. Create the Auth0 tenant and record its issuer**
+
+1. Sign in to [Auth0](https://manage.auth0.com/) and create or select a development tenant. Give it a recognizable name such as `moodly-dev` and select the nearest region.
+2. In the tenant dashboard, find the tenant domain (for example, `moodly-dev.us.auth0.com`). Put the following exact value in `.env.local`; preserve the trailing slash:
+
+   ```dotenv
+   AUTH0_ISSUER_URI=https://moodly-dev.us.auth0.com/
+   ```
+
+   The issuer is a public URL used by the backend later to retrieve Auth0's JWKS and validate token issuer claims. It is not a secret.
+
+**2. Create the Moodly API and record its audience**
+
+1. Open **Applications → APIs** in the Auth0 dashboard and choose **Create API**.
+2. Set **Name** to `Moodly API` and set **Identifier** to a stable, non-temporary URI, for example `https://api.moodly.local`. The identifier is an audience label, not a URL that must resolve in a browser; do not use a future Render URL.
+3. Keep the default `RS256` signing algorithm unless a later documented security requirement changes it, then create the API.
+4. Copy the API's **Identifier** exactly into `.env.local`:
+
+   ```dotenv
+   AUTH0_AUDIENCE=https://api.moodly.local
+   ```
+
+**3. Create and configure the React SPA**
+
+1. Open **Applications → Applications → Create Application**. Name it `Moodly Local SPA`, select **Single Page Web Applications**, then create it. Auth0 identifies React browser clients as this application type in its [application creation guide](https://auth0.com/docs/get-started/auth0-overview/create-applications).
+2. Open the created application's **Settings** tab. Until a frontend exists, add these origins one per line to all three fields below. Keep only ports actually used by the SPA:
+
+   ```text
+   http://localhost:5173
+   http://localhost:5174
+   ```
+
+   | Auth0 setting         | Local values                                     |
+   |-----------------------|--------------------------------------------------|
+   | Allowed Callback URLs | `http://localhost:5173`, `http://localhost:5174` |
+   | Allowed Logout URLs   | `http://localhost:5173`, `http://localhost:5174` |
+   | Allowed Web Origins   | `http://localhost:5173`, `http://localhost:5174` |
+
+3. Click **Save Changes**. Later, when the React SPA is implemented, its Auth0 SDK configuration will use this application's Domain, Client ID, and the API audience. Those are browser-safe; do not copy an application client secret into the SPA or this backend configuration.
+
+**4. Create the Cloudinary avatar preset and collect API credentials**
+
+1. Sign in to [Cloudinary Console](https://console.cloudinary.com/) and select the development product environment.
+2. Open **Settings → API Keys**. Copy the Cloud name, API Key, and API Secret into the ignored `.env.local` file. Cloudinary documents API key and secret retrieval on this settings page in its [Admin API reference](https://cloudinary.com/documentation/admin_api).
+3. Open **Settings → Upload → Upload Presets** and choose **Add Upload Preset**. Cloudinary's [upload-preset guide](https://cloudinary.com/documentation/dam_admin_upload_presets) documents this console page and its options.
+4. Name the preset `moodly_avatar_signed`. In the **General** tab, select **Signed** signing mode and set the asset folder to `moodly/avatars`. If the environment uses dynamic folders, enable the option that uses the initial asset-folder path as the public-ID prefix so stored avatar public IDs consistently begin with that folder.
+5. Restrict accepted formats to image formats required by the application, for example `jpg`, `jpeg`, `png`, and `webp`; configure a conservative maximum file size if that option is available in the current console. The API will also validate size and media type in the avatar implementation slice.
+6. Save the preset, then add the values to `.env.local`:
+
+   ```dotenv
+   CLOUDINARY_CLOUD_NAME=<Cloud name from Settings → API Keys>
+   CLOUDINARY_API_KEY=<API key from Settings → API Keys>
+   CLOUDINARY_API_SECRET=<API secret from Settings → API Keys>
+   CLOUDINARY_UPLOAD_PRESET=moodly_avatar_signed
+   CLOUDINARY_AVATAR_FOLDER=moodly/avatars
+   ```
+
+   The frontend must never receive `CLOUDINARY_API_SECRET`. It will later call Moodly's signed-upload endpoint, which generates a short-lived signature server-side; Cloudinary likewise recommends backend signing for sensitive browser uploads in its [client-side upload guidance](https://cloudinary.com/documentation/client_side_uploading).
+
+**5. Set local API CORS and verify the file is private**
+
+1. Add only active local SPA origins to `.env.local`. For a Vite SPA that may fall back from port 5173 to 5174:
+
+   ```dotenv
+   APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
+   ```
+
+2. Confirm `.env.local` is listed in `.gitignore`; do not run `git add -f .env.local`.
+3. Run `make local-run`. It exports `.env.local` and starts the local Spring profile. Do not add Vercel, Render, or any production origin in this phase.
+
 **Commit checkpoint:** `chore(local): configure Auth0 and Cloudinary development services`
+
+#### API Documentation and Delivery Gate
+
+- [ ] Add Springdoc OpenAPI with Swagger UI. Serve the generated contract at `/api-docs` and interactive documentation at `/swagger-ui`; describe the bearer JWT scheme now so Phase 3 endpoints can opt into it without changing the contract design.
+- [ ] Add concise OpenAPI annotations to controllers and request/response DTOs as they are implemented. Do not document internal CDC maintenance endpoints as public API.
+- [ ] Add a GitHub Actions workflow that runs `./mvnw --batch-mode verify` on every pull request and push to `main`. It must run Testcontainers-based tests on a Docker-capable Ubuntu runner and use Java 25.
+- [ ] Before enabling provider deployment, make the CI workflow a required GitHub branch-protection check for `main`. Then configure Render and Vercel (when the frontend exists) to deploy only from merged `main`, never from an unreviewed pull-request branch.
+- [ ] Verify locally that `/swagger-ui` loads and `/api-docs` returns the current OpenAPI document. Verify a pull request receives the CI result before merge.
+
+**Commit checkpoint:** `chore(platform): add OpenAPI documentation and CI gate`
 
 #### Auth0 Identity and Spring Security
 
@@ -674,6 +759,8 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 ### 7.1 Prepare the repository and configuration
 
 - [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
+- [ ] Confirm `/swagger-ui` loads locally and `/api-docs` returns the generated API contract. Update public endpoint descriptions and request/response schemas before treating the contract as frontend-ready.
+- [ ] Push the GitHub Actions workflow and confirm its `Build and test` check passes on a pull request. Make this check required on `main` before connecting any deployment provider.
 - [ ] Keep the existing `.env.local.example` and `.env.test.example` as the templates for their respective local environments. Add `src/main/resources/application-production.yaml` with environment-variable placeholders only; do **not** create or commit a `.env.production` file. Render Dashboard is the source of production variable values. The production profile needs at least:
 
    ```dotenv

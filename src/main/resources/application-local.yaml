@@ -1,6 +1,23 @@
 spring:
   mongodb:
     uri: mongodb://${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}?replicaSet=${MONGODB_REPLICA_SET}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH0_ISSUER_URI}
+
+moodly:
+  auth0:
+    audience: ${AUTH0_AUDIENCE}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME}
+    api-key: ${CLOUDINARY_API_KEY}
+    api-secret: ${CLOUDINARY_API_SECRET}
+    upload-preset: ${CLOUDINARY_UPLOAD_PRESET}
+    avatar-folder: ${CLOUDINARY_AVATAR_FOLDER}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
 
 management:
   endpoint:
