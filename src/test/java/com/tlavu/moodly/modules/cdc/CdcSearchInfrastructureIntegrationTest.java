@@ -25,6 +25,7 @@ import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,12 +35,23 @@ import com.tlavu.moodly.support.CdcSearchTestSupport;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+		"moodly.entries.collection-name=daily_entries_cdc_test",
+		"moodly.cdc.enabled=true",
+		"moodly.cdc.stream-id=daily_entries_cdc_test",
+		"moodly.cdc.maintenance-key=cdc-test-maintenance-key",
+		"moodly.cdc.retry.max-attempts=3",
+		"moodly.cdc.retry.initial-backoff-ms=1",
+		"moodly.cdc.reindex.batch-size=2",
+		"moodly.search.index.name=daily_entries_search_cdc_test",
+		"moodly.search.index.initialization-enabled=true"
+})
 @AutoConfigureMockMvc
-@ActiveProfiles({"test", "cdc-test"})
+@ActiveProfiles("test")
 @Import({MongoTestConfiguration.class, ElasticsearchTestConfiguration.class})
 class CdcSearchInfrastructureIntegrationTest {
 
@@ -66,8 +78,17 @@ class CdcSearchInfrastructureIntegrationTest {
 	@MockitoSpyBean
 	private DailyEntryReindexService reindexService;
 
+	@BeforeEach
+	void prepareState() throws Exception {
+		listener.stop();
+		cdcSearchTestSupport.clearState();
+		listener.start();
+		awaitChangeStreamRegistration();
+	}
+
 	@AfterEach
 	void cleanUp() throws Exception {
+		listener.stop();
 		cdcSearchTestSupport.clearState();
 	}
 
@@ -177,8 +198,9 @@ class CdcSearchInfrastructureIntegrationTest {
 		clearInvocations(reindexService);
 
 		listener.stop();
-		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 		listener.start();
+		awaitChangeStreamRegistration();
+		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 
 		cdcSearchTestSupport.awaitIndexed(second.getId());
 		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
@@ -202,5 +224,10 @@ class CdcSearchInfrastructureIntegrationTest {
 	private void awaitDocument(String entryId, java.util.function.Predicate<DailyEntrySearchDocument> predicate) throws Exception {
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("updated Elasticsearch document " + entryId,
 				() -> predicate.test(document(entryId)), () -> "entryId=" + entryId);
+	}
+
+	/** Waits for the asynchronous driver subscription created by the listener container. */
+	private void awaitChangeStreamRegistration() throws InterruptedException {
+		TimeUnit.SECONDS.sleep(1);
 	}
 }

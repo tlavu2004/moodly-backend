@@ -67,7 +67,7 @@ test-run: test-up
 	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-cdc-run: test-up
-	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test,cdc-test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-build-run: test-up
 	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
