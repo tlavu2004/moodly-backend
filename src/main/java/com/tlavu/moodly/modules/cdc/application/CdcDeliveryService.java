@@ -21,6 +21,7 @@ public class CdcDeliveryService {
 	private final CdcDeadLetterRepository deadLetterRepository;
 	private final CdcMonitor monitor;
 	private final ObjectMapper objectMapper;
+	private final CdcRetrySleeper retrySleeper;
 	private final int maxAttempts;
 	private final Duration initialBackoff;
 
@@ -29,6 +30,7 @@ public class CdcDeliveryService {
 			CdcDeadLetterRepository deadLetterRepository,
 			CdcMonitor monitor,
 			ObjectMapper objectMapper,
+			CdcRetrySleeper retrySleeper,
 			@Value("${moodly.cdc.retry.max-attempts}") int maxAttempts,
 			@Value("${moodly.cdc.retry.initial-backoff-ms}") long initialBackoffMs
 	) {
@@ -36,6 +38,7 @@ public class CdcDeliveryService {
 		this.deadLetterRepository = deadLetterRepository;
 		this.monitor = monitor;
 		this.objectMapper = objectMapper;
+		this.retrySleeper = retrySleeper;
 		this.maxAttempts = maxAttempts;
 		this.initialBackoff = Duration.ofMillis(initialBackoffMs);
 	}
@@ -106,7 +109,7 @@ public class CdcDeliveryService {
 				var delay = initialBackoff.multipliedBy(1L << (attempt - 1));
 				log.warn("Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, attempt={}, maxAttempts={}, delayMs={}",
 						eventId, operationType, entryId, attempt, maxAttempts, delay.toMillis(), exception);
-				Thread.sleep(delay);
+				retrySleeper.sleep(delay);
 			}
 		}
 		throw lastFailure == null ? new IOException("CDC delivery failed without an Elasticsearch exception") : lastFailure;

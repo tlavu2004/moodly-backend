@@ -11,7 +11,6 @@ import java.util.UUID;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 /** Shared seed, cleanup, and eventual-consistency helpers for CDC integration tests. */
-@SuppressWarnings("unused") // Individual scenarios consume this shared test-support API incrementally.
 public class CdcSearchTestSupport {
 
 	private final DailyEntryRepository dailyEntryRepository;
