@@ -7,9 +7,9 @@
 ## 1. Overview
 
 **Application name:** `Moodly`  
-**Goal:** Learn MongoDB, Change Data Capture (CDC), Elasticsearch, and JWT authentication through one self-contained application. No UI is required; endpoints are exercised through a `.http` file.  
+**Goal:** Learn MongoDB, Change Data Capture (CDC), Elasticsearch/OpenSearch, Auth0-backed JWT authentication, and Cloudinary avatar delivery through a small deployed demo. Endpoints are exercised through a `.http` file; a minimal frontend is optional.
 **Estimated duration:** 3 evenings—one evening for each learning phase.  
-**Suggested stack:** A modular-monolith Spring Boot application + Spring Data MongoDB + Elasticsearch + Spring Security. One deployable owns all modules; no microservices are required.
+**Suggested stack:** A modular-monolith Spring Boot application + Spring Data MongoDB + Elasticsearch/OpenSearch + Spring Security. For the deployed demo use Vercel (optional frontend), Render (backend and CDC listener), MongoDB Atlas Free, Bonsai Free Sandbox, Auth0 Free, and Cloudinary Free. One deployable owns all backend modules; no microservices are required.
 
 ### Git Workflow
 
@@ -41,12 +41,12 @@ Create each branch from the updated `main` after the previous phase has been com
 main
 ├── feature/mongodb-core          # Phase 1; squash merge to main
 ├── feature/cdc-elasticsearch     # Phase 2; starts from updated main
-└── feature/jwt-auth              # Phase 3; starts from updated main
+└── feature/auth0-cloudinary       # Phase 3; starts from updated main
 ```
 
 - [ ] Create `feature/mongodb-core` from `main`; complete Phase 1 plus its tests, then Squash Merge as `feat(mongodb): add Moodly MongoDB core`.
 - [ ] Create `feature/cdc-elasticsearch` from the updated `main`; complete Phase 2 plus resilience/search tests, then Squash Merge as `feat(search): add CDC-backed Elasticsearch search`.
-- [ ] Create `feature/jwt-auth` from the updated `main`; complete Phase 3 plus authentication/isolation tests, then Squash Merge as `feat(auth): add self-issued JWT authentication`.
+- [ ] Create `feature/auth0-cloudinary` from the updated `main`; complete Phase 3 plus authentication/isolation and avatar-storage tests, then Squash Merge as `feat(auth): add Auth0 authentication and Cloudinary avatars`.
 
 This leaves `main` with five meaningful commits: the blueprint, the initial project skeleton, then one squashed commit for each phase. Use merge commits instead only if preserving every intermediate checkpoint and its detailed development history matters more than keeping `main` concise.
 
@@ -57,7 +57,7 @@ Keep one Spring Boot application and one deployment unit. Separate code by busin
 ```text
 com/tlavu/moodly
 ├── modules/
-│   ├── auth/       # users, password hashing, JWT, Spring Security integration
+│   ├── auth/       # Auth0 identity integration and Spring Security resource-server integration
 │   ├── habits/     # habit lifecycle
 │   ├── entries/    # daily entries and mood logging
 │   ├── stats/      # streak and aggregation-based statistics
@@ -119,13 +119,14 @@ const dailyEntry = {
 
 ### Collection: `users` (introduced in Phase 3)
 
-Application-owned identities. Passwords are never stored in plaintext.
+Application-owned profile data linked to an Auth0 identity. Credentials, sessions, and refresh tokens are owned by Auth0 and are never stored in Moodly.
 
 ```javascript
 const user = {
   _id: ObjectId("..."),
+  auth0Subject: "auth0|2b8d5c6f-...", // Auth0 JWT `sub`; unique
   email: "user@example.com",
-  passwordHash: "$2a$...",
+  avatarPublicId: "moodly/avatars/2b8d5c6f-.../b3e1", // Cloudinary public ID; nullable
   createdAt: ISODate("2026-08-03T09:00:00Z"),
   updatedAt: ISODate("2026-08-03T09:00:00Z")
 };
@@ -145,20 +146,19 @@ The three document examples above are assigned to variables intentionally: this 
 
 ## 3. Minimum API
 
-| Method   | Endpoint                        | Description                                                                    |
-|----------|---------------------------------|--------------------------------------------------------------------------------|
-| `POST`   | `/habits`                       | Create a habit.                                                                |
-| `GET`    | `/habits`                       | Get active habits.                                                             |
-| `PATCH`  | `/entries/today`                | Mark or unmark one habit for today (upsert).                                   |
-| `PUT`    | `/entries/today/mood`           | Record today's mood.                                                           |
-| `GET`    | `/entries?from=&to=`            | Get entries within a date range.                                               |
-| `GET`    | `/habits/{id}/streak`           | Calculate a habit's current streak.                                            |
-| `GET`    | `/stats/mood-trend?period=week` | Get the weekly mood trend.                                                     |
-| `GET`    | `/stats/most-missed-habits`     | Get the most frequently missed habits.                                         |
-| `GET`    | `/entries/search?q=&from=&to=`  | Search indexed mood notes, habit notes, and mood tags (introduced in Phase 2). |
-| `POST`   | `/auth/register`                | Register a user (introduced in Phase 3).                                       |
-| `POST`   | `/auth/login`                   | Authenticate and receive access and refresh tokens (introduced in Phase 3).    |
-| `POST`   | `/auth/refresh`                 | Exchange a valid refresh token for a new access token (introduced in Phase 3). |
+| Method  | Endpoint                        | Description                                                                                                         |
+|---------|---------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `POST`  | `/habits`                       | Create a habit.                                                                                                     |
+| `GET`   | `/habits`                       | Get active habits.                                                                                                  |
+| `PATCH` | `/entries/today`                | Mark or unmark one habit for today (upsert).                                                                        |
+| `PUT`   | `/entries/today/mood`           | Record today's mood.                                                                                                |
+| `GET`   | `/entries?from=&to=`            | Get entries within a date range.                                                                                    |
+| `GET`   | `/habits/{id}/streak`           | Calculate a habit's current streak.                                                                                 |
+| `GET`   | `/stats/mood-trend?period=week` | Get the weekly mood trend.                                                                                          |
+| `GET`   | `/stats/most-missed-habits`     | Get the most frequently missed habits.                                                                              |
+| `GET`   | `/entries/search?q=&from=&to=`  | Search indexed mood notes, habit notes, and mood tags (introduced in Phase 2).                                      |
+| `POST`  | `/me/avatar/upload-signature`   | Create short-lived signed Cloudinary upload parameters for the authenticated user's avatar (introduced in Phase 3). |
+| `GET`   | `/me/avatar`                    | Get authenticated user's avatar metadata and delivery URL (introduced in Phase 3).                                  |
 
 All successful API responses use the same envelope: `{ "success": true, "data": ..., "timestamp": ... }`. Failed responses set `success` to `false` and provide details in `error` instead of `data`.
 
@@ -170,11 +170,11 @@ All successful API responses use the same envelope: `{ "success": true, "data": 
 
 Complete and test one phase before starting the next phase. Keep tests in the same phase branch as the implementation and include them in that phase's Squash Merge; do not postpone all testing until Phase 3.
 
-| Phase                        | Test immediately after                     | Minimum verification                                                                                                                        |
-|------------------------------|--------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| Phase 1 — MongoDB Core       | Each CRUD, aggregation, and streak slice.  | `.http` scenarios, `mongosh` pipeline checks, validation/error cases, and focused automated tests for important application logic.          |
-| Phase 2 — CDC Search         | The Change Stream listener and search API. | Insert/update/delete synchronisation, duplicate delivery, retry/DLQ, listener restart, Elasticsearch outage, reindex, and user filtering.   |
-| Phase 3 — JWT Authentication | The `SecurityContext` migration.           | Register/login/refresh, invalid and expired tokens, refresh rotation/revocation, and cross-user isolation across MongoDB and Elasticsearch. |
+| Phase                          | Test immediately after                        | Minimum verification                                                                                                                      |
+|--------------------------------|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| Phase 1 — MongoDB Core         | Each CRUD, aggregation, and streak slice.     | `.http` scenarios, `mongosh` pipeline checks, validation/error cases, and focused automated tests for important application logic.        |
+| Phase 2 — CDC Search           | The Change Stream listener and search API.    | Insert/update/delete synchronisation, duplicate delivery, retry/DLQ, listener restart, Elasticsearch outage, reindex, and user filtering. |
+| Phase 3 — Auth0 and Cloudinary | The `SecurityContext` and avatar integration. | Valid/invalid Auth0 tokens, cross-user isolation across MongoDB and Elasticsearch, signed avatar upload, delivery, and asset ownership.   |
 
 **Per-phase loop:** implement one coherent slice → verify manually with `.http` or `mongosh` → add focused automated tests → run the phase verification scenarios → commit checkpoints → Squash Merge the completed phase.
 
@@ -184,19 +184,19 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is connected and verified locally, and Phase 1 feature modules have started.
 
-| Area                                 | Status            | Evidence / next step                                                                       |
-|--------------------------------------|-------------------|--------------------------------------------------------------------------------------------|
-| Spring Boot application skeleton     | `[x]` Setup       | Create the Spring Boot application structure.                                              |
-| MongoDB dependency                   | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                                           |
-| Web and validation dependencies      | `[x]` Setup       | Add WebMVC and Validation starters.                                                        |
-| Modular-monolith packages            | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                                  |
-| MongoDB Docker/replica set           | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.                      |
-| MongoDB connection                   | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                                         |
-| Domain models and repositories       | `[ ]` Not started | Implement Phase 1 persistence.                                                             |
-| Habit/entry APIs and `.http` tests   | `[ ]` Not started | Implement and exercise the core endpoints.                                                 |
-| Aggregations, streak, and statistics | `[ ]` Not started | Implement Phase 1 stats.                                                                   |
-| Elasticsearch and CDC                | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next.              |
-| JWT authentication and API migration | `[ ]` Not started | Implement Phase 3 after the core APIs exist.                                               |
+| Area                                        | Status            | Evidence / next step                                                          |
+|---------------------------------------------|-------------------|-------------------------------------------------------------------------------|
+| Spring Boot application skeleton            | `[x]` Setup       | Create the Spring Boot application structure.                                 |
+| MongoDB dependency                          | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                              |
+| Web and validation dependencies             | `[x]` Setup       | Add WebMVC and Validation starters.                                           |
+| Modular-monolith packages                   | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                     |
+| MongoDB Docker/replica set                  | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.         |
+| MongoDB connection                          | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                            |
+| Domain models and repositories              | `[ ]` Not started | Implement Phase 1 persistence.                                                |
+| Habit/entry APIs and `.http` tests          | `[ ]` Not started | Implement and exercise the core endpoints.                                    |
+| Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                      |
+| Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next. |
+| Auth0 authentication and Cloudinary avatars | `[ ]` Not started | Implement Phase 3 and deploy the demo after the core APIs exist.              |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
@@ -466,6 +466,8 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 - [x] Update Docker Compose to run MongoDB as a single-node replica set, because Change Streams require a replica set or sharded cluster. Initialize the replica set and verify it with `rs.status()`.
 - [x] Add a pinned Elasticsearch Docker image and a persistent development volume. Configure a single-node development cluster and document its local port.
+- [ ] Create a Bonsai Free Sandbox Elasticsearch/OpenSearch cluster for the deployed demo. Store its HTTPS endpoint and credentials only in the Render environment; retain local Docker Elasticsearch for development and Testcontainers for tests.
+- [ ] Configure a `production` profile to use Bonsai. Verify index mappings and a full reindex against that remote cluster before deploying the backend.
 - [x] Add the Elasticsearch Java client or Spring Data Elasticsearch dependency and configure the client in `application.yaml`.
 - [x] Create a `daily_entries_search` index with an explicit mapping. Use the MongoDB entry `_id` as the Elasticsearch document ID.
 - [x] Map `userId` and `date` as exact/filterable fields, `mood.score` as a numeric field, and `mood.note`, `habits.note`, and `mood.tags` as searchable fields. Add keyword subfields only where filtering or aggregation is needed.
@@ -495,6 +497,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 **Commit checkpoint:** `feat(cdc): add retry mechanism, dead-letter handling, and health monitoring for CDC events`
 
 - [ ] Test insert, update, delete, listener restart, Elasticsearch outage, duplicate delivery, and reindex recovery using the `.http` file and Docker logs.
+- [ ] In the deployed demo, verify the CDC listener resumes from its stored resume token after a Render restart or free-tier sleep; document that indexing can be delayed while the service is asleep and provide reindex as recovery.
 
 **Commit checkpoint:** `test(cdc): cover change stream recovery and Elasticsearch failures`
 
@@ -554,7 +557,7 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 - [x] Delete the entry with the documented `mongosh` command and confirm Elasticsearch returns 404 for the document; verified for entry `6a740fd7f1c8543eac980109`.
 - [x] Restart only the application while retaining MongoDB/Elasticsearch, create another entry, and confirm the persisted resume token allows the listener to continue without missing events; verified token advancement and Elasticsearch HTTP 200 for entry `6a741008ec629352bbfbf365`.
 - [x] Stop Elasticsearch, make a MongoDB entry change, inspect retry/DLQ/Actuator logs, restore Elasticsearch, then replay the dead letter through the protected endpoint and confirm the document returns.
-- [x] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Verified two successive reindexes returned 2, matching MongoDB count 2; a wrong key returned HTTP 403.
+- [x] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Verified two successive re-indexes returned 2, matching MongoDB count 2; a wrong key returned HTTP 403.
 - [x] Search with a matching term, no-match term, date boundaries, and a second `X-User-Id`; verified one matching result with `<em>manual</em>` highlight, zero no-match results, and zero cross-user results after bounded CDC polling.
 
 ##### Required Execution Order
@@ -574,48 +577,48 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 | Complexity        | Requires a replica set, listener lifecycle, resume tokens, idempotency, retry, DLQ, and reindexing. | Simpler initially, but dual-write consistency becomes the application's responsibility. |
 | Recovery          | Replay and full reindex can rebuild a derived index from MongoDB.                                   | Must reconcile partial dual writes and missed updates manually.                         |
 
-### Phase 3 — Self-Issued JWT Authentication (Evening 3)
+### Phase 3 — Auth0 Authentication and Cloudinary Avatars (Evening 3)
 
-Moodly owns its users and authentication flow. It issues and verifies its own tokens and does not depend on an external project or identity provider.
+Deploy a small public demo without self-hosting identity or object storage. Auth0 owns credentials, sessions, token issuance, and refresh-token rotation. Moodly validates Auth0 access tokens and owns only app profile data and avatar metadata. Cloudinary stores, transforms, and delivers avatar images.
 
-#### User Registration and Credentials
+#### Hosted Service and Deployment Configuration
 
-- [ ] Create the `users` collection and its unique email index. Define a `User` document with an internal ID, normalized email, password hash, and timestamps.
-- [ ] Add `POST /auth/register`; validate email format and password requirements, normalize email consistently, reject duplicate emails, and never return `passwordHash`.
-- [ ] Hash passwords with BCrypt using Spring Security's `PasswordEncoder`; never log, return, or store plaintext passwords.
-- [ ] Add `POST /auth/login`; verify the password hash and return a short-lived access token plus a refresh token.
+- [ ] Create an Auth0 tenant, an API with the Moodly API identifier as its audience, and a Regular Web Application or Single-Page Application client appropriate for the deployed frontend. Configure only the deployed Vercel URL and local development URL as allowed callback, logout, and web-origin URLs.
+- [ ] Create a Cloudinary Free account and an upload preset intended for signed avatar uploads. Keep the Cloudinary API secret only in backend environment variables; never expose it to the browser or commit it.
+- [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, and avatar folder. Configure Vercel with only public Auth0 client settings.
+- [ ] Keep `.env.example` limited to placeholders. Add a deployment checklist covering Vercel, Render, Atlas, Bonsai, Auth0, and Cloudinary; do not put provider secrets in Compose files or source control.
 
-**Commit checkpoint:** `feat(auth): add user registration and password login`
+**Commit checkpoint:** `chore(deploy): configure Auth0 and Cloudinary demo services`
 
-#### Token Issuance and Verification
+#### Auth0 Identity and Spring Security
 
-- [ ] Select and document one signing strategy: a sufficiently long random HMAC secret for local learning, or an asymmetric key pair when practising key rotation and verification separation.
-- [ ] Keep secrets and token lifetimes outside source control through environment variables or local configuration. Do not hard-code them in Java or commit them to the repository.
-- [ ] Include only necessary claims in the access token: subject/user ID, issued-at time, expiry, and optionally issuer/audience. Do not include a password, password hash, or sensitive profile data.
-- [ ] Implement access-token creation and verification, including signature, expiry, issuer/audience (if configured), and malformed-token handling.
-- [ ] Implement refresh-token rotation. Store a hashed refresh-token identifier or token record server-side with user ID, expiry, and revocation status, so logout or compromise can invalidate it.
-- [ ] Add `POST /auth/refresh` to validate a refresh token, revoke/rotate the previous record, and issue a new access-token/refresh-token pair.
-
-**Commit checkpoint:** `feat(auth): issue and rotate JWT access and refresh tokens`
-
-#### Spring Security Integration and API Migration
-
-- [ ] Configure a stateless Spring Security filter chain: permit `/auth/register`, `/auth/login`, and `/auth/refresh`; require authentication for all habit, entry, statistics, and search endpoints.
-- [ ] Add a JWT authentication filter that reads the Bearer token, verifies it, creates an authenticated principal, and stores it in `SecurityContext`.
+- [ ] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
+- [ ] Map the Auth0 JWT `sub` to the application `userId`. On the first authenticated request, create a `users` profile document with a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
+- [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
 - [ ] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
 - [ ] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
-- [ ] Return consistent `401 Unauthorized` responses for missing, expired, malformed, or invalid tokens, and `403 Forbidden` only for authenticated users lacking permission.
-- [ ] Extend the `.http` file with registration, login, refresh, authenticated CRUD, cross-user isolation, expired token, invalid token, and revoked refresh-token scenarios.
+- [ ] Return consistent `401 Unauthorized` responses for missing, expired, malformed, invalid, wrong-issuer, or wrong-audience tokens, and `403 Forbidden` only for authenticated users lacking permission.
 
-**Commit checkpoint:** `feat(security): secure modules with JWT user context`
+**Commit checkpoint:** `feat(auth): secure modules with Auth0 JWTs`
 
-#### Basic JWT Practices
+#### Cloudinary Avatar Storage
 
-- [ ] Use a short access-token lifetime (for example, 10–30 minutes) and a longer but finite refresh-token lifetime appropriate for a learning project.
-- [ ] Treat refresh tokens as credentials: transmit them only over HTTPS outside local development, do not log them, and revoke them on logout or suspected compromise.
-- [ ] Add a short README section covering local secret setup, token lifetime configuration, and the difference between access and refresh tokens.
+- [ ] Add avatar metadata to the application profile: nullable `avatarPublicId`, version, content type, size, and updated timestamp. The client never supplies an arbitrary final public ID.
+- [ ] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a small maximum size, generate a `moodly/avatars/{authenticated-userId}/...` public ID, and return a short-lived Cloudinary signed-upload payload.
+- [ ] Upload directly from the client to Cloudinary using the signed payload. Persist the confirmed public ID and version only after a successful upload; build the delivery URL from these values and apply a fixed safe avatar transformation (for example square crop and automatic format/quality).
+- [ ] When replacing an avatar, delete the prior Cloudinary asset from the backend after the new upload is confirmed. Document cleanup for abandoned assets from failed client uploads.
+- [ ] Ensure an authenticated user cannot obtain a signed payload for, overwrite, or delete another user's avatar asset.
 
-**Commit checkpoint:** `docs(auth): document JWT secrets, lifetimes, and refresh-token handling`
+**Commit checkpoint:** `feat(avatars): add Cloudinary-backed avatar uploads`
+
+#### Deployment Verification and Documentation
+
+- [ ] Extend the `.http` file with an Auth0 access token acquisition note and authenticated CRUD, search, cross-user isolation, expired/invalid/wrong-issuer/wrong-audience token, and avatar signed-upload scenarios.
+- [ ] Test a second Auth0 user cannot access the first user's MongoDB data, Bonsai search documents, or Cloudinary asset-management operations.
+- [ ] Deploy and verify the demo: Vercel frontend (if present), Render backend, Atlas Free database, Bonsai Free Sandbox, Auth0 Free, and Cloudinary Free.
+- [ ] Document free-tier limitations: Render may sleep, so CDC indexing can pause until the backend wakes and resumes; Bonsai sandbox and provider quotas are demo-grade; no component has an HA or backup guarantee in this plan.
+
+**Commit checkpoint:** `docs(deploy): document hosted demo workflow and limits`
 
 ---
 
@@ -652,3 +655,75 @@ These are the key differences to take away after completing the project:
 | Data relationships       | Joins through foreign keys.                       | Embedding through nested arrays and objects.                      |
 | Statistical calculations | SQL `GROUP BY`, `JOIN`.                           | Aggregation Pipeline (`$group`, `$unwind`, `$match`).             |
 | Best fit                 | Clearly structured data and complex transactions. | Semi-structured data, read-heavy workloads, and flexible schemas. |
+
+---
+
+## 7. Hosted Demo Deployment Runbook
+
+Follow this order exactly. It avoids circular configuration: the backend needs database, search, auth, and media credentials before it can deploy; Auth0 and backend CORS need the final frontend URL after Vercel deploys it.
+
+### 7.1 Prepare the repository and configuration
+
+- [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
+- [ ] Create a `.env.example` that lists names only, never values. The production backend needs at least:
+
+   ```dotenv
+   SPRING_PROFILES_ACTIVE=production
+   MONGODB_URI=
+   ELASTICSEARCH_URL=
+   ELASTICSEARCH_USERNAME=
+   ELASTICSEARCH_PASSWORD=
+   AUTH0_ISSUER_URI=
+   AUTH0_AUDIENCE=
+   CLOUDINARY_CLOUD_NAME=
+   CLOUDINARY_API_KEY=
+   CLOUDINARY_API_SECRET=
+   CLOUDINARY_UPLOAD_PRESET=
+   APP_CORS_ALLOWED_ORIGINS=
+   ```
+
+- [ ] Ensure `.env`, provider exports, Auth0 client secrets, Cloudinary API secrets, Atlas connection strings, and Bonsai credentials are ignored by Git. Commit the deployment configuration code and documentation before creating cloud resources.
+
+### 7.2 Create persistent data services first
+
+- [ ] **Step 4 —** In MongoDB Atlas, create one Free cluster in a region close to Render. Create a least-privilege database user for Moodly and copy its application connection string into a password manager. Add Render's outbound access to the Atlas IP access list. If Render Free has no stable outbound IP, temporarily use `0.0.0.0/0` only for the demo and keep the database user's password strong; remove this rule when a stable IP is available.
+- [ ] **Step 5 —** In Bonsai, create one Free Sandbox cluster compatible with the Elasticsearch/OpenSearch client version used by the backend. Create a restricted credential, record the HTTPS endpoint and credentials, then configure the backend's `production` profile locally and run a one-time index mapping/reindex verification.
+- [ ] **Step 6 —** In Cloudinary, create a Free account and a **signed** upload preset. Configure it to accept only images, set the `moodly/avatars` folder, and set a conservative maximum upload size. Record the cloud name and API key; keep the API secret private to Render.
+
+### 7.3 Configure authentication before deploying the backend
+
+- [ ] **Step 7 —** In Auth0, create an API with a stable identifier such as `https://api.moodly.demo`; use this exact value as `AUTH0_AUDIENCE`. Do not use a temporary Render URL as the audience.
+- [ ] **Step 8 —** Create an Auth0 application for the frontend (SPA for a browser-only frontend, or Regular Web Application when the frontend owns a server-side session). Enable the database connection needed for demo users. Leave callback/logout/origin URLs to update after Vercel has supplied its final URL.
+- [ ] **Step 9 —** Record Auth0's issuer URL in the form `https://<tenant>.auth0.com/`. Configure the backend to validate this issuer and the API audience, not merely that a JWT has a valid signature.
+
+### 7.4 Deploy the backend and initialize search
+
+- [ ] **Step 10 —** Create a Render Web Service from the backend repository. Use the Maven build command required by the project and the production start command; do not run Keycloak, Garage, or a local Elasticsearch container on Render.
+- [ ] **Step 11 —** Add the environment variables from the `.env.example` list in section 7.1 to Render, using the values from Atlas, Bonsai, Auth0, and Cloudinary. Set `APP_CORS_ALLOWED_ORIGINS` temporarily to an empty or placeholder value until the Vercel URL exists; do not use `*` for an authenticated API.
+- [ ] **Step 12 —** Deploy Render and record the public backend URL, for example `https://moodly-api.onrender.com`. Verify its health endpoint and a protected endpoint returns `401` without a token. Verify the application connects to Atlas and Bonsai from Render logs without printing credentials.
+- [ ] **Step 13 —** Invoke the protected reindex/admin workflow through a controlled local operation, or start the approved reindex command once, so Bonsai has the current MongoDB documents. Confirm the index mapping, one search result, and the saved CDC resume token. Do not expose a public unauthenticated reindex endpoint.
+
+### 7.5 Deploy the frontend, then close the configuration loop
+
+- [ ] **Step 14 —** If the demo has a frontend, create a Vercel project from its repository. Add only browser-safe configuration: Auth0 domain, Auth0 client ID, Auth0 audience, and the Render API base URL. Never put Cloudinary API secret, Auth0 client secret, Atlas URI, or Bonsai credentials in Vercel.
+- [ ] **Step 15 —** Deploy Vercel and record its production URL. In Auth0, add the exact HTTPS Vercel URL to **Allowed Callback URLs**, **Allowed Logout URLs**, and **Allowed Web Origins**. Add `http://localhost:<frontend-port>` separately for local development only.
+- [ ] **Step 16 —** Update Render's `APP_CORS_ALLOWED_ORIGINS` to the exact Vercel production URL (and optionally the local frontend URL), then redeploy Render. Redeploy Vercel if its environment variables changed. If there is no frontend, skip this subsection and obtain a demo access token through Auth0's supported test/login flow before using the `.http` file.
+
+### 7.6 Verify the complete public flow
+
+- [ ] **Step 17 —** Register two separate demo users through Auth0 Universal Login. For each user, call one protected API endpoint and confirm that a profile is created with its `auth0Subject`.
+- [ ] **Step 18 —** As user A, create a habit and entry, wait for or trigger the CDC catch-up, and verify the Bonsai-backed search returns only user A's document. Repeat as user B and verify neither MongoDB-backed endpoints nor search reveal user A's data.
+- [ ] **Step 19 —** As user A, request `/me/avatar/upload-signature`, upload a permitted image directly to Cloudinary, save the returned asset metadata, and retrieve the avatar delivery URL. Replace it once and confirm the old Cloudinary asset is deleted. Repeat as user B and confirm asset-management requests cannot target user A's public ID.
+- [ ] **Step 20 —** Test missing token, expired token, invalid signature, wrong issuer, and wrong audience: each must return `401`. Confirm an authenticated but unauthorized operation returns `403` only where an authorization rule exists.
+- [ ] **Step 21 —** Restart the Render service or wait for a free-tier sleep/wake cycle, then make a writing operation and confirm the CDC listener resumes and Bonsai catches up. If it does not, run the restricted reindex workflow and investigate the stored resume token and dead-letter collection before declaring the demo ready.
+
+### 7.7 Final safety checklist
+
+- [ ] No secrets are committed, printed in logs, or sent to Vercel browser code.
+- [ ] Atlas access is restricted as far as the Render plan permits.
+- [ ] Auth0 callback, logout, and web-origin URLs contain only the Vercel production URL and intentional local URLs.
+- [ ] Cloudinary uploads are signed; the API secret remains server-side.
+- [ ] CORS allows only intended frontend origins.
+- [ ] CDC resume, retry, dead-letter, and reindex paths have been exercised.
+- [ ] Provider dashboards have usage alerts/budgets enabled where their free plans support them.
+- [ ] The README states that this is a free-tier demo, so service sleep, quota limits, and provider policy changes can affect availability.
