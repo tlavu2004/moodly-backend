@@ -549,13 +549,13 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 ##### Manual Verification — `docs/testing/moodly.http` and Docker
 
-- [ ] Start Docker Desktop and run `make local-up`, `make local-replica-status`, and `make local-elasticsearch-status`; expect `PRIMARY` and Elasticsearch `yellow` or `green` for the single-node cluster.
-- [ ] Execute create/update requests from `moodly.http`, copy the returned entry ID into `cdcEntryId`, and inspect `GET /_doc/{{cdcEntryId}}`; verify the document contents after each change.
-- [ ] Delete the entry with the documented `mongosh` command and confirm Elasticsearch returns 404 for the document.
-- [ ] Restart only the application while retaining MongoDB/Elasticsearch, create another entry, and confirm the persisted resume token allows the listener to continue without missing events.
+- [x] Start Docker Desktop and run `make local-up`, `make local-replica-status`, and `make local-elasticsearch-status`; verified MongoDB `PRIMARY` and Elasticsearch `yellow` with one node.
+- [x] Execute create/update requests from `moodly.http`, copy the returned entry ID into `cdcEntryId`, and inspect `GET /_doc/{{cdcEntryId}}`; verified entry `6a740fd7f1c8543eac980109` with the expected mood, tags, and habit note.
+- [x] Delete the entry with the documented `mongosh` command and confirm Elasticsearch returns 404 for the document; verified for entry `6a740fd7f1c8543eac980109`.
+- [x] Restart only the application while retaining MongoDB/Elasticsearch, create another entry, and confirm the persisted resume token allows the listener to continue without missing events; verified token advancement and Elasticsearch HTTP 200 for entry `6a741008ec629352bbfbf365`.
 - [x] Stop Elasticsearch, make a MongoDB entry change, inspect retry/DLQ/Actuator logs, restore Elasticsearch, then replay the dead letter through the protected endpoint and confirm the document returns.
-- [ ] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Repeat with a wrong/missing key and verify the standard `FORBIDDEN` response.
-- [ ] Search with a matching term, no-match term, date boundaries, and a second `X-User-Id`; confirm highlights are useful and results never cross the user boundary. Record the short CDC propagation delay as expected eventual consistency.
+- [x] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Verified two successive reindexes returned 2, matching MongoDB count 2; a wrong key returned HTTP 403.
+- [x] Search with a matching term, no-match term, date boundaries, and a second `X-User-Id`; verified one matching result with `<em>manual</em>` highlight, zero no-match results, and zero cross-user results after bounded CDC polling.
 
 ##### Required Execution Order
 
