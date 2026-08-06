@@ -39,4 +39,16 @@ class DailyEntrySearchDocumentTest {
 		assertThat(document.mood()).isNull();
 		assertThat(document.habits()).isEmpty();
 	}
+
+	@Test
+	void handlesEmptyTagsAndNullHabitCollection() {
+		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		entry.setMood(new DailyEntry.Mood(3, null, null));
+		entry.setHabits(null);
+
+		var document = DailyEntrySearchDocument.from(entry);
+
+		assertThat(document.mood().tags()).isEmpty();
+		assertThat(document.habits()).isEmpty();
+	}
 }

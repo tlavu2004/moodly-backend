@@ -3,13 +3,16 @@ package com.tlavu.moodly.modules.cdc.application;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.cdc.domain.CdcDeadLetter;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -75,6 +78,34 @@ class CdcDeliveryServiceTest {
 		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(3);
 		verify(searchWriter, times(3)).delete("entry-1");
 		verify(monitor).deadLettered(any(IOException.class));
+	}
+
+	@Test
+	void storesSerializedUpsertPayloadInTheDeadLetter() throws Exception {
+		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		entry.setId("entry-1");
+		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenReturn("serialized-payload");
+		doThrow(new IOException("Elasticsearch unavailable"))
+				.when(searchWriter).index(eq("entry-1"), any(DailyEntrySearchDocument.class));
+		var service = service();
+
+		service.deliverUpsert("event-1", "update", entry);
+
+		var deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		verify(deadLetterRepository).save(deadLetter.capture());
+		assertThat(deadLetter.getValue().getPayload()).isEqualTo("serialized-payload");
+		assertThat(deadLetter.getValue().getFailedAt()).isNotNull();
+	}
+
+	@Test
+	void doesNotRetryNonTransientFailures() throws Exception {
+		doThrow(new IllegalArgumentException("invalid request")).when(searchWriter).delete("entry-1");
+		var service = service();
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter).delete("entry-1");
+		verifyNoInteractions(retrySleeper);
 	}
 
 	@Test

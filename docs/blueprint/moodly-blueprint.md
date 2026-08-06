@@ -520,19 +520,19 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 ##### Unit Tests
 
-- [ ] `DailyEntrySearchDocument`: verify the denormalized projection preserves entry ID, `userId`, date, mood score, mood note, tags, and habit notes; cover absent mood, empty/null tag lists, and empty/null habit lists without producing a null collection unexpectedly.
+- [x] `DailyEntrySearchDocument`: verify the denormalized projection preserves `userId`, date, mood score, mood note, tags, and habit notes; the writer supplies the MongoDB entry ID as the deterministic Elasticsearch document ID. Cover absent mood, empty/null tag lists, and empty/null habit lists without producing a null collection unexpectedly.
 - [ ] `DailyEntrySearchWriter`: verify index and delete requests use the configured index name and the MongoDB entry ID as the deterministic Elasticsearch document ID.
 - [ ] `DailyEntrySearchIndexManager`: verify create-if-missing does not overwrite an existing index, creates a missing index from the configured mapping resource, and recreate deletes then creates the same configured index.
 - [ ] `CdcDeliveryService`: verify successful upsert/delete delivery, transient `IOException` and 429/5xx Elasticsearch failures retry up to the configured limit, and non-transient 4xx failures do not retry.
-- [ ] `CdcDeliveryService`: after exhausted retries, verify the dead letter stores event ID, operation, entry ID, serialized payload when applicable, error, configured attempt count, and failure time; verify the monitor records the failure.
-- [ ] `CdcDeliveryService` replay: verify a successful replay deletes the dead letter and updates the monitor; a failing replay retains the record, increments attempts, records the new error/time, and raises a clear exception.
-- [ ] Refactor the retry delay behind an injectable sleeper/backoff collaborator before asserting retry paths, so unit tests never wait for the real exponential-backoff duration.
-- [ ] `DailyEntryReindexService`: verify it recreates the index once, reads every repository page using the configured batch size, indexes every entry exactly once, and returns the total indexed count for zero, one, and multiple pages.
+- [x] `CdcDeliveryService`: after exhausted retries, verify the dead letter stores event ID, operation, entry ID, serialized payload when applicable, error, configured attempt count, and failure time; verify the monitor records the failure.
+- [x] `CdcDeliveryService` replay: verify a successful replay deletes the dead letter and updates the monitor; a failing replay retains the record, increments attempts, records the new error/time, and raises a clear exception.
+- [x] Refactor the retry delay behind an injectable sleeper/backoff collaborator before asserting retry paths, so unit tests never wait for the real exponential-backoff duration.
+- [x] `DailyEntryReindexService`: verify it recreates the index once, reads every repository page using the configured batch size, indexes every entry exactly once, and returns the total indexed count for zero, one, and multiple pages.
 - [ ] `DailyEntryChangeStreamListener`: verify insert/update/replace route to upsert, delete routes to delete, only a successfully handled event advances the résumé token, and an unsupported operation does not alter the token.
 - [ ] `DailyEntryChangeStreamListener`: verify a `ChangeStreamHistoryLost`/code 286 failure removes the stale token, invokes reindex, registers a fresh stream, and reports healthy again; other listener failures must remain visible as unhealthy and must not trigger reindex.
 - [ ] `EntrySearchService`: verify the generated query always filters by `userId`, applies each optional date bound correctly, uses the configured index, returns an empty highlight map when Elasticsearch omits highlights, and maps `IOException` to the expected unavailable error.
 - [x] `EntrySearchController` web slice: cover successful parameter forwarding, blank `q`, reversed dates, and user-header forwarding/isolation.
-- [ ] `CdcMaintenanceController` web slice: cover valid maintenance key, missing/wrong key returning the standard `FORBIDDEN` envelope, reindex response count, and replay endpoint delegation.
+- [x] `CdcMaintenanceController` web slice: cover valid maintenance key, missing/wrong key returning the standard `FORBIDDEN` envelope, reindex response count, and replay endpoint delegation.
 
 ##### Integration Tests — MongoDB + Elasticsearch Testcontainers
 

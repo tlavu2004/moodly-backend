@@ -21,7 +21,9 @@ public record DailyEntrySearchDocument(
 	public static DailyEntrySearchDocument from(DailyEntry entry) {
 		var mood = entry.getMood();
 		var searchMood = mood == null ? null : new Mood(mood.getScore(), mood.getNote(), mood.getTags());
-		var habits = entry.getHabits().stream().map(habit -> new Habit(habit.getNote())).toList();
+		var habits = entry.getHabits() == null
+				? List.<Habit>of()
+				: entry.getHabits().stream().map(habit -> new Habit(habit.getNote())).toList();
 		return new DailyEntrySearchDocument(entry.getUserId(), entry.getDate(), searchMood, habits);
 	}
 }

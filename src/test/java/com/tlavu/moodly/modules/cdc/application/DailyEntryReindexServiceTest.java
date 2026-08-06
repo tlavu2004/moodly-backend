@@ -60,4 +60,15 @@ class DailyEntryReindexServiceTest {
 		assertThat(service.reindex().indexedEntries()).isZero();
 		verify(indexManager).recreate();
 	}
+
+	@Test
+	void indexesACompleteSinglePage() throws Exception {
+		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		var pageRequest = PageRequest.of(0, 2);
+		when(dailyEntryRepository.findAll(pageRequest)).thenReturn(new PageImpl<>(List.of(entry), pageRequest, 1));
+		var service = new DailyEntryReindexService(dailyEntryRepository, searchWriter, indexManager, 2);
+
+		assertThat(service.reindex().indexedEntries()).isEqualTo(1);
+		verify(searchWriter).index(entry);
+	}
 }
