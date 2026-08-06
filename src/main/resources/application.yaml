@@ -7,20 +7,28 @@ spring:
     mongodb:
       auto-index-creation: true
   elasticsearch:
-    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+    uris: http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
 
 moodly:
 
+  entries:
+    collection-name: ${MOODLY_ENTRIES_COLLECTION_NAME}
+
   cdc:
-    enabled: true
-    maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY:}
+    enabled: ${MOODLY_CDC_ENABLED}
+    stream-id: ${MOODLY_CDC_STREAM_ID}
+    maintenance-key: ${MOODLY_CDC_MAINTENANCE_KEY}
     retry:
-      max-attempts: 3
-      initial-backoff-ms: 200
+      max-attempts: ${MOODLY_CDC_RETRY_MAX_ATTEMPTS}
+      initial-backoff-ms: ${MOODLY_CDC_RETRY_INITIAL_BACKOFF_MS}
+    reindex:
+      batch-size: ${MOODLY_CDC_REINDEX_BATCH_SIZE}
 
   search:
     index:
-      initialization-enabled: true
+      name: ${MOODLY_SEARCH_INDEX_NAME}
+      mapping-resource: ${MOODLY_SEARCH_INDEX_MAPPING_RESOURCE}
+      initialization-enabled: ${MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED}
 
 management:
   endpoint:

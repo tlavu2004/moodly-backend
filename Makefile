@@ -22,7 +22,7 @@ local-replica-status:
 	$(LOCAL_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
 
 local-elasticsearch-status:
-	set -a; . ./.env.local; set +a; curl -fsS "http://localhost:$${ELASTICSEARCH_PORT:-9200}/_cluster/health?pretty"
+	set -a; . ./.env.local; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
 
 local-run: local-up
 	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
@@ -58,10 +58,10 @@ test-replica-status:
 	$(TEST_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
 
 test-run: test-up
-	SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-build-run: test-up
-	mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
+	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
 
 test-logs:
 	$(TEST_COMPOSE) logs -f mongodb

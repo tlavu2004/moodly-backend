@@ -23,15 +23,17 @@ public class EntrySearchService {
 	private static final int MAX_RESULTS = 50;
 
 	private final ElasticsearchClient elasticsearchClient;
+	private final DailyEntrySearchIndexManager indexManager;
 
-	public EntrySearchService(ElasticsearchClient elasticsearchClient) {
+	public EntrySearchService(ElasticsearchClient elasticsearchClient, DailyEntrySearchIndexManager indexManager) {
 		this.elasticsearchClient = elasticsearchClient;
+		this.indexManager = indexManager;
 	}
 
 	public List<EntrySearchResult> search(String userId, String query, LocalDate from, LocalDate to) {
 		try {
 			var response = elasticsearchClient.search(request -> request
-					.index(DailyEntrySearchIndexManager.INDEX_NAME)
+					.index(indexManager.getIndexName())
 					.size(MAX_RESULTS)
 					.query(searchQuery -> searchQuery.bool(bool -> {
 						bool.must(match -> match.multiMatch(multiMatch -> multiMatch

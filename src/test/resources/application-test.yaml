@@ -1,0 +1,17 @@
+moodly:
+  entries:
+    collection-name: daily_entries
+  cdc:
+    enabled: false
+    maintenance-key: test-maintenance-key
+    stream-id: daily_entries
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 200
+    reindex:
+      batch-size: 250
+  search:
+    index:
+      name: daily_entries_search
+      mapping-resource: classpath:elasticsearch/daily_entries_search.json
+      initialization-enabled: false

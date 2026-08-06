@@ -29,8 +29,8 @@ public class CdcDeliveryService {
 			CdcDeadLetterRepository deadLetterRepository,
 			CdcMonitor monitor,
 			ObjectMapper objectMapper,
-			@Value("${moodly.cdc.retry.max-attempts:3}") int maxAttempts,
-			@Value("${moodly.cdc.retry.initial-backoff-ms:200}") long initialBackoffMs
+			@Value("${moodly.cdc.retry.max-attempts}") int maxAttempts,
+			@Value("${moodly.cdc.retry.initial-backoff-ms}") long initialBackoffMs
 	) {
 		this.searchWriter = searchWriter;
 		this.deadLetterRepository = deadLetterRepository;

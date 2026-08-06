@@ -10,9 +10,11 @@ import org.springframework.stereotype.Component;
 public class DailyEntrySearchWriter {
 
 	private final ElasticsearchClient elasticsearchClient;
+	private final DailyEntrySearchIndexManager indexManager;
 
-	public DailyEntrySearchWriter(ElasticsearchClient elasticsearchClient) {
+	public DailyEntrySearchWriter(ElasticsearchClient elasticsearchClient, DailyEntrySearchIndexManager indexManager) {
 		this.elasticsearchClient = elasticsearchClient;
+		this.indexManager = indexManager;
 	}
 
 	public void index(DailyEntry entry) throws IOException {
@@ -21,14 +23,14 @@ public class DailyEntrySearchWriter {
 
 	public void index(String entryId, DailyEntrySearchDocument document) throws IOException {
 		elasticsearchClient.index(request -> request
-				.index(DailyEntrySearchIndexManager.INDEX_NAME)
+				.index(indexManager.getIndexName())
 				.id(entryId)
 				.document(document));
 	}
 
 	public void delete(String entryId) throws IOException {
 		elasticsearchClient.delete(request -> request
-				.index(DailyEntrySearchIndexManager.INDEX_NAME)
+				.index(indexManager.getIndexName())
 				.id(entryId));
 	}
 }

@@ -14,6 +14,7 @@ import org.bson.BsonDocument;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
@@ -28,13 +29,13 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "moodly.cdc.enabled", havingValue = "true", matchIfMissing = true)
 public class DailyEntryChangeStreamListener {
 
-	private static final String STREAM_ID = "daily_entries";
-
 	private final DefaultMessageListenerContainer listenerContainer;
 	private final CdcResumeTokenRepository resumeTokenRepository;
 	private final CdcDeliveryService deliveryService;
 	private final DailyEntryReindexService reindexService;
 	private final CdcMonitor monitor;
+	private final String collectionName;
+	private final String streamId;
 	private Subscription subscription;
 
 	public DailyEntryChangeStreamListener(
@@ -42,31 +43,35 @@ public class DailyEntryChangeStreamListener {
 			CdcResumeTokenRepository resumeTokenRepository,
 			CdcDeliveryService deliveryService,
 			DailyEntryReindexService reindexService,
-			CdcMonitor monitor
+			CdcMonitor monitor,
+			@Value("${moodly.entries.collection-name}") String collectionName,
+			@Value("${moodly.cdc.stream-id}") String streamId
 	) {
 		this.listenerContainer = new DefaultMessageListenerContainer(mongoTemplate);
 		this.resumeTokenRepository = resumeTokenRepository;
 		this.deliveryService = deliveryService;
 		this.reindexService = reindexService;
 		this.monitor = monitor;
+		this.collectionName = collectionName;
+		this.streamId = streamId;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
 	public synchronized void start() {
 		listenerContainer.start();
-		register(resumeTokenRepository.findById(STREAM_ID).map(CdcResumeToken::getToken).orElse(null));
+		register(resumeTokenRepository.findById(streamId).map(CdcResumeToken::getToken).orElse(null));
 		monitor.listenerStarted();
 	}
 
 	private void register(String resumeToken) {
 		var builder = ChangeStreamRequest.builder(this::onMessage)
-				.collection("daily_entries")
+				.collection(collectionName)
 				.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
 		if (resumeToken != null) {
 			builder.resumeAfter(BsonDocument.parse(resumeToken));
 		}
 		subscription = listenerContainer.register(builder.build(), DailyEntry.class, this::onListenerFailure);
-		log.info("Started daily_entries Change Stream{}.", resumeToken == null ? "" : " from its resume token");
+		log.info("Started {} Change Stream{}.", collectionName, resumeToken == null ? "" : " from its resume token");
 	}
 
 	private void onMessage(Message<ChangeStreamDocument<org.bson.Document>, DailyEntry> message) {
@@ -86,28 +91,28 @@ public class DailyEntryChangeStreamListener {
 			} else {
 				return;
 			}
-			resumeTokenRepository.save(new CdcResumeToken(STREAM_ID, resumeToken.toString(), Instant.now()));
+			resumeTokenRepository.save(new CdcResumeToken(streamId, resumeToken.toString(), Instant.now()));
 		} catch (Exception exception) {
-			throw new IllegalStateException("Could not synchronize a daily_entries change event", exception);
+			throw new IllegalStateException("Could not synchronize a " + collectionName + " change event", exception);
 		}
 	}
 
 	private synchronized void onListenerFailure(@NonNull Throwable exception) {
 		monitor.listenerFailed(exception);
 		if (!isExpiredResumeToken(exception)) {
-			log.error("daily_entries Change Stream stopped unexpectedly.", exception);
+			log.error("{} Change Stream stopped unexpectedly.", collectionName, exception);
 			return;
 		}
 
-		log.warn("The daily_entries Change Stream resume token has expired; rebuilding the Elasticsearch index.", exception);
+		log.warn("The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.", collectionName, exception);
 		try {
 			listenerContainer.remove(subscription);
-			resumeTokenRepository.deleteById(STREAM_ID);
+			resumeTokenRepository.deleteById(streamId);
 			reindexService.reindex();
 			register(null);
 			monitor.listenerStarted();
 		} catch (Exception recoveryFailure) {
-			log.error("Could not recover daily_entries Change Stream with a full reindex.", recoveryFailure);
+			log.error("Could not recover {} Change Stream with a full reindex.", collectionName, recoveryFailure);
 		}
 	}
 

@@ -1,6 +1,6 @@
 spring:
   mongodb:
-    uri: ${MONGODB_URI:mongodb://localhost:27017/moodly?replicaSet=rs0}
+    uri: mongodb://${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}?replicaSet=${MONGODB_REPLICA_SET}
 
 management:
   endpoint:

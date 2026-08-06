@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -20,9 +21,14 @@ public class StatsAggregationRepository {
 	private static final ZoneId HO_CHI_MINH_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private final MongoTemplate mongoTemplate;
+	private final String dailyEntriesCollection;
 
-	public StatsAggregationRepository(MongoTemplate mongoTemplate) {
+	public StatsAggregationRepository(
+			MongoTemplate mongoTemplate,
+			@Value("${moodly.entries.collection-name}") String dailyEntriesCollection
+	) {
 		this.mongoTemplate = mongoTemplate;
+		this.dailyEntriesCollection = dailyEntriesCollection;
 	}
 
 	public List<MoodTrendResponse> findWeeklyMoodTrend(String userId) {
@@ -41,7 +47,7 @@ public class StatsAggregationRepository {
 				Aggregation.sort(Sort.Direction.ASC, "_id")
 		);
 
-		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, "daily_entries", Document.class);
+		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
 		return results.getMappedResults().stream()
 				.map(this::toMoodTrendResponse)
 				.toList();
@@ -56,7 +62,7 @@ public class StatsAggregationRepository {
 				Aggregation.sort(Sort.Direction.DESC, "missedCount")
 		);
 
-		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, "daily_entries", Document.class);
+		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
 		return results.getMappedResults().stream()
 				.map(this::toMostMissedHabitResponse)
 				.toList();

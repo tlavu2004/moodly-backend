@@ -4,12 +4,12 @@ services:
     container_name: moodly-mongodb-local
     restart: unless-stopped
     ports:
-      - "${MONGODB_PORT}:27017"
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+      - "${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
+    command: ["mongod", "--replSet", "${MONGODB_REPLICA_SET}", "--bind_ip_all", "--port", "${MONGODB_CONTAINER_PORT}"]
     volumes:
       - moodly-mongodb-local-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --host localhost:27017 --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
+      test: ["CMD-SHELL", "mongosh --quiet --host ${MONGODB_CONTAINER_HOST}:${MONGODB_CONTAINER_PORT} --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -25,11 +25,11 @@ services:
       - /bin/sh
       - -c
       - |
-        state="$$(mongosh --quiet --host mongodb:27017 --eval 'try { rs.status(); print("INITIALIZED"); } catch (error) { print(error.codeName); }')"
+        state="$$(mongosh --quiet --host ${MONGODB_SERVICE_HOST}:${MONGODB_CONTAINER_PORT} --eval 'try { rs.status(); print("INITIALIZED"); } catch (error) { print(error.codeName); }')"
         case "$$state" in
-          *INITIALIZED*) echo "Replica set rs0 is already initialised." ;;
+          *INITIALIZED*) echo "Replica set ${MONGODB_REPLICA_SET} is already initialised." ;;
           *NotYetInitialized*)
-            mongosh --host mongodb:27017 --eval 'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] })'
+            mongosh --host ${MONGODB_SERVICE_HOST}:${MONGODB_CONTAINER_PORT} --eval 'rs.initiate({ _id: "${MONGODB_REPLICA_SET}", members: [{ _id: 0, host: "${MONGODB_REPLICA_ADVERTISED_HOST}:${MONGODB_PORT}" }] })'
             ;;
           *) echo "Unable to determine replica-set state: $$state"; exit 1 ;;
         esac
@@ -42,13 +42,13 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ES_JAVA_OPTS=-Xms${ELASTICSEARCH_HEAP_SIZE} -Xmx${ELASTICSEARCH_HEAP_SIZE}
     ports:
-      - "${ELASTICSEARCH_PORT}:9200"
+      - "${ELASTICSEARCH_PORT}:${ELASTICSEARCH_CONTAINER_PORT}"
     volumes:
       - moodly-elasticsearch-local-data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://${ELASTICSEARCH_CONTAINER_HOST}:${ELASTICSEARCH_CONTAINER_PORT}/_cluster/health?wait_for_status=yellow >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 18
