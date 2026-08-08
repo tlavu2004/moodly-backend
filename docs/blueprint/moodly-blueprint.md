@@ -638,7 +638,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 2. Open **Settings → API Keys**. Copy the Cloud name, API Key, and API Secret into the ignored `.env.local` file. Cloudinary documents API key and secret retrieval on this settings page in its [Admin API reference](https://cloudinary.com/documentation/admin_api).
 3. Open **Settings → Upload → Upload Presets** and choose **Add Upload Preset**. Cloudinary's [upload-preset guide](https://cloudinary.com/documentation/dam_admin_upload_presets) documents this console page and its options.
 4. Name the preset `moodly_local_signed`. In the **General** tab, select **Signed** signing mode, set the asset folder to `moodly/local`, and disable overwrite. Leave the setting that uses the asset folder as the public-ID prefix disabled: the backend will define final IDs by resource type and owner, for example `moodly/local/users/{userId}/avatar/{uuid}`.
-5. Restrict accepted formats to `jpg`, `jpeg`, `png`, and `webp`. Configure a conservative maximum file size if the current console offers it; otherwise, the API must validate a 5 MB maximum and image MIME type before it creates an upload signature.
+5. Restrict accepted formats to `jpg`, `jpeg`, `png`, and `webp`. Cloudinary supports a per-preset `max_file_size` upload parameter. If the current Console exposes **Maximum file size** in the preset editor, set it to `5242880` bytes (5 MiB). If it is not exposed in this product environment, set `max_file_size=5242880` through the Cloudinary Admin API or backend SDK when creating/updating the preset. The Moodly backend must still validate declared media type and size before creating a signature, and verify the confirmed Cloudinary asset is an allowed image no larger than 5 MiB; browser-provided file metadata is not authoritative.
 6. Save the preset, then add the values to `.env.local`:
 
    ```dotenv
@@ -679,6 +679,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 - [ ] Add avatar metadata to the application profile: nullable `avatarPublicId`, version, content type, size, and updated timestamp. The client never supplies an arbitrary final public ID.
 - [ ] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a 5 MB maximum size, generate a `moodly/local/users/{authenticated-userId}/avatar/{uuid}` public ID, and return a short-lived Cloudinary signed-upload payload.
+- [ ] Enforce the 5 MiB (`5 * 1024 * 1024` bytes) avatar limit in the backend before issuing a signature and verify it again against Cloudinary's confirmed asset metadata; do not rely solely on browser-provided file size. Keep this validation even when the Cloudinary preset has `max_file_size=5242880`.
 - [ ] Upload directly from the client to Cloudinary using the signed payload. Persist the confirmed public ID and version only after a successful upload; build the delivery URL from these values and apply a fixed safe avatar transformation (for example square crop and automatic format/quality).
 - [ ] When replacing an avatar, delete the prior Cloudinary asset from the backend after the new upload is confirmed. Document cleanup for abandoned assets from failed client uploads.
 - [ ] Ensure an authenticated user cannot obtain a signed payload for, overwrite, or delete another user's avatar asset.
