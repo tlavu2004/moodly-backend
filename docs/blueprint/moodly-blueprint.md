@@ -126,7 +126,7 @@ const user = {
   _id: ObjectId("..."),
   auth0Subject: "auth0|2b8d5c6f-...", // Auth0 JWT `sub`; unique
   email: "user@example.com",
-  avatarPublicId: "moodly/avatars/2b8d5c6f-.../b3e1", // Cloudinary public ID; nullable
+  avatarPublicId: "moodly/local/users/2b8d5c6f-.../avatar/b3e1", // Cloudinary public ID; nullable
   createdAt: ISODate("2026-08-03T09:00:00Z"),
   updatedAt: ISODate("2026-08-03T09:00:00Z")
 };
@@ -583,10 +583,10 @@ Implement and verify the complete backend locally before building the frontend o
 
 #### Local-First Service Configuration
 
-- [ ] Create an Auth0 tenant, an API with a stable Moodly API identifier as its audience, and a local-development SPA client. Configure `http://localhost:<frontend-port>` as the allowed callback, logout, and web-origin URL. Add the deployed Vercel URL only after the frontend has been deployed.
-- [ ] Create a Cloudinary Free account and a signed upload preset intended for avatars. Configure it to accept images only, use the `moodly/avatars` folder, and set a conservative maximum upload size. Keep the Cloudinary API secret only in local backend environment variables; never expose it to a browser or commit it.
-- [ ] Extend `.env.local.example` with placeholders for the Auth0 issuer, API audience, Cloudinary cloud name, API key, API secret, upload preset, avatar folder, and local CORS origin. Add the corresponding values only to ignored `.env.local`.
-- [ ] Add `application-local.yaml` bindings for Auth0, Cloudinary, and CORS so `make local-run` uses local MongoDB/Elasticsearch/CDC plus Auth0 and Cloudinary development credentials. Keep production bindings for a later `application-production.yaml`; do not add Render or Vercel configuration yet.
+- [x] Create an Auth0 tenant, an API with a stable Moodly API identifier as its audience, and a local-development SPA client. Configure `http://localhost:<frontend-port>` as the allowed callback, logout, and web-origin URL. Add the deployed Vercel URL only after the frontend has been deployed.
+- [x] Create a Cloudinary Free account and a signed local upload preset, `moodly_local_signed`. Restrict it to `jpg`, `jpeg`, `png`, and `webp`; use `moodly/local` as its Media Library folder; disable overwrite; and keep the Cloudinary API secret only in local backend environment variables. Cloudinary Console does not expose a maximum-file-size preset setting in this environment, so the Phase 3 avatar endpoint must enforce that limit.
+- [x] Extend `.env.local.example` with placeholders for the Auth0 issuer, API audience, Cloudinary cloud name, API key, API secret, upload preset, Cloudinary root folder, and local CORS origin. Add the corresponding values only to ignored `.env.local`.
+- [x] Add `application-local.yaml` bindings for Auth0, Cloudinary, and CORS so `make local-run` uses local MongoDB/Elasticsearch/CDC plus Auth0 and Cloudinary development credentials. Keep production bindings for a later `application-production.yaml`; do not add Render or Vercel configuration yet.
 
 ##### Dashboard setup guide and local configuration values
 
@@ -637,16 +637,16 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 1. Sign in to [Cloudinary Console](https://console.cloudinary.com/) and select the development product environment.
 2. Open **Settings → API Keys**. Copy the Cloud name, API Key, and API Secret into the ignored `.env.local` file. Cloudinary documents API key and secret retrieval on this settings page in its [Admin API reference](https://cloudinary.com/documentation/admin_api).
 3. Open **Settings → Upload → Upload Presets** and choose **Add Upload Preset**. Cloudinary's [upload-preset guide](https://cloudinary.com/documentation/dam_admin_upload_presets) documents this console page and its options.
-4. Name the preset `moodly_avatar_signed`. In the **General** tab, select **Signed** signing mode and set the asset folder to `moodly/avatars`. If the environment uses dynamic folders, enable the option that uses the initial asset-folder path as the public-ID prefix so stored avatar public IDs consistently begin with that folder.
-5. Restrict accepted formats to image formats required by the application, for example `jpg`, `jpeg`, `png`, and `webp`; configure a conservative maximum file size if that option is available in the current console. The API will also validate size and media type in the avatar implementation slice.
+4. Name the preset `moodly_local_signed`. In the **General** tab, select **Signed** signing mode, set the asset folder to `moodly/local`, and disable overwrite. Leave the setting that uses the asset folder as the public-ID prefix disabled: the backend will define final IDs by resource type and owner, for example `moodly/local/users/{userId}/avatar/{uuid}`.
+5. Restrict accepted formats to `jpg`, `jpeg`, `png`, and `webp`. Configure a conservative maximum file size if the current console offers it; otherwise, the API must validate a 5 MB maximum and image MIME type before it creates an upload signature.
 6. Save the preset, then add the values to `.env.local`:
 
    ```dotenv
    CLOUDINARY_CLOUD_NAME=<Cloud name from Settings → API Keys>
    CLOUDINARY_API_KEY=<API key from Settings → API Keys>
    CLOUDINARY_API_SECRET=<API secret from Settings → API Keys>
-   CLOUDINARY_UPLOAD_PRESET=moodly_avatar_signed
-   CLOUDINARY_AVATAR_FOLDER=moodly/avatars
+   CLOUDINARY_UPLOAD_PRESET=moodly_local_signed
+   CLOUDINARY_FOLDER=moodly/local
    ```
 
    The frontend must never receive `CLOUDINARY_API_SECRET`. It will later call Moodly's signed-upload endpoint, which generates a short-lived signature server-side; Cloudinary likewise recommends backend signing for sensitive browser uploads in its [client-side upload guidance](https://cloudinary.com/documentation/client_side_uploading).
@@ -678,7 +678,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 #### Cloudinary Avatar Storage
 
 - [ ] Add avatar metadata to the application profile: nullable `avatarPublicId`, version, content type, size, and updated timestamp. The client never supplies an arbitrary final public ID.
-- [ ] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a small maximum size, generate a `moodly/avatars/{authenticated-userId}/...` public ID, and return a short-lived Cloudinary signed-upload payload.
+- [ ] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a 5 MB maximum size, generate a `moodly/local/users/{authenticated-userId}/avatar/{uuid}` public ID, and return a short-lived Cloudinary signed-upload payload.
 - [ ] Upload directly from the client to Cloudinary using the signed payload. Persist the confirmed public ID and version only after a successful upload; build the delivery URL from these values and apply a fixed safe avatar transformation (for example square crop and automatic format/quality).
 - [ ] When replacing an avatar, delete the prior Cloudinary asset from the backend after the new upload is confirmed. Document cleanup for abandoned assets from failed client uploads.
 - [ ] Ensure an authenticated user cannot obtain a signed payload for, overwrite, or delete another user's avatar asset.
@@ -697,7 +697,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 #### Deployment Preparation After Local Verification
 
 - [ ] Add `application-production.yaml` with environment-variable placeholders only. Keep `.env.local.example` and `.env.test.example` as local/test templates; do not create or commit `.env.production`.
-- [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, avatar folder, and production CORS origin. Configure Vercel later with only public Auth0 client settings.
+- [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, root folder, and production CORS origin. Configure Vercel later with only public Auth0 client settings.
 - [ ] Add a deployment checklist covering Vercel, Render, Atlas, Bonsai, Auth0, and Cloudinary; do not put provider secrets in Compose files or source control.
 - [ ] Document free-tier limitations: Render may sleep, so CDC indexing can pause until the backend wakes and resumes; Bonsai sandbox and provider quotas are demo-grade; no component has an HA or backup guarantee in this plan.
 
@@ -784,7 +784,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 
 - [ ] **Step 4 —** In MongoDB Atlas, create one Free cluster in a region close to Render. Create a least-privilege database user for Moodly and copy its application connection string into a password manager. Add Render's outbound access to the Atlas IP access list. If Render Free has no stable outbound IP, temporarily use `0.0.0.0/0` only for the demo and keep the database user's password strong; remove this rule when a stable IP is available.
 - [ ] **Step 5 —** In Bonsai, create one Free Sandbox cluster compatible with the Elasticsearch/OpenSearch client version used by the backend. Create a restricted credential, record the HTTPS endpoint and credentials, then configure the backend's `production` profile locally and run a one-time index mapping/reindex verification.
-- [ ] **Step 6 —** In Cloudinary, create a Free account and a **signed** upload preset. Configure it to accept only images, set the `moodly/avatars` folder, and set a conservative maximum upload size. Record the cloud name and API key; keep the API secret private to Render.
+- [ ] **Step 6 —** In Cloudinary, create a Free account and a **signed** production upload preset. Configure it to accept only `jpg`, `jpeg`, `png`, and `webp`, set its root folder to `moodly/production`, disable overwrite, and keep the API secret private to Render. The backend must enforce the maximum upload size.
 
 ### 7.3 Configure authentication before deploying the backend
 

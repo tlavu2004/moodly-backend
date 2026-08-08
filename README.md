@@ -13,8 +13,8 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
 Before starting the Phase 3 backend, configure the hosted development services and fill the corresponding blank values in `.env.local`:
 
 - In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:3000`) to its allowed callback, logout, and web-origin URLs.
-- In Cloudinary, create a signed avatar upload preset that accepts images only, stores assets in `moodly/avatars`, and has a conservative maximum upload size. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
-- Set `CLOUDINARY_AVATAR_FOLDER` to the folder configured by the preset, and `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
+- In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
+- Set `CLOUDINARY_FOLDER` to `moodly/local`. The Phase 3 backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
 
 `make local-run` exports these variables before launching the `local` profile. The Auth0 issuer, API audience, Cloudinary settings, and CORS origins are deliberately bound only by `application-local.yaml`; production configuration is deferred to Phase 3 deployment preparation.
 
