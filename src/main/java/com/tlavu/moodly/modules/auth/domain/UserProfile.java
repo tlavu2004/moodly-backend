@@ -21,8 +21,10 @@ public class UserProfile {
 	@Indexed(name = "email_unique", unique = true, sparse = true)
 	private String email;
 
-	@SuppressWarnings("unused") // Assigned when the avatar-storage slice is implemented.
 	private String avatarPublicId;
+	private Long avatarVersion;
+	private String avatarContentType;
+	private Long avatarSizeBytes;
 	private Instant createdAt;
 	private Instant updatedAt;
 
@@ -35,5 +37,13 @@ public class UserProfile {
 		this.email = email;
 		this.createdAt = createdAt;
 		this.updatedAt = createdAt;
+	}
+
+	public void replaceAvatar(String publicId, long version, String contentType, long sizeBytes, Instant now) {
+		this.avatarPublicId = publicId;
+		this.avatarVersion = version;
+		this.avatarContentType = contentType;
+		this.avatarSizeBytes = sizeBytes;
+		this.updatedAt = now;
 	}
 }

@@ -677,12 +677,12 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 #### Cloudinary Avatar Storage
 
-- [ ] Add avatar metadata to the application profile: nullable `avatarPublicId`, version, content type, size, and updated timestamp. The client never supplies an arbitrary final public ID.
-- [ ] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a 5 MB maximum size, generate a `moodly/local/users/{authenticated-userId}/avatar/{uuid}` public ID, and return a short-lived Cloudinary signed-upload payload.
-- [ ] Enforce the 5 MiB (`5 * 1024 * 1024` bytes) avatar limit in the backend before issuing a signature and verify it again against Cloudinary's confirmed asset metadata; do not rely solely on browser-provided file size. Keep this validation even when the Cloudinary preset has `max_file_size=5242880`.
-- [ ] Upload directly from the client to Cloudinary using the signed payload. Persist the confirmed public ID and version only after a successful upload; build the delivery URL from these values and apply a fixed safe avatar transformation (for example square crop and automatic format/quality).
-- [ ] When replacing an avatar, delete the prior Cloudinary asset from the backend after the new upload is confirmed. Document cleanup for abandoned assets from failed client uploads.
-- [ ] Ensure an authenticated user cannot obtain a signed payload for, overwrite, or delete another user's avatar asset.
+- [x] Add avatar metadata to the application profile: nullable `avatarPublicId`, version, content type, size, and updated timestamp. Cloudinary-confirmed content type and size are persisted; final public IDs are generated only by the backend signature flow.
+- [x] Implement `POST /me/avatar/upload-signature`. Validate allowed image MIME types and a 5 MB maximum size, generate a `moodly/local/users/{authenticated-userId}/avatar/{uuid}` public ID, and return a Cloudinary signed-upload payload.
+- [x] Enforce the 5 MiB (`5 * 1024 * 1024` bytes) avatar limit in the backend before issuing a signature and verify it again against Cloudinary's confirmed asset metadata; do not rely solely on browser-provided file size. Keep this validation even when the Cloudinary preset has `max_file_size=5242880`.
+- [x] Upload directly from the client to Cloudinary using the signed payload. Persist the confirmed public ID and version only after a successful upload; build the delivery URL from these values and apply a fixed safe avatar transformation (for example square crop and automatic format/quality).
+- [x] When replacing an avatar, delete the prior Cloudinary asset from the backend after the new upload is confirmed. Store each issued but unconfirmed public ID as a pending upload with an expiry; a scheduled cleanup retries deletion of abandoned assets after expiry.
+- [x] Ensure an authenticated user cannot obtain a signed payload for, overwrite, or delete another user's avatar asset. Signed public IDs and confirm requests are constrained to the authenticated JWT subject's namespace; no cross-user asset identifier is accepted by the API.
 
 **Commit checkpoint:** `feat(avatars): add Cloudinary-backed avatar uploads`
 
