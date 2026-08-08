@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
@@ -171,20 +172,20 @@ class CdcSearchInfrastructureIntegrationTest {
 				() -> entrySearchService.search(user, "unique", own.getDate(), own.getDate()).stream()
 						.anyMatch(result -> own.getId().equals(result.entryId())), () -> "entryId=" + own.getId());
 
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].entryId").value(own.getId()))
 				.andExpect(jsonPath("$.data[0].highlights['mood.note'][0]", containsString("<em>unique</em>")));
 
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "does-not-match"))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "does-not-match"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("from", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("to", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("to", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "   "))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "   "))
 				.andExpect(status().isBadRequest());
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique")
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique")
 					.param("from", own.getDate().plusDays(1).toString()).param("to", own.getDate().toString()))
 				.andExpect(status().isBadRequest());
 	}

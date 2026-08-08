@@ -1,12 +1,12 @@
 @baseUrl = http://localhost:8080
-@userId = user_123
+@accessToken = replace-with-auth0-access-token
 @habitId = replace-with-created-habit-id
 @maintenanceKey = moodly-local-maintenance
 @cdcEntryId = replace-with-created-entry-id
 
 ### Create a habit
 POST {{baseUrl}}/habits
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -17,11 +17,11 @@ Content-Type: application/json
 
 ### List active habits
 GET {{baseUrl}}/habits
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### Mark a habit as done today
 PATCH {{baseUrl}}/entries/today
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -32,7 +32,7 @@ Content-Type: application/json
 
 ### Set today's mood
 PUT {{baseUrl}}/entries/today/mood
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -43,19 +43,19 @@ Content-Type: application/json
 
 ### Query entries by date range
 GET {{baseUrl}}/entries?from=2026-08-01&to=2026-08-31
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### Get current habit streak
 GET {{baseUrl}}/habits/{{habitId}}/streak
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### Get weekly mood trend
 GET {{baseUrl}}/stats/mood-trend?period=week
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### Get most missed habits
 GET {{baseUrl}}/stats/most-missed-habits
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### CDC verification: inspect listener health and failed-event count
 GET {{baseUrl}}/actuator/health
@@ -63,7 +63,7 @@ GET {{baseUrl}}/actuator/health
 ### Search indexed mood notes, habit notes, and mood tags
 # Search is eventually consistent: wait briefly after saving the entry.
 GET {{baseUrl}}/entries/search?q=tired&from=2026-08-01&to=2026-08-31
-X-User-Id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 ### CDC verification: inspect an indexed entry
 # Set cdcEntryId at the top from the response to the entry update request.

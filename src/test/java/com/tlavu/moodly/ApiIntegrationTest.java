@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
+import com.tlavu.moodly.modules.auth.infrastructure.UserProfileRepository;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -35,44 +37,47 @@ class ApiIntegrationTest {
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
 	private HabitRepository habitRepository;
+	@Autowired
+	private UserProfileRepository userProfileRepository;
 
 	@AfterEach
 	void cleanUp() {
 		dailyEntryRepository.deleteByUserId(USER_ID);
 		habitRepository.deleteAll(habitRepository.findByUserIdAndActiveTrue(USER_ID));
+		userProfileRepository.deleteAll();
 	}
 
 	@Test
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
 		mockMvc.perform(post("/habits")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"daily\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.name").value("Exercise"));
 
-		mockMvc.perform(get("/habits").header("X-User-Id", USER_ID))
+		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].name").value("Exercise"));
 
 		mockMvc.perform(patch("/entries/today")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"habitId\":\"exercise\",\"done\":true,\"note\":\"Completed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
 		mockMvc.perform(patch("/entries/today")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"habitId\":\"reading\",\"done\":false,\"note\":\"Missed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits.length()").value(2));
 
 		mockMvc.perform(put("/entries/today/mood")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"score\":4,\"tags\":[\"calm\"],\"note\":\"Good day\"}"))
 				.andExpect(status().isOk())
@@ -84,7 +89,7 @@ class ApiIntegrationTest {
 				.getDate();
 
 		mockMvc.perform(get("/entries")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("from", entryDate.toString())
 					.param("to", entryDate.toString()))
 				.andExpect(status().isOk())
@@ -92,18 +97,18 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.length()").value(1));
 
 		mockMvc.perform(get("/stats/mood-trend")
-					.header("X-User-Id", USER_ID))
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data[0].averageScore").value(4.0));
 
 		mockMvc.perform(get("/stats/most-missed-habits")
-					.header("X-User-Id", USER_ID))
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
 				.andExpect(jsonPath("$.data[0].missedCount").value(1));
 
 		mockMvc.perform(get("/habits/exercise/streak")
-					.header("X-User-Id", USER_ID))
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.currentStreak").value(1));
 	}
@@ -111,7 +116,7 @@ class ApiIntegrationTest {
 	@Test
 	void returnsStandardValidationErrorForInvalidRequest() throws Exception {
 		mockMvc.perform(post("/habits")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"\",\"targetFrequency\":\"\"}"))
 				.andExpect(status().isBadRequest())
@@ -121,17 +126,17 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void returnsErrorWhenUserHeaderIsMissing() throws Exception {
+	void rejectsARequestWithoutAnAccessToken() throws Exception {
 		mockMvc.perform(get("/habits"))
-				.andExpect(status().isBadRequest())
+				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("MISSING_REQUIRED_HEADER"));
+				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
 	}
 
 	@Test
 	void returnsValidationErrorWhenMoodScoreIsOutsideAllowedRange() throws Exception {
 		mockMvc.perform(put("/entries/today/mood")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"score\":6,\"tags\":[],\"note\":null}"))
 				.andExpect(status().isBadRequest())
@@ -143,7 +148,7 @@ class ApiIntegrationTest {
 	@Test
 	void returnsInvalidRequestErrorForMalformedJson() throws Exception {
 		mockMvc.perform(post("/habits")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{invalid"))
 				.andExpect(status().isBadRequest())
@@ -156,14 +161,14 @@ class ApiIntegrationTest {
 		var today = LocalDate.now();
 
 		mockMvc.perform(get("/entries")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("from", today.toString())
 					.param("to", today.minusDays(1).toString()))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 
 		mockMvc.perform(get("/entries")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("from", today.plusDays(1).toString())
 					.param("to", today.plusDays(1).toString()))
 				.andExpect(status().isBadRequest())
@@ -173,7 +178,7 @@ class ApiIntegrationTest {
 	@Test
 	void rejectsUnsupportedMoodTrendPeriod() throws Exception {
 		mockMvc.perform(get("/stats/mood-trend")
-					.header("X-User-Id", USER_ID)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("period", "month"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))

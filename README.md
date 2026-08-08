@@ -1,6 +1,6 @@
 # Moodly
 
-Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and self-issued JWT authentication.
+Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and Auth0-validated JWT authentication.
 
 ## Local setup
 
@@ -79,7 +79,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    update, reindex/duplicate delivery, dead-letter replay, and health. The
    delete scenario uses `mongosh` until an entry-delete API is introduced.
 
-4. Open `docs/testing/moodly.http` with the VS Code REST Client extension and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
+4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
 
 ## Test
 

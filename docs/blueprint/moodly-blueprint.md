@@ -558,7 +558,7 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 - [x] Restart only the application while retaining MongoDB/Elasticsearch, create another entry, and confirm the persisted resume token allows the listener to continue without missing events; verified token advancement and Elasticsearch HTTP 200 for entry `6a741008ec629352bbfbf365`.
 - [x] Stop Elasticsearch, make a MongoDB entry change, inspect retry/DLQ/Actuator logs, restore Elasticsearch, then replay the dead letter through the protected endpoint and confirm the document returns.
 - [x] Call protected reindex with a valid key, verify its count against MongoDB, call it again, and confirm the operation remains duplicate-safe. Verified two successive re-indexes returned 2, matching MongoDB count 2; a wrong key returned HTTP 403.
-- [x] Search with a matching term, no-match term, date boundaries, and a second `X-User-Id`; verified one matching result with `<em>manual</em>` highlight, zero no-match results, and zero cross-user results after bounded CDC polling.
+- [x] Search with a matching term, no-match term, date boundaries, and a second authenticated user's JWT; verified one matching result with `<em>manual</em>` highlight, zero no-match results, and zero cross-user results after bounded CDC polling.
 
 ##### Required Execution Order
 
@@ -666,12 +666,12 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 #### Auth0 Identity and Spring Security
 
-- [ ] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
-- [ ] Map the Auth0 JWT `sub` to the application `userId`. On the first authenticated request, create a `users` profile document with a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
-- [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
-- [ ] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
-- [ ] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
-- [ ] Return consistent `401 Unauthorized` responses for missing, expired, malformed, invalid, wrong-issuer, or wrong-audience tokens, and `403 Forbidden` only for authenticated users lacking permission.
+- [x] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
+- [x] Map the Auth0 JWT `sub` to the application `userId`. On the first authenticated request, create a `users` profile document with a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
+- [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Habit, entry, statistics, and search endpoints are secured; complete this after adding the avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
+- [x] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
+- [x] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
+- [x] Return consistent `401 Unauthorized` responses for missing, expired, malformed, invalid, wrong-issuer, or wrong-audience tokens, and `403 Forbidden` only for authenticated users lacking permission.
 
 **Commit checkpoint:** `feat(auth): secure modules with Auth0 JWTs`
 
