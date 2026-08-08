@@ -6,16 +6,16 @@
 
 ## 1. Overview
 
-**Application name:** `Moodly`  
-**Goal:** Learn MongoDB, Change Data Capture (CDC), Elasticsearch/OpenSearch, Auth0-backed JWT authentication, and Cloudinary avatar delivery through a small deployed demo. Endpoints are exercised through a `.http` file; a minimal frontend is optional.
-**Estimated duration:** 3 evenings—one evening for each learning phase.  
-**Suggested stack:** A modular-monolith Spring Boot application + Spring Data MongoDB + Elasticsearch/OpenSearch + Spring Security. For the deployed demo use Vercel (optional frontend), Render (backend and CDC listener), MongoDB Atlas Free, Bonsai Free Sandbox, Auth0 Free, and Cloudinary Free. One deployable owns all backend modules; no microservices are required.
+- **Application name:** `Moodly`
+- **Goal:** Learn MongoDB, Change Data Capture (CDC), Elasticsearch/OpenSearch, Auth0-backed JWT authentication, and Cloudinary avatar delivery through a small deployed demo. Endpoints are exercised through a `.http` file; a minimal frontend is optional.
+- **Estimated duration:** 3 evenings—one evening for each learning phase.
+- **Suggested stack:** A modular-monolith Spring Boot application + Spring Data MongoDB + Elasticsearch/OpenSearch + Spring Security. For the deployed demo use Vercel (optional frontend), Render (backend and CDC listener), MongoDB Atlas Free, Bonsai Free Sandbox, Auth0 Free, and Cloudinary Free. One deployable owns all backend modules; no microservices are required.
 
 ### Git Workflow
 
-**Branch strategy:** One short-lived branch per phase, created directly from the latest `main`.  
-**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behavior, and broad refactors in one commit.  
-**When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`.  
+- **Branch strategy:** One short-lived branch per phase, created directly from the latest `main`.
+- **Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behavior, and broad refactors in one commit.
+- **When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`.
 **Merge strategy:** Squash Merge each completed phase branch directly into `main`. Include the phase's automated/manual tests in the same branch and squash them with the implementation; do not create separate test branches or standalone test commits on `main`.
 
 Before creating the first phase branch, make two small commits on `main`:
