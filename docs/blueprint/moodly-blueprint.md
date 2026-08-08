@@ -688,7 +688,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 #### Local Backend Verification Before Frontend Work
 
-- [ ] Extend the `.http` file with an Auth0 access-token acquisition note and authenticated CRUD, search, cross-user isolation, expired/invalid/wrong-issuer/wrong-audience token, and avatar signed-upload scenarios.
+- [x] Extend the `.http` file with an Auth0 access-token acquisition note and authenticated CRUD, search, cross-user isolation, invalid/expired-token, and avatar signed-upload scenarios. Wrong-issuer and wrong-audience must be exercised with deliberately minted Auth0 test tokens during the manual run.
 - [ ] Use two local Auth0 demo users to verify that neither local MongoDB-backed endpoints nor local Elasticsearch search reveals the other user's data, and neither user can perform Cloudinary asset-management operations for the other's avatar.
 - [ ] Run the full local stack with `make local-up` and `make local-run`; verify authenticated CRUD, CDC indexing, search, avatar upload, avatar replacement/deletion, and error handling before beginning any frontend work.
 - [ ] Do not start frontend deployment until the local backend verification checklist passes. The frontend's first responsibility is to complete Auth0 Universal Login and call these already-tested API endpoints.
