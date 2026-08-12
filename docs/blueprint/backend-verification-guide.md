@@ -39,7 +39,7 @@ Every successful response uses `{ "success": true, "data": ..., "timestamp": ...
 
 ## 3. Verify with the `.http` file
 
-Open [`docs/testing/moodly.http`](../testing/moodly.http) in VS Code with the REST Client extension.
+Open [`docs/testing/moodly.http`](../testing/http/moodly.http) in VS Code with the REST Client extension.
 
 At the top, set:
 
@@ -66,30 +66,26 @@ Run requests in this order.
 
 ### Create the collection
 
-1. Open Bruno and select **Create Collection**.
-2. Name it `Moodly Local Verification` and store it outside ignored/secrets directories, or ensure any committed collection contains no token values.
-3. Create an environment named `local` with these variables:
+1. Open Bruno and select **Open Collection**.
+2. Open `docs/testing/bruno/moodly-local-verification`.
+3. Select the provided `local` environment. It contains these non-secret variables:
 
    ```text
    baseUrl=http://localhost:8080
-   accessToken=<user-A-access-token>
-   secondAccessToken=<user-B-access-token>
+   auth0Domain=<Auth0 tenant domain>
+   auth0ClientId=<Moodly SPA client ID>
+   auth0Audience=https://api.moodly.local
+   auth0CallbackUrl=https://oauth.usebruno.com/callback
    habitId=
    publicId=
    avatarVersion=
    ```
 
-Keep token values local to Bruno; do not commit the environment file if it contains tokens.
+The collection uses Authorization Code with PKCE. Bruno stores OAuth tokens internally after Universal Login; do not put access tokens or a client secret in `.env`.
 
 ### Request setup
 
-For every protected request, add this header:
-
-```text
-Authorization: Bearer {{accessToken}}
-```
-
-Use `Bearer {{secondAccessToken}}` for user B isolation requests.
+User A requests inherit OAuth2 from the collection. In **Collection → Auth**, click **Get Access Token** and complete Auth0 Universal Login as user A; Bruno stores it under Token ID `moodly-user-a-local`. The user-B isolation request has its own OAuth2 configuration and Token ID `moodly-user-b-local`; open that request and click **Get Access Token**, then log in as user B. Its `prompt=login` parameter prevents silently reusing user A's session.
 
 Create requests matching the `.http` file:
 

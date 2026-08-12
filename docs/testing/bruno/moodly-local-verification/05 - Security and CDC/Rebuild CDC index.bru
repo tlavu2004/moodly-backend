@@ -1,0 +1,15 @@
+meta {
+  name: Rebuild CDC index
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/internal/cdc/reindex
+  body: none
+  auth: none
+}
+
+headers {
+  X-Maintenance-Key: {{maintenanceKey}}
+}

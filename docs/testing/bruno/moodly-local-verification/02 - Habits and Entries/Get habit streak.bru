@@ -1,0 +1,11 @@
+meta {
+  name: Get habit streak
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/habits/{{habitId}}/streak
+  body: none
+  auth: inherit
+}

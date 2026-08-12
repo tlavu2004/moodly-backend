@@ -1,0 +1,11 @@
+meta {
+  name: List entries by date range
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/entries?from=2026-08-01&to=2026-08-31
+  body: none
+  auth: inherit
+}
