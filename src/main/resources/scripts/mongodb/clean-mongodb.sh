@@ -67,13 +67,36 @@ for var in "${required_vars[@]}"; do
   fi
 done
 
-# Check MongoDB Shell
-command -v mongosh >/dev/null 2>&1 || {
-  echo -e "${RED}ERROR: mongosh is not installed or not in PATH${NC}" >&2
-  exit 1
-}
-
 MONGODB_URI="mongodb://$MONGODB_HOST:$MONGODB_PORT/$MONGODB_DATABASE?replicaSet=$MONGODB_REPLICA_SET"
+
+# Prefer a locally installed shell, but use the MongoDB container when the host
+# does not have mongosh (the normal setup for this Docker-based project).
+MONGOSH_COMMAND=()
+if command -v mongosh >/dev/null 2>&1; then
+  MONGOSH_COMMAND=(mongosh "$MONGODB_URI")
+elif command -v docker >/dev/null 2>&1; then
+  case "$ENV_FILENAME" in
+    .env.local)
+      COMPOSE_FILE="docker-compose.local.yml"
+      COMPOSE_PROJECT="moodly-local"
+      ;;
+    .env.test)
+      COMPOSE_FILE="docker-compose.test.yml"
+      COMPOSE_PROJECT="moodly-test"
+      ;;
+    *)
+      echo -e "${RED}ERROR: mongosh is not installed, and no Docker Compose configuration is known for $ENV_FILENAME. Install mongosh or use .env.local/.env.test.${NC}" >&2
+      exit 1
+      ;;
+  esac
+
+  MONGODB_CONTAINER_PORT="${MONGODB_CONTAINER_PORT:-$MONGODB_PORT}"
+  CONTAINER_MONGODB_URI="mongodb://localhost:$MONGODB_CONTAINER_PORT/$MONGODB_DATABASE?directConnection=true"
+  MONGOSH_COMMAND=(docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" -f "$SERVICE_DIR/$COMPOSE_FILE" exec -T mongodb mongosh "$CONTAINER_MONGODB_URI")
+else
+  echo -e "${RED}ERROR: mongosh is not installed or not in PATH, and Docker is unavailable.${NC}" >&2
+  exit 1
+fi
 
 # Confirm destructive action
 echo -e "${YELLOW}--------------------------------------------------------"
@@ -98,7 +121,7 @@ cd "$SERVICE_DIR" || {
 }
 
 # Drop the selected MongoDB database explicitly
-mongosh "$MONGODB_URI" --quiet --eval '
+"${MONGOSH_COMMAND[@]}" --quiet --eval '
   const result = db.dropDatabase();
   if (!result.ok) {
     throw new Error(`MongoDB cleanup failed: ${JSON.stringify(result)}`);
