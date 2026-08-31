@@ -137,7 +137,7 @@ const user = {
 ```javascript
 db.daily_entries.createIndex({ userId: 1, date: -1 }, { unique: true });
 db.habits.createIndex({ userId: 1, active: 1 });
-db.users.createIndex({ email: 1 }, { unique: true });
+db.users.createIndex({ auth0Subject: 1 }, { unique: true });
 ```
 
 The three document examples above are assigned to variables intentionally: this keeps the `javascript` code fences valid for IDE JavaScript parsers while remaining executable MongoDB-shell-style examples.
@@ -667,7 +667,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 #### Auth0 Identity and Spring Security
 
 - [x] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
-- [x] Map the Auth0 JWT `sub` to the application `userId`. On the first authenticated request, create a `users` profile document with a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
+- [x] Map the Auth0 JWT `sub` to the application `userId`. Explicitly bootstrap the `users` profile through idempotent `PUT /auth/profile` after Auth0 authentication; ordinary protected API requests must not create users as a hidden side effect. Store a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
 - [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Habit, entry, statistics, and search endpoints are secured; complete this after adding the avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
 - [x] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
 - [x] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
