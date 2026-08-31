@@ -18,7 +18,6 @@ public class UserProfile {
 	@Indexed(name = "auth0_subject_unique", unique = true)
 	private String auth0Subject;
 
-	@Indexed(name = "email_unique", unique = true, sparse = true)
 	private String email;
 
 	private String avatarPublicId;

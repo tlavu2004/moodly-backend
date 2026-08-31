@@ -1,5 +1,6 @@
 package com.tlavu.moodly;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -131,6 +132,29 @@ class ApiIntegrationTest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void bootstrapsTheAuth0ProfileExplicitlyAndIdempotently() throws Exception {
+		var authenticated = jwt().jwt(token -> token.subject(USER_ID).claim("email", "  API@Example.COM "));
+
+		mockMvc.perform(put("/auth/profile").with(authenticated))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.email").value("api@example.com"));
+
+		mockMvc.perform(put("/auth/profile").with(authenticated))
+				.andExpect(status().isOk());
+
+		assertThat(userProfileRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void ordinaryProtectedRequestsDoNotCreateAProfileAsASideEffect() throws Exception {
+		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk());
+
+		assertThat(userProfileRepository.count()).isZero();
 	}
 
 	@Test

@@ -19,6 +19,7 @@ public class AvatarService {
 	private static final long MAX_BYTES = 5L * 1024 * 1024;
 	private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 	private final CurrentUser currentUser;
+	private final UserProfileService userProfileService;
 	private final UserProfileRepository profiles;
 	private final CloudinaryAssetClient cloudinary;
 	private final PendingAvatarUploadRepository pendingUploads;
@@ -28,18 +29,19 @@ public class AvatarService {
 	private final String uploadPreset;
 	private final String folder;
 
-	public AvatarService(CurrentUser currentUser, UserProfileRepository profiles, CloudinaryAssetClient cloudinary, PendingAvatarUploadRepository pendingUploads,
+	public AvatarService(CurrentUser currentUser, UserProfileService userProfileService, UserProfileRepository profiles, CloudinaryAssetClient cloudinary, PendingAvatarUploadRepository pendingUploads,
 			@Value("${moodly.cloudinary.cloud-name}") String cloudName,
 			@Value("${moodly.cloudinary.api-key}") String apiKey,
 			@Value("${moodly.cloudinary.api-secret}") String apiSecret,
 			@Value("${moodly.cloudinary.upload-preset}") String uploadPreset,
 			@Value("${moodly.cloudinary.folder}") String folder) {
-		this.currentUser = currentUser; this.profiles = profiles; this.cloudinary = cloudinary; this.pendingUploads = pendingUploads; this.cloudName = cloudName; this.apiKey = apiKey;
+		this.currentUser = currentUser; this.userProfileService = userProfileService; this.profiles = profiles; this.cloudinary = cloudinary; this.pendingUploads = pendingUploads; this.cloudName = cloudName; this.apiKey = apiKey;
 		this.apiSecret = apiSecret; this.uploadPreset = uploadPreset; this.folder = trimSlash(folder);
 	}
 
 	public UploadSignature createSignature(String contentType, long sizeBytes) {
 		if (!ALLOWED_TYPES.contains(contentType) || sizeBytes < 1 || sizeBytes > MAX_BYTES) throw new IllegalArgumentException("Avatar must be a JPG, PNG, or WebP image no larger than 5 MiB.");
+		userProfileService.synchronizeCurrent();
 		var timestamp = Instant.now().getEpochSecond();
 		var publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
 		pendingUploads.save(new PendingAvatarUpload(publicId, currentUser.id(), Instant.now().plusSeconds(3600)));
