@@ -1,7 +1,7 @@
 meta {
-  name: Request avatar upload signature
+  name: Reject unsupported avatar type
   type: http
-  seq: 2
+  seq: 4
 }
 
 post {
@@ -16,7 +16,13 @@ headers {
 
 body:json {
   {
-    "contentType": "image/png",
+    "contentType": "image/gif",
     "sizeBytes": 1024
   }
+}
+
+tests {
+  test("rejects a GIF avatar", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
 }

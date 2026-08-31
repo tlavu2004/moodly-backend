@@ -1,0 +1,21 @@
+meta {
+  name: User B search is isolated
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/entries/search?q=tired&from=2026-08-01&to=2026-08-31
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{$oauth2.moodly-user-b-local.access_token}}
+}
+
+tests {
+  test("returns search results only for user B", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

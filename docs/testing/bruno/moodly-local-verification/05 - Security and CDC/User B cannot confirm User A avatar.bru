@@ -1,0 +1,32 @@
+meta {
+  name: User B cannot confirm User A avatar
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/me/avatar/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{$oauth2.moodly-user-b-local.access_token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "publicId": "{{publicId}}",
+    "version": {{avatarVersion}}
+  }
+}
+
+tests {
+  test("rejects user A's public ID for user B", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

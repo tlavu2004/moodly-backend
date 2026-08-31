@@ -1,0 +1,21 @@
+meta {
+  name: Replay CDC dead letter
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/internal/cdc/dead-letters/{{deadLetterId}}/replay
+  body: none
+  auth: none
+}
+
+headers {
+  X-Maintenance-Key: {{maintenanceKey}}
+}
+
+tests {
+  test("replays an existing dead letter or reports a missing placeholder", function() {
+    expect([204, 404]).to.include(res.getStatus());
+  });
+}

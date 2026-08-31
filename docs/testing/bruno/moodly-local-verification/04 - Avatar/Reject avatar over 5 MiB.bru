@@ -1,7 +1,7 @@
 meta {
-  name: Request avatar upload signature
+  name: Reject avatar over 5 MiB
   type: http
-  seq: 2
+  seq: 5
 }
 
 post {
@@ -17,6 +17,12 @@ headers {
 body:json {
   {
     "contentType": "image/png",
-    "sizeBytes": 1024
+    "sizeBytes": 5242881
   }
+}
+
+tests {
+  test("rejects a declared size above 5 MiB", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
 }

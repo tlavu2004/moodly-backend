@@ -1,7 +1,7 @@
 meta {
   name: User B cannot see User A habits
   type: http
-  seq: 1
+  seq: 3
 }
 
 get {
@@ -15,11 +15,11 @@ auth:oauth2 {
   callback_url: {{auth0CallbackUrl}}
   authorization_url: https://{{auth0Domain}}/authorize
   access_token_url: https://{{auth0Domain}}/oauth/token
-  refresh_token_url:
+  refresh_token_url: 
   client_id: {{auth0ClientId}}
-  client_secret:
+  client_secret: 
   scope: openid profile email
-  state:
+  state: 
   pkce: true
   credentials_placement: body
   credentials_id: moodly-user-b-local
