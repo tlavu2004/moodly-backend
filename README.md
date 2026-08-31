@@ -80,6 +80,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    delete scenario uses `mongosh` until an entry-delete API is introduced.
 
 4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
+5. After Auth0 authenticates the SPA, call `PUT /auth/profile` once to idempotently bootstrap the application-owned profile. Other protected endpoints resolve ownership from the verified JWT and never create users as a hidden side effect.
 
 ## Test
 
