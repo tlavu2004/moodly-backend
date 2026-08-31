@@ -10,6 +10,10 @@
 # audience={{AUTH0_AUDIENCE}}. Paste user A's token into @accessToken and user B's
 # token into @secondAccessToken. Do not use an ID token: the API requires an access token.
 
+### Bootstrap the application profile after Auth0 authentication
+PUT {{baseUrl}}/auth/profile
+Authorization: Bearer {{accessToken}}
+
 ### Create a habit
 POST {{baseUrl}}/habits
 Authorization: Bearer {{accessToken}}
