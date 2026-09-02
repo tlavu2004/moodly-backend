@@ -1,7 +1,7 @@
 meta {
   name: Create habit
   type: http
-  seq: 5
+  seq: 1
 }
 
 post {
@@ -22,8 +22,19 @@ body:json {
   }
 }
 
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() === 201 && body.success && body.data && body.data.id) {
+    bru.setEnvVar("habitId", body.data.id, { persist: true });
+  }
+}
+
 tests {
   test("creates a habit", function() {
     expect(res.getStatus()).to.equal(201);
+  });
+
+  test("stores the created habit ID for subsequent requests", function() {
+    expect(bru.getEnvVar("habitId")).to.equal(res.getBody().data.id);
   });
 }

@@ -1,7 +1,7 @@
 meta {
   name: Bootstrap authenticated profile
   type: http
-  seq: 1
+  seq: 5
 }
 
 put {
@@ -14,7 +14,7 @@ tests {
   test("bootstraps the Auth0 user's application profile", function() {
     expect(res.getStatus()).to.equal(200);
   });
-
+  
   test("returns the verified Auth0 subject", function() {
     const body = res.getBody();
     expect(body.success).to.equal(true);
