@@ -20,3 +20,22 @@ body:json {
     "sizeBytes": 1024
   }
 }
+
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() === 200 && body.success && body.data) {
+    bru.setEnvVar("cloudinaryUploadUrl", body.data.uploadUrl);
+    bru.setEnvVar("cloudinaryApiKey", body.data.apiKey);
+    bru.setEnvVar("cloudinaryTimestamp", String(body.data.timestamp));
+    bru.setEnvVar("cloudinarySignature", body.data.signature);
+    bru.setEnvVar("cloudinaryUploadPreset", body.data.uploadPreset);
+    bru.setEnvVar("publicId", body.data.publicId, { persist: true });
+  }
+}
+
+tests {
+  test("returns a signed Cloudinary upload payload", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(bru.getEnvVar("publicId")).to.equal(res.getBody().data.publicId);
+  });
+}
