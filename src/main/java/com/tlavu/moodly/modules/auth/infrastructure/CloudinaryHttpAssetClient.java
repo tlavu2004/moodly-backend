@@ -47,6 +47,10 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 			throw new IllegalStateException("Cloudinary verification was interrupted.", exception);
+		} catch (IllegalArgumentException exception) {
+			// A missing or inaccessible asset is invalid client input for confirmation,
+			// not an unexpected server failure.
+			throw exception;
 		} catch (Exception exception) {
 			throw new IllegalStateException("Cloudinary verification failed.", exception);
 		}
