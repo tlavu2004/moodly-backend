@@ -1,0 +1,35 @@
+meta {
+  name: Upload avatar to Cloudinary
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{cloudinaryUploadUrl}}
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  api_key: {{cloudinaryApiKey}}
+  timestamp: {{cloudinaryTimestamp}}
+  signature: {{cloudinarySignature}}
+  public_id: {{publicId}}
+  upload_preset: {{cloudinaryUploadPreset}}
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() === 200 && body.public_id && body.version) {
+    bru.setEnvVar("publicId", body.public_id, { persist: true });
+    bru.setEnvVar("avatarVersion", String(body.version), { persist: true });
+  }
+}
+
+tests {
+  test("uploads the selected image to Cloudinary", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(bru.getEnvVar("publicId")).to.equal(res.getBody().public_id);
+    expect(bru.getEnvVar("avatarVersion")).to.equal(String(res.getBody().version));
+  });
+}

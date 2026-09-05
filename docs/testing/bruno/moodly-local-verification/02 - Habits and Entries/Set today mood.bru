@@ -1,0 +1,23 @@
+meta {
+  name: Set today's mood
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/entries/today/mood
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "score": 4,
+    "tags": ["productive", "tired"],
+    "note": "I was tired today because I stayed up late."
+  }
+}

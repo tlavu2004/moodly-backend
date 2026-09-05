@@ -1,0 +1,21 @@
+meta {
+  name: Invalid token is unauthorized
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/habits
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: invalid-or-expired-token
+}
+
+tests {
+  test("returns 401", function() {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

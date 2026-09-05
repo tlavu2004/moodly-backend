@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Moodly Local Verification",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

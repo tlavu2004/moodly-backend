@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
@@ -25,6 +26,7 @@ import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,12 +36,23 @@ import com.tlavu.moodly.support.CdcSearchTestSupport;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+		"moodly.entries.collection-name=daily_entries_cdc_test",
+		"moodly.cdc.enabled=true",
+		"moodly.cdc.stream-id=daily_entries_cdc_test",
+		"moodly.cdc.maintenance-key=cdc-test-maintenance-key",
+		"moodly.cdc.retry.max-attempts=3",
+		"moodly.cdc.retry.initial-backoff-ms=1",
+		"moodly.cdc.reindex.batch-size=2",
+		"moodly.search.index.name=daily_entries_search_cdc_test",
+		"moodly.search.index.initialization-enabled=true"
+})
 @AutoConfigureMockMvc
-@ActiveProfiles({"test", "cdc-test"})
+@ActiveProfiles("test")
 @Import({MongoTestConfiguration.class, ElasticsearchTestConfiguration.class})
 class CdcSearchInfrastructureIntegrationTest {
 
@@ -66,8 +79,17 @@ class CdcSearchInfrastructureIntegrationTest {
 	@MockitoSpyBean
 	private DailyEntryReindexService reindexService;
 
+	@BeforeEach
+	void prepareState() throws Exception {
+		listener.stop();
+		cdcSearchTestSupport.clearState();
+		listener.start();
+		awaitChangeStreamRegistration();
+	}
+
 	@AfterEach
 	void cleanUp() throws Exception {
+		listener.stop();
 		cdcSearchTestSupport.clearState();
 	}
 
@@ -150,20 +172,20 @@ class CdcSearchInfrastructureIntegrationTest {
 				() -> entrySearchService.search(user, "unique", own.getDate(), own.getDate()).stream()
 						.anyMatch(result -> own.getId().equals(result.entryId())), () -> "entryId=" + own.getId());
 
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].entryId").value(own.getId()))
 				.andExpect(jsonPath("$.data[0].highlights['mood.note'][0]", containsString("<em>unique</em>")));
 
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "does-not-match"))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "does-not-match"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("from", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique").param("to", own.getDate().toString()))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("to", own.getDate().toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "   "))
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "   "))
 				.andExpect(status().isBadRequest());
-		mockMvc.perform(get("/entries/search").header("X-User-Id", user).param("q", "unique")
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique")
 					.param("from", own.getDate().plusDays(1).toString()).param("to", own.getDate().toString()))
 				.andExpect(status().isBadRequest());
 	}
@@ -177,8 +199,9 @@ class CdcSearchInfrastructureIntegrationTest {
 		clearInvocations(reindexService);
 
 		listener.stop();
-		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 		listener.start();
+		awaitChangeStreamRegistration();
+		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 
 		cdcSearchTestSupport.awaitIndexed(second.getId());
 		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
@@ -202,5 +225,10 @@ class CdcSearchInfrastructureIntegrationTest {
 	private void awaitDocument(String entryId, java.util.function.Predicate<DailyEntrySearchDocument> predicate) throws Exception {
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("updated Elasticsearch document " + entryId,
 				() -> predicate.test(document(entryId)), () -> "entryId=" + entryId);
+	}
+
+	/** Waits for the asynchronous driver subscription created by the listener container. */
+	private void awaitChangeStreamRegistration() throws InterruptedException {
+		TimeUnit.SECONDS.sleep(1);
 	}
 }

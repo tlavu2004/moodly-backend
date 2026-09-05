@@ -1,0 +1,23 @@
+meta {
+  name: Mark habit done today
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/entries/today
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "habitId": "{{habitId}}",
+    "done": true,
+    "note": "30-minute run"
+  }
+}

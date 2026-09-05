@@ -1,0 +1,42 @@
+meta {
+  name: User B cannot see User A habits
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/habits
+  body: none
+  auth: oauth2
+}
+
+auth:oauth2 {
+  grant_type: authorization_code
+  callback_url: {{auth0CallbackUrl}}
+  authorization_url: https://{{auth0Domain}}/authorize
+  access_token_url: https://{{auth0Domain}}/oauth/token
+  refresh_token_url: 
+  client_id: {{auth0ClientId}}
+  client_secret: 
+  scope: openid profile email
+  state: 
+  pkce: true
+  credentials_placement: body
+  credentials_id: moodly-user-b-local
+  token_source: access_token
+  token_placement: header
+  token_header_prefix: Bearer
+  auto_fetch_token: true
+  auto_refresh_token: false
+}
+
+auth:oauth2:additional_params:auth_req:queryparams {
+  audience: {{auth0Audience}}
+  prompt: login
+}
+
+tests {
+  test("does not return user A's data", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

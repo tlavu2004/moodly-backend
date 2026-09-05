@@ -1,0 +1,139 @@
+@baseUrl = http://localhost:8080
+@accessToken = replace-with-auth0-access-token
+@secondAccessToken = replace-with-second-auth0-access-token
+@habitId = replace-with-created-habit-id
+@maintenanceKey = moodly-local-maintenance
+@cdcEntryId = replace-with-created-entry-id
+
+### Auth0 token note
+# Obtain an access token through Auth0 Universal Login in the local SPA, with
+# audience={{AUTH0_AUDIENCE}}. Paste user A's token into @accessToken and user B's
+# token into @secondAccessToken. Do not use an ID token: the API requires an access token.
+
+### Bootstrap the application profile after Auth0 authentication
+PUT {{baseUrl}}/auth/profile
+Authorization: Bearer {{accessToken}}
+
+### Create a habit
+POST {{baseUrl}}/habits
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Exercise",
+  "icon": "🏃",
+  "targetFrequency": "daily"
+}
+
+### List active habits
+GET {{baseUrl}}/habits
+Authorization: Bearer {{accessToken}}
+
+### Mark a habit as done today
+PATCH {{baseUrl}}/entries/today
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "habitId": "{{habitId}}",
+  "done": true,
+  "note": "30-minute run"
+}
+
+### Set today's mood
+PUT {{baseUrl}}/entries/today/mood
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "score": 4,
+  "tags": ["productive", "tired"],
+  "note": "I was tired today because I stayed up late."
+}
+
+### Query entries by date range
+GET {{baseUrl}}/entries?from=2026-08-01&to=2026-08-31
+Authorization: Bearer {{accessToken}}
+
+### Get current habit streak
+GET {{baseUrl}}/habits/{{habitId}}/streak
+Authorization: Bearer {{accessToken}}
+
+### Get weekly mood trend
+GET {{baseUrl}}/stats/mood-trend?period=week
+Authorization: Bearer {{accessToken}}
+
+### Get most missed habits
+GET {{baseUrl}}/stats/most-missed-habits
+Authorization: Bearer {{accessToken}}
+
+### CDC verification: inspect listener health and failed-event count
+GET {{baseUrl}}/actuator/health
+
+### Search indexed mood notes, habit notes, and mood tags
+# Search is eventually consistent: wait briefly after saving the entry.
+GET {{baseUrl}}/entries/search?q=tired&from=2026-08-01&to=2026-08-31
+Authorization: Bearer {{accessToken}}
+
+### Cross-user isolation: user B must not see user A's habits or search results
+GET {{baseUrl}}/habits
+Authorization: Bearer {{secondAccessToken}}
+
+### Invalid/expired/wrong-audience token: each must return 401 UNAUTHORIZED
+GET {{baseUrl}}/habits
+Authorization: Bearer invalid-or-expired-token
+
+### Avatar: request a short-lived signed upload payload as user A
+POST {{baseUrl}}/me/avatar/upload-signature
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "contentType": "image/png",
+  "sizeBytes": 1024
+}
+
+### Avatar: upload directly to the returned uploadUrl
+# Send multipart/form-data to data.uploadUrl with file plus data.apiKey,
+# data.timestamp, data.signature, data.publicId, and data.uploadPreset. Copy the
+# Cloudinary response's public_id and version into the confirm request below.
+
+### Avatar: confirm only the Cloudinary response for the payload above
+POST {{baseUrl}}/me/avatar/confirm
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "publicId": "replace-with-cloudinary-public_id",
+  "version": 1
+}
+
+### Avatar: retrieve the persisted metadata and safe delivery URL
+GET {{baseUrl}}/me/avatar
+Authorization: Bearer {{accessToken}}
+
+### Avatar ownership: user B cannot confirm user A's Cloudinary public ID
+POST {{baseUrl}}/me/avatar/confirm
+Authorization: Bearer {{secondAccessToken}}
+Content-Type: application/json
+
+{
+  "publicId": "replace-with-user-a-public_id",
+  "version": 1
+}
+
+### CDC verification: inspect an indexed entry
+# Set cdcEntryId at the top from the response to the entry update request.
+GET http://localhost:9200/daily_entries_search/_doc/{{cdcEntryId}}
+
+### CDC verification: duplicate-safe full rebuild
+POST {{baseUrl}}/internal/cdc/reindex
+X-Maintenance-Key: {{maintenanceKey}}
+
+### CDC verification: replay one dead-letter after Elasticsearch recovers
+POST {{baseUrl}}/internal/cdc/dead-letters/replace-with-dead-letter-id/replay
+X-Maintenance-Key: {{maintenanceKey}}
+
+### CDC verification: delete (no entry-delete API exists yet)
+# Run this in mongosh, then the indexed-entry request above should return 404.
+# db.daily_entries.deleteOne({ _id: ObjectId("your-entry-id") })

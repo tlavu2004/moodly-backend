@@ -1,0 +1,17 @@
+meta {
+  name: List active habits
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/habits
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("lists the current user's habits", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

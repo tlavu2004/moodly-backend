@@ -1,0 +1,28 @@
+meta {
+  name: Reject avatar over 5 MiB
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/me/avatar/upload-signature
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contentType": "image/png",
+    "sizeBytes": 5242881
+  }
+}
+
+tests {
+  test("rejects a declared size above 5 MiB", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
