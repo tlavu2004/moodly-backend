@@ -69,7 +69,7 @@ test-status:
 	$(TEST_COMPOSE) ps
 
 test-replica-status:
-	$(TEST_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
+	$(TEST_COMPOSE) exec mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().members[0].stateStr"
 
 test-elasticsearch-status:
 	set -a; . ./.env.test; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
@@ -78,7 +78,7 @@ test-await: test-up
 	@set -a; . ./.env.test; set +a; \
 	for attempt in $$(seq 1 30); do \
 		if curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1 \
-			&& $(TEST_COMPOSE) exec -T mongodb mongosh --quiet --eval "rs.status().myState" | grep -qx 1; then \
+		&& $(TEST_COMPOSE) exec -T mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().myState" | grep -qx 1; then \
 			echo "MongoDB replica set and Elasticsearch are ready."; exit 0; \
 		fi; \
 		sleep 2; \
@@ -86,13 +86,13 @@ test-await: test-up
 	echo "Timed out waiting for MongoDB replica set or Elasticsearch." >&2; exit 1
 
 test-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-cdc-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
 
 test-build-run: test-await
-	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
+	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
 
 test-logs:
 	$(TEST_COMPOSE) logs -f mongodb elasticsearch
