@@ -50,15 +50,16 @@ public class AvatarService {
 				"https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload");
 	}
 
-	public Avatar confirm(String publicId, long ignoredVersion) {
+	public Avatar confirm(String publicId, long version) {
 		var subject = currentUser.id();
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) throw new IllegalArgumentException("Avatar asset does not belong to the authenticated user.");
-		if (ignoredVersion < 1) throw new IllegalArgumentException("Avatar version must be positive.");
+		if (version < 1) throw new IllegalArgumentException("Avatar version must be positive.");
 		var pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
 				.filter(upload -> upload.getExpiresAt().isAfter(Instant.now()))
 				.orElseThrow(() -> new IllegalArgumentException("Avatar upload is unknown or has expired."));
 		var asset = cloudinary.findImage(publicId);
-		if (!publicId.equals(asset.publicId()) || !ALLOWED_TYPES.contains(asset.contentType()) || asset.sizeBytes() > MAX_BYTES || asset.version() < 1) throw new IllegalArgumentException("Cloudinary avatar metadata is invalid.");
+		if (asset.version() != version) throw new IllegalArgumentException("Avatar version does not match the uploaded asset.");
+		if (!publicId.equals(asset.publicId()) || !ALLOWED_TYPES.contains(asset.contentType()) || asset.sizeBytes() > MAX_BYTES) throw new IllegalArgumentException("Cloudinary avatar metadata is invalid.");
 		var profile = profiles.findByAuth0Subject(subject).orElseThrow();
 		var previousPublicId = profile.getAvatarPublicId();
 		profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
