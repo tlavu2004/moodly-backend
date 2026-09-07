@@ -695,6 +695,55 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 **Commit checkpoint:** `test(auth): verify local Auth0, CDC, and Cloudinary flows`
 
+#### Phase 3 Test Plan
+
+Run this plan before considering Phase 3 complete. Automated tests must use the `test` Spring profile, Testcontainers MongoDB, deterministic test-only Cloudinary values, and a mocked `CloudinaryAssetClient`; they must never call the real Auth0 tenant or Cloudinary account. Only the manual section is permitted to use `.env.local` credentials and hosted development services. Test cleanup must remove application profiles and pending-avatar records created for a test, so no test can affect a developer's local MongoDB data or Cloudinary media library.
+
+##### Test Infrastructure
+
+- [x] Keep the `JwtDecoder` test double in `MongoTestConfiguration`: `jwt()` request post-processors represent a JWT that has already passed signature verification, while a raw malformed Bearer token is decoded as a `BadJwtException` and exercises the resource-server `401` path.
+- [x] Override `CloudinaryAssetClient` with `@MockitoBean` in the web integration suite. Assert its calls and returned confirmed metadata without ever exposing real API keys/secrets to test output.
+- [x] Use the existing MongoDB Testcontainer for profile and `pending_avatar_uploads` persistence. After every web integration test, delete profiles and pending uploads as well as habits/entries created by that test.
+- [x] Keep direct `AvatarService` and pending-cleanup tests as Mockito unit tests. They must use a fixed test cloud name/key/secret/preset, and assertions must inspect only the resulting SHA-1 signature—not log the secret.
+- [ ] Run hosted Auth0/Cloudinary scenarios only against the local profile. Do not put access tokens, Cloudinary API secrets, uploaded asset URLs containing sensitive query data, or test-user passwords in committed test files. This remains unchecked until the manual hosted-service section has run.
+
+##### Unit Tests
+
+- [x] `CurrentUser`: verify the verified JWT `sub` is the only application user ID source, email is trimmed/lower-cased when present, and no profile write occurs while resolving the current identity.
+- [x] `UserProfileService`: verify `PUT /auth/profile` creates a profile from a verified identity once, normalizes its email, and is idempotent when the profile already exists. Ordinary protected requests must not create a profile implicitly.
+- [x] `SecurityConfiguration`: verify the composed issuer, audience, and timestamp validators accept a token with the expected issuer/audience/lifetime and reject wrong issuer, wrong audience, and expired claims. The production decoder is configured to validate Auth0 RS256 signatures through JWKS; this remains subject to the manual hosted-service run.
+- [x] `AvatarService` upload signature: verify only JPEG/PNG/WebP declarations from 1 byte through 5 MiB are accepted, the returned public ID is generated in `moodly/test/users/{sanitized-sub}/avatar/{uuid}`, the payload contains no API secret, and the pending record is scoped to the JWT subject and expires after the configured lifetime.
+- [x] `AvatarService` confirmation: verify a confirmation requires a non-expired pending record for the same subject, matching Cloudinary public ID/version, an allow-listed confirmed content type, and confirmed size at or below 5 MiB. Reject unknown/expired records, invalid versions, mismatched versions, invalid metadata, and a public ID outside the caller namespace without updating the profile.
+- [x] `AvatarService` lifecycle: verify confirmed metadata is persisted, the delivery URL uses the fixed square crop plus automatic format/quality transformation, and replacement deletes the previous asset only after the new profile metadata is saved.
+- [x] `PendingAvatarUploadCleanup`: verify expired unconfirmed uploads delete the remote asset and local pending record; when deletion fails, retain the record, increment its cleanup attempt count, and leave it available for a later retry.
+
+##### Web Integration Tests — Spring Security + MongoDB Testcontainer
+
+- [x] Protected endpoint contract: without a Bearer token, all habit, entry, statistics, search, profile, and avatar endpoints return the standard `401 UNAUTHORIZED` envelope. A malformed raw Bearer token returns the same envelope; valid mocked JWTs may reach only their authenticated controller/service paths.
+- [x] Profile bootstrap contract: `PUT /auth/profile` returns the authenticated `sub`, creates one normalized profile, and stays idempotent. A protected read such as `GET /habits` does not create one.
+- [x] Avatar request contract: `POST /me/avatar/upload-signature` rejects missing authentication before request validation, rejects invalid media declarations with the standard invalid-request response, creates a pending upload only for the authenticated subject, and returns the expected upload URL/preset/public ID/signature fields without the Cloudinary secret.
+- [x] Avatar confirmation contract: with mocked confirmed Cloudinary metadata, the owner can confirm the pending asset and `GET /me/avatar` returns its metadata and safe delivery URL. A second JWT subject receives an invalid-request response when attempting to confirm the owner's public ID, before any Cloudinary lookup or profile update.
+- [x] MongoDB/Elasticsearch isolation: retain the existing Testcontainers coverage that creates indexed entries for two JWT subjects and proves `/entries/search` returns only the caller's documents. Keep equivalent ownership assertions for MongoDB-backed habits and entries in the core API suite.
+
+##### Manual Hosted-Service Verification — Auth0 + Cloudinary
+
+- [ ] **Prerequisites.** Confirm `make local-up` reports MongoDB `PRIMARY` and Elasticsearch healthy, then start `make local-run`. The backend must retrieve the configured Auth0 discovery/JWKS document successfully before this plan begins; record only the success/failure result, never credentials. If JWKS retrieval times out, stop here, diagnose outbound DNS/TLS/proxy/firewall access to the Auth0 tenant, and leave this section unchecked.
+- [ ] **Acquire two tokens.** Create/login as two dedicated local Auth0 demo users (user A and user B) through Universal Login. Obtain API **access** tokens with the exact `AUTH0_AUDIENCE`; do not use ID tokens. Paste them only into the ignored local Bruno environment or temporary `.http` variables.
+- [ ] **Bootstrap and MongoDB isolation.** Call `PUT /auth/profile`, create a habit and an entry as user A, then repeat with different data as user B. As each user, list habits/entries/statistics and assert only that subject's data is returned. Verify the `users` collection has two distinct `auth0Subject` values and no credentials, sessions, refresh tokens, or password hashes.
+- [ ] **CDC/search isolation.** Wait for bounded CDC catch-up, then search the unique text written by user A using both tokens. User A must receive only A's result and user B must receive zero results; repeat in the opposite direction. Verify the Elasticsearch documents have matching user IDs and no query can provide a caller-supplied user ID override.
+- [ ] **Negative token matrix.** Exercise missing token, malformed token, expired token, invalid signature, wrong issuer, and wrong audience against a protected endpoint. Each must return the standard `401 UNAUTHORIZED` envelope. Use deliberately minted Auth0 test tokens or an approved tenant test mechanism for wrong issuer/audience/signature; do not weaken production validators just to perform these checks. Confirm `403 FORBIDDEN` occurs only after a valid authenticated identity fails an explicit authorization rule.
+- [ ] **Avatar upload.** As user A, request a signature for a PNG/JPEG/WebP at or below 5 MiB, send the returned `timestamp`, `public_id`, `upload_preset`, `api_key`, and `signature` directly to the returned Cloudinary upload URL, then call `/me/avatar/confirm` with Cloudinary's returned public ID/version. Verify `GET /me/avatar` returns the same confirmed metadata and transformed delivery URL. Confirm the raw API secret never appears in the API response, Bruno history committed to Git, browser code, or logs.
+- [ ] **Avatar validation.** Verify GIF/other unsupported declared MIME types and declared files larger than 5 MiB are rejected before a signature is issued. Attempt confirmation with a fabricated public ID, altered version, expired pending upload, Cloudinary asset outside the owner's namespace, disallowed Cloudinary format, and Cloudinary-confirmed size above 5 MiB; each must fail without replacing stored avatar metadata.
+- [ ] **Replacement and cleanup.** Upload/confirm a second valid user-A avatar. Verify the profile points to the new public ID/version, the old Cloudinary asset is destroyed, and the new delivery URL changes version/public ID. Create one signed upload without uploading/confirming it, wait or temporarily shorten only the local cleanup delay, then verify its pending record is removed after remote deletion. Simulate a deletion failure where practical and verify cleanup retries are logged without losing the pending record.
+- [ ] **Cross-user asset ownership.** With user B's token, attempt to request/confirm any user-A public ID and attempt to reuse a user-A signature. User B must not be able to overwrite, confirm, or delete user A's asset; user A's avatar metadata and Cloudinary asset must remain unchanged.
+
+##### Required Execution Order
+
+1. Run the fast Auth0/Cloudinary unit and web integration tests on every related code change.
+2. Run the complete Maven suite, including MongoDB/Elasticsearch Testcontainers, before merging the Phase 3 branch.
+3. Resolve Auth0 JWKS connectivity, then execute the two-user manual hosted-service scenarios against `moodly-local` in the order above.
+4. Mark the existing local-backend verification checkboxes and the `test(auth)` checkpoint complete only after the automated suite and all applicable manual checks pass.
+
 #### Deployment Preparation After Local Verification
 
 - [ ] Add `application-production.yaml` with environment-variable placeholders only. Keep `.env.local.example` and `.env.test.example` as local/test templates; do not create or commit `.env.production`.
