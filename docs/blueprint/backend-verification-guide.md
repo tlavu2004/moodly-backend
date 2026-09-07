@@ -10,6 +10,8 @@ This guide verifies the local backend before additional automated testing and Re
 4. Open the collection at `docs/testing/bruno/moodly-local-verification` and select the `local` environment.
 5. The API is running at `http://localhost:8080`.
 
+The collection's `local` Bruno environment is intentionally local and ignored by Git. Configure it with values for your Auth0 SPA application, Cloudinary setup, and CDC maintenance key. The avatar signature request populates its short-lived upload variables and `publicId` at runtime, while requests that create a habit or a dead letter populate their corresponding IDs.
+
 Start and check the local stack:
 
 ```bash

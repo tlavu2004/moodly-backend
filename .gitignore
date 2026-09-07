@@ -2,6 +2,7 @@ HELP.md
 target/
 .env.local
 .env.test
+docs/testing/bruno/moodly-local-verification/environments/local.bru
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
