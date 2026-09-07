@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +60,22 @@ class AvatarServiceTest {
 	}
 
 	@Test
+	void acceptsEveryAllowedTypeAtTheAvatarSizeBoundaries() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		service.createSignature("image/jpeg", 1);
+		service.createSignature("image/png", 5L * 1024 * 1024);
+		service.createSignature("image/webp", 1024);
+
+		var pending = ArgumentCaptor.forClass(PendingAvatarUpload.class);
+		verify(pendingUploads, times(3)).save(pending.capture());
+		assertThat(pending.getAllValues()).allSatisfy(upload -> {
+			assertThat(upload.getAuth0Subject()).isEqualTo(SUBJECT);
+			assertThat(upload.getPublicId()).startsWith(NAMESPACE);
+			assertThat(upload.getExpiresAt()).isAfter(Instant.now().plusSeconds(3500));
+		});
+	}
+
+	@Test
 	void rejectsUnsupportedOrOversizedAvatarBeforeCreatingAPendingUpload() {
 		assertThatThrownBy(() -> service.createSignature("image/gif", 1024))
 				.isInstanceOf(IllegalArgumentException.class);
@@ -83,9 +103,10 @@ class AvatarServiceTest {
 		assertThat(avatar.publicId()).isEqualTo(publicId);
 		assertThat(avatar.deliveryUrl()).contains("/v4/" + publicId);
 		assertThat(profile.getAvatarContentType()).isEqualTo("image/webp");
-		verify(profiles).save(profile);
+		InOrder ordered = inOrder(profiles, cloudinary);
+		ordered.verify(profiles).save(profile);
 		verify(pendingUploads).delete(any(PendingAvatarUpload.class));
-		verify(cloudinary).deleteImage(NAMESPACE + "old-avatar");
+		ordered.verify(cloudinary).deleteImage(NAMESPACE + "old-avatar");
 	}
 
 	@Test
@@ -128,6 +149,41 @@ class AvatarServiceTest {
 				.hasMessageContaining("unknown or has expired");
 		verify(cloudinary, never()).findImage(any());
 		verify(profiles, never()).save(any());
+	}
+
+	@Test
+	void rejectsUnknownMismatchedAndDisallowedConfirmationsWithoutChangingTheProfile() {
+		var unknownId = NAMESPACE + "unknown";
+		when(currentUser.id()).thenReturn(SUBJECT);
+		when(pendingUploads.findByPublicIdAndAuth0Subject(unknownId, SUBJECT)).thenReturn(Optional.empty());
+		assertThatThrownBy(() -> service.confirm(unknownId, 1)).isInstanceOf(IllegalArgumentException.class);
+
+		var mismatchedId = NAMESPACE + "mismatched";
+		when(pendingUploads.findByPublicIdAndAuth0Subject(mismatchedId, SUBJECT))
+				.thenReturn(Optional.of(new PendingAvatarUpload(mismatchedId, SUBJECT, Instant.now().plusSeconds(60))));
+		when(cloudinary.findImage(mismatchedId))
+				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(mismatchedId, 2, "image/png", 1024));
+		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("version does not match");
+
+		var gifId = NAMESPACE + "gif";
+		when(pendingUploads.findByPublicIdAndAuth0Subject(gifId, SUBJECT))
+				.thenReturn(Optional.of(new PendingAvatarUpload(gifId, SUBJECT, Instant.now().plusSeconds(60))));
+		when(cloudinary.findImage(gifId))
+				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(gifId, 1, "image/gif", 1024));
+		assertThatThrownBy(() -> service.confirm(gifId, 1)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("metadata is invalid");
+
+		verify(profiles, never()).save(any());
+	}
+
+	@Test
+	void rejectsANonPositiveConfirmationVersionBeforeLookingUpCloudinary() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		assertThatThrownBy(() -> service.confirm(NAMESPACE + "invalid-version", 0))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("must be positive");
+		verify(cloudinary, never()).findImage(any());
 	}
 
 	@Test
