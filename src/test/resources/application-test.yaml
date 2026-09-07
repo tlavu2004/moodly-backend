@@ -1,6 +1,19 @@
+spring:
+  mongodb:
+    uri: mongodb://${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}?replicaSet=${MONGODB_REPLICA_SET}
+  elasticsearch:
+    uris: http://localhost:9200
+
 moodly:
+  cloudinary:
+    cloud-name: test-cloud
+    api-key: test-api-key
+    api-secret: test-api-secret
+    upload-preset: test-upload-preset
+    folder: moodly/test
   testcontainers:
     mongodb-image: mongo:${MONGODB_VERSION:8.3.7}
+    elasticsearch-image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:9.5.0}
   entries:
     collection-name: daily_entries
   cdc:

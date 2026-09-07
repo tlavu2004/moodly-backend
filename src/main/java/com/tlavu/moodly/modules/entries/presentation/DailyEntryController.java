@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.entries.presentation;
 
 import com.tlavu.moodly.modules.entries.application.DailyEntryService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
+import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,30 +21,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class DailyEntryController {
 
 	private final DailyEntryService dailyEntryService;
+	private final CurrentUser currentUser;
 
-	public DailyEntryController(DailyEntryService dailyEntryService) {
+	public DailyEntryController(DailyEntryService dailyEntryService, CurrentUser currentUser) {
 		this.dailyEntryService = dailyEntryService;
+		this.currentUser = currentUser;
 	}
 
 	@PatchMapping("/today")
 	public ApiResponse<DailyEntry> updateTodayHabit(
-			@RequestHeader("X-User-Id") String userId,
 			@Valid @RequestBody UpdateHabitLogRequest request
 	) {
-		return ApiResponse.success(dailyEntryService.updateHabitLog(userId, LocalDate.now(), request));
+		return ApiResponse.success(dailyEntryService.updateHabitLog(currentUser.id(), LocalDate.now(), request));
 	}
 
 	@PutMapping("/today/mood")
 	public ApiResponse<DailyEntry> setTodayMood(
-			@RequestHeader("X-User-Id") String userId,
 			@Valid @RequestBody SetMoodRequest request
 	) {
-		return ApiResponse.success(dailyEntryService.setMood(userId, LocalDate.now(), request));
+		return ApiResponse.success(dailyEntryService.setMood(currentUser.id(), LocalDate.now(), request));
 	}
 
 	@GetMapping
 	public ApiResponse<List<DailyEntry>> findBetween(
-			@RequestHeader("X-User-Id") String userId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
 				@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
 	) {
@@ -54,6 +53,6 @@ public class DailyEntryController {
 		if (from.isAfter(LocalDate.now()) || to.isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Entry dates must not be in the future.");
 		}
-		return ApiResponse.success(dailyEntryService.findBetween(userId, from, to));
+		return ApiResponse.success(dailyEntryService.findBetween(currentUser.id(), from, to));
 	}
 }

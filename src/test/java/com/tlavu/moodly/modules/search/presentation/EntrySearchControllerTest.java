@@ -8,19 +8,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.application.EntrySearchService;
+import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.presentation.advice.GlobalExceptionHandler;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(EntrySearchController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 @Import(GlobalExceptionHandler.class)
 class EntrySearchControllerTest {
 
@@ -30,9 +36,16 @@ class EntrySearchControllerTest {
 	private MockMvc mockMvc;
 	@MockitoBean
 	private EntrySearchService entrySearchService;
+	@MockitoBean
+	private CurrentUser currentUser;
+
+	@BeforeEach
+	void setUpUser() {
+		when(currentUser.id()).thenReturn(USER_ID);
+	}
 
 	@Test
-	void searchesWithDateFiltersAndPassesTemporaryUserScopeToTheService() throws Exception {
+	void searchesWithDateFiltersAndPassesAuthenticatedUserScopeToTheService() throws Exception {
 		var from = LocalDate.of(2026, 8, 1);
 		var to = LocalDate.of(2026, 8, 31);
 		var result = new EntrySearchService.EntrySearchResult(
@@ -43,7 +56,6 @@ class EntrySearchControllerTest {
 		when(entrySearchService.search(USER_ID, "tired", from, to)).thenReturn(List.of(result));
 
 		mockMvc.perform(get("/entries/search")
-					.header("X-User-Id", USER_ID)
 					.param("q", "  tired  ")
 					.param("from", from.toString())
 					.param("to", to.toString()))
@@ -58,7 +70,6 @@ class EntrySearchControllerTest {
 	@Test
 	void rejectsBlankQueryBeforeCallingTheSearchService() throws Exception {
 		mockMvc.perform(get("/entries/search")
-					.header("X-User-Id", USER_ID)
 					.param("q", "   "))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
@@ -70,7 +81,6 @@ class EntrySearchControllerTest {
 	@Test
 	void rejectsDateRangeWhenFromIsAfterToBeforeCallingTheSearchService() throws Exception {
 		mockMvc.perform(get("/entries/search")
-					.header("X-User-Id", USER_ID)
 					.param("q", "tired")
 					.param("from", "2026-08-31")
 					.param("to", "2026-08-01"))
@@ -86,7 +96,6 @@ class EntrySearchControllerTest {
 				.thenThrow(new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", new java.io.IOException("down")));
 
 		mockMvc.perform(get("/entries/search")
-					.header("X-User-Id", USER_ID)
 					.param("q", "tired"))
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(jsonPath("$.success").value(false))

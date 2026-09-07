@@ -8,6 +8,7 @@ import com.tlavu.moodly.modules.cdc.application.DailyEntryReindexService;
 import com.tlavu.moodly.modules.cdc.domain.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonDocument;
@@ -92,6 +93,11 @@ public class DailyEntryChangeStreamListener {
 			subscription = null;
 		}
 		listenerContainer.stop();
+	}
+
+	/** Waits until the registered change-stream subscription is active. */
+	public synchronized boolean awaitRegistration(Duration timeout) throws InterruptedException {
+		return subscription != null && subscription.await(timeout);
 	}
 
 	private void register(String resumeToken) {

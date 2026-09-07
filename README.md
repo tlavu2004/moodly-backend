@@ -1,12 +1,22 @@
 # Moodly
 
-Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and self-issued JWT authentication.
+Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and Auth0-validated JWT authentication.
 
 ## Local setup
 
 Requirements: Java 25, Maven, and Docker Desktop.
 
-Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present.
+Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
+
+### Auth0 and Cloudinary local services
+
+Before starting the Phase 3 backend, configure the hosted development services and fill the corresponding blank values in `.env.local`:
+
+- In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:3000`) to its allowed callback, logout, and web-origin URLs.
+- In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
+- Set `CLOUDINARY_FOLDER` to `moodly/local`. The Phase 3 backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
+
+`make local-run` exports these variables before launching the `local` profile. The Auth0 issuer, API audience, Cloudinary settings, and CORS origins are deliberately bound only by `application-local.yaml`; production configuration is deferred to Phase 3 deployment preparation.
 
 1. Start MongoDB as a single-node replica set and Elasticsearch:
 
@@ -69,7 +79,8 @@ Before first use, copy `.env.local.example` to `.env.local` and `.env.test.examp
    update, reindex/duplicate delivery, dead-letter replay, and health. The
    delete scenario uses `mongosh` until an entry-delete API is introduced.
 
-4. Open `docs/testing/moodly.http` with the VS Code REST Client extension and send requests with the temporary `X-User-Id` header. Phase 3 will replace this header with JWT authentication.
+4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
+5. After Auth0 authenticates the SPA, call `PUT /auth/profile` once to idempotently bootstrap the application-owned profile. Other protected endpoints resolve ownership from the verified JWT and never create users as a hidden side effect.
 
 ## Test
 

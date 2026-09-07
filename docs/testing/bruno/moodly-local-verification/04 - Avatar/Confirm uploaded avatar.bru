@@ -1,0 +1,22 @@
+meta {
+  name: Confirm uploaded avatar
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/me/avatar/confirm
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "publicId": "{{publicId}}",
+    "version": {{avatarVersion}}
+  }
+}

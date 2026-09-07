@@ -1,0 +1,11 @@
+meta {
+  name: Weekly mood trend
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/stats/mood-trend?period=week
+  body: none
+  auth: inherit
+}
