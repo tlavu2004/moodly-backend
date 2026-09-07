@@ -82,7 +82,7 @@ public class SecurityConfiguration {
 		return decoder;
 	}
 
-	private OAuth2TokenValidator<Jwt> audienceValidator(String audience) {
+	OAuth2TokenValidator<Jwt> audienceValidator(String audience) {
 		return jwt -> jwt.getAudience() != null && jwt.getAudience().contains(audience)
 				? OAuth2TokenValidatorResult.success()
 				: OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "The token audience is invalid.", null));

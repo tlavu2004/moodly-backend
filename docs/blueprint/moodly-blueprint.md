@@ -196,7 +196,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Habit/entry APIs and `.http` tests          | `[ ]` Not started | Implement and exercise the core endpoints.                                    |
 | Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                      |
 | Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next. |
-| Auth0 authentication and Cloudinary avatars | `[ ]` Not started | Implement Phase 3 and deploy the demo after the core APIs exist.              |
+| Auth0 authentication and Cloudinary avatars | `[~]` In progress | Backend implementation and automated tests exist; complete local hosted-service verification before deployment. |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
@@ -668,7 +668,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 - [x] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
 - [x] Map the Auth0 JWT `sub` to the application `userId`. Explicitly bootstrap the `users` profile through idempotent `PUT /auth/profile` after Auth0 authentication; ordinary protected API requests must not create users as a hidden side effect. Store a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
-- [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Habit, entry, statistics, and search endpoints are secured; complete this after adding the avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
+- [x] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
 - [x] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
 - [x] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
 - [x] Return consistent `401 Unauthorized` responses for missing, expired, malformed, invalid, wrong-issuer, or wrong-audience tokens, and `403 Forbidden` only for authenticated users lacking permission.
