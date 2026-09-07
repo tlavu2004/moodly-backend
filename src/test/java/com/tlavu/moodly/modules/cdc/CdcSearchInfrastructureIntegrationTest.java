@@ -34,9 +34,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import com.tlavu.moodly.support.CdcSearchTestSupport;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -229,6 +229,8 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	/** Waits for the asynchronous driver subscription created by the listener container. */
 	private void awaitChangeStreamRegistration() throws InterruptedException {
-		TimeUnit.SECONDS.sleep(1);
+		assertThat(listener.awaitRegistration(Duration.ofSeconds(10)))
+				.as("CDC change-stream subscription should become active")
+				.isTrue();
 	}
 }
