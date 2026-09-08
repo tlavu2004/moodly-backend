@@ -229,16 +229,22 @@ A valid ID returns HTTP `204`; a placeholder or missing ID returns `404`. After 
 - [x] Full reindex neither loses nor duplicates data.
 - [x] Dead-letter replay works with a real dead letter.
 
-## 15. When to move to automated tests and frontend work
+## 15. Remaining Phase 3 verification
 
-The manual Bruno verification cycle is complete. You can start the React SPA now. Before or alongside frontend development, add automated backend tests for security, ownership, avatar validation/cleanup, and CDC recovery, then run the full Maven test suite.
+The completed items above prove the core local flow, but Phase 3 is not complete until every item below passes. Keep using the ignored `local` Bruno environment; never commit tokens, Cloudinary secrets, uploaded test-media URLs with sensitive query data, or test-account passwords.
 
-Recommended order:
+- [ ] **Finish two-way data isolation.** As user B, bootstrap a profile and create a habit and entry with unique data. Verify user A cannot read B's habits, entries, statistics, or search result; retain the existing B-cannot-read-A check. Inspect local MongoDB only for the two distinct `auth0Subject` values and absence of credentials, sessions, refresh tokens, and password hashes. Inspect Elasticsearch documents to confirm their `userId` matches the owner, and confirm no search request accepts a caller-supplied user-ID override.
+- [ ] **Finish the hosted token matrix.** Keep the existing missing and malformed-token checks. Using dedicated disposable Auth0 test credentials or an approved tenant test mechanism, send expired, invalid-signature, wrong-issuer, and wrong-audience access tokens to one protected endpoint. Every case must return `401 UNAUTHORIZED`; only a valid identity denied by a real authorization rule may return `403 FORBIDDEN`.
+- [ ] **Finish avatar confirmation validation.** Confirm that fabricated public IDs, altered versions, expired pending uploads, an asset outside the owner's namespace, a disallowed Cloudinary format, and confirmed size over 5 MiB all fail without replacing current avatar metadata.
+- [ ] **Finish cross-user avatar protection.** With user B, try to reuse a signature issued to user A and try every available confirm/overwrite/delete path using a user-A public ID. Each must fail, with user A's profile metadata and Cloudinary asset unchanged.
+- [ ] **Verify cleanup retry.** Make Cloudinary deletion fail temporarily for an expired pending upload. Verify the local pending record remains and its cleanup attempt count increments; restore Cloudinary access and verify a later scheduler run removes the remote asset and record.
 
-1. Record the completed Bruno verification.
-2. Fix any discovered defects.
-3. Add the missing integration, security, and avatar tests.
-4. Run the full Maven test suite.
-5. Update the checkboxes in `moodly-blueprint.md`.
-6. Start the React SPA.
-7. Complete OpenAPI and the CI/CD gate before deployment.
+## 16. Completion and next order
+
+Only after section 15 passes:
+
+1. Tick the matching `[~]` items in `moodly-blueprint.md` as complete and mark the local Phase 3 checkpoint complete.
+2. Run `mvn test` with Docker available; the full suite must pass before committing.
+3. Inspect `git diff` and Git status. Remove any token, secret, test media, or local environment file from the change set.
+4. Commit the Phase 3 verification with `test(auth): verify local Auth0, CDC, and Cloudinary flows`.
+5. Start the next gate: OpenAPI/Swagger documentation and GitHub Actions CI. Do not begin frontend deployment until that gate is complete.
