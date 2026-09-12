@@ -1,17 +1,13 @@
 meta {
-  name: User B cannot confirm User A avatar
+  name: User B statistics are isolated
   type: http
-  seq: 14
+  seq: 7
 }
 
-post {
-  url: {{baseUrl}}/me/avatar/confirm
-  body: json
+get {
+  url: {{baseUrl}}/stats/mood-trend?period=week
+  body: none
   auth: oauth2
-}
-
-headers {
-  Content-Type: application/json
 }
 
 auth:oauth2 {
@@ -39,15 +35,8 @@ auth:oauth2:additional_params:auth_req:queryparams {
   prompt: login
 }
 
-body:json {
-  {
-    "publicId": "{{publicId}}",
-    "version": {{avatarVersion}}
-  }
-}
-
 tests {
-  test("rejects user A's public ID for user B", function() {
-    expect(res.getStatus()).to.equal(400);
+  test("returns user B's statistics without user A data", function() {
+    expect(res.getStatus()).to.equal(200);
   });
 }

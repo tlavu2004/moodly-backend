@@ -184,19 +184,19 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Current setup status (checked 2026-08-03):** The Spring Boot skeleton, Maven files, application entry point, and basic context test exist. MongoDB is connected and verified locally, and Phase 1 feature modules have started.
 
-| Area                                        | Status            | Evidence / next step                                                          |
-|---------------------------------------------|-------------------|-------------------------------------------------------------------------------|
-| Spring Boot application skeleton            | `[x]` Setup       | Create the Spring Boot application structure.                                 |
-| MongoDB dependency                          | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                              |
-| Web and validation dependencies             | `[x]` Setup       | Add WebMVC and Validation starters.                                           |
-| Modular-monolith packages                   | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                     |
-| MongoDB Docker/replica set                  | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.         |
-| MongoDB connection                          | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                            |
-| Domain models and repositories              | `[ ]` Not started | Implement Phase 1 persistence.                                                |
-| Habit/entry APIs and `.http` tests          | `[ ]` Not started | Implement and exercise the core endpoints.                                    |
-| Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                      |
-| Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next. |
-| Auth0 authentication and Cloudinary avatars | `[ ]` Not started | Implement Phase 3 and deploy the demo after the core APIs exist.              |
+| Area                                        | Status            | Evidence / next step                                                                                            |
+|---------------------------------------------|-------------------|-----------------------------------------------------------------------------------------------------------------|
+| Spring Boot application skeleton            | `[x]` Setup       | Create the Spring Boot application structure.                                                                   |
+| MongoDB dependency                          | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                                                                |
+| Web and validation dependencies             | `[x]` Setup       | Add WebMVC and Validation starters.                                                                             |
+| Modular-monolith packages                   | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                                                       |
+| MongoDB Docker/replica set                  | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.                                           |
+| MongoDB connection                          | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                                                              |
+| Domain models and repositories              | `[ ]` Not started | Implement Phase 1 persistence.                                                                                  |
+| Habit/entry APIs and `.http` tests          | `[ ]` Not started | Implement and exercise the core endpoints.                                                                      |
+| Aggregations, streak, and statistics        | `[ ]` Not started | Implement Phase 1 stats.                                                                                        |
+| Elasticsearch and CDC                       | `[~]` In progress | Elasticsearch infrastructure and index mapping are ready; implement CDC next.                                   |
+| Auth0 authentication and Cloudinary avatars | `[~]` In progress | Backend implementation and automated tests exist; complete local hosted-service verification before deployment. |
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
@@ -668,7 +668,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 
 - [x] Configure Spring Security as an OAuth 2.0 resource server. Verify Bearer JWT signatures with Auth0's JWKS and validate issuer, expiry, and the Moodly API audience.
 - [x] Map the Auth0 JWT `sub` to the application `userId`. Explicitly bootstrap the `users` profile through idempotent `PUT /auth/profile` after Auth0 authentication; ordinary protected API requests must not create users as a hidden side effect. Store a unique `auth0Subject`, normalized email when available, and timestamps; never create or store password hashes or refresh tokens.
-- [ ] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Habit, entry, statistics, and search endpoints are secured; complete this after adding the avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
+- [x] Require authentication for all habit, entry, statistics, search, and avatar endpoints. Do not expose `/auth/register`, `/auth/login`, or `/auth/refresh`; the frontend uses Auth0 Universal Login and refreshes through Auth0's supported client flow.
 - [x] Extract `userId` exclusively from the authenticated principal or `SecurityContext`; remove the Phase 1 assumed/header-provided user ID from controllers, request DTOs, and service interfaces.
 - [x] Update every MongoDB query and Elasticsearch query to scope results and writes to the authenticated `userId`.
 - [x] Return consistent `401 Unauthorized` responses for missing, expired, malformed, invalid, wrong-issuer, or wrong-audience tokens, and `403 Forbidden` only for authenticated users lacking permission.
@@ -689,11 +689,60 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
 #### Local Backend Verification Before Frontend Work
 
 - [x] Extend the `.http` file with an Auth0 access-token acquisition note and authenticated CRUD, search, cross-user isolation, invalid/expired-token, and avatar signed-upload scenarios. Wrong-issuer and wrong-audience must be exercised with deliberately minted Auth0 test tokens during the manual run.
-- [ ] Use two local Auth0 demo users to verify that neither local MongoDB-backed endpoints nor local Elasticsearch search reveals the other user's data, and neither user can perform Cloudinary asset-management operations for the other's avatar.
-- [ ] Run the full local stack with `make local-up` and `make local-run`; verify authenticated CRUD, CDC indexing, search, avatar upload, avatar replacement/deletion, and error handling before beginning any frontend work.
+- [x] Use two local Auth0 demo users to verify that neither local MongoDB-backed endpoints nor local Elasticsearch search reveals the other user's data, and neither user can perform Cloudinary asset-management operations for the other's avatar. Completed 2026-09-12: reciprocal MongoDB/Search isolation passed; User B was rejected when confirming a fresh user-A pending avatar, and Moodly exposes no caller-supplied cross-user issue/overwrite/delete API.
+- [~] Run the full local stack with `make local-up` and `make local-run`; verify authenticated CRUD, CDC indexing, search, avatar upload, avatar replacement/deletion, and error handling before beginning any frontend work. Verified locally on 2026-09-08 through the Bruno guide, including reindex and dead-letter replay; the hosted negative-token matrix, expanded avatar validation, and cleanup-retry scenario remain.
 - [ ] Do not start frontend deployment until the local backend verification checklist passes. The frontend's first responsibility is to complete Auth0 Universal Login and call these already-tested API endpoints.
 
 **Commit checkpoint:** `test(auth): verify local Auth0, CDC, and Cloudinary flows`
+
+#### Phase 3 Test Plan
+
+Run this plan before considering Phase 3 complete. Automated tests must use the `test` Spring profile, Testcontainers MongoDB, deterministic test-only Cloudinary values, and a mocked `CloudinaryAssetClient`; they must never call the real Auth0 tenant or Cloudinary account. Only the manual section is permitted to use `.env.local` credentials and hosted development services. Test cleanup must remove application profiles and pending-avatar records created for a test, so no test can affect a developer's local MongoDB data or Cloudinary media library.
+
+##### Test Infrastructure
+
+- [x] Keep the `JwtDecoder` test double in `MongoTestConfiguration`: `jwt()` request post-processors represent a JWT that has already passed signature verification, while a raw malformed Bearer token is decoded as a `BadJwtException` and exercises the resource-server `401` path.
+- [x] Override `CloudinaryAssetClient` with `@MockitoBean` in the web integration suite. Assert its calls and returned confirmed metadata without ever exposing real API keys/secrets to test output.
+- [x] Use the existing MongoDB Testcontainer for profile and `pending_avatar_uploads` persistence. After every web integration test, delete profiles and pending uploads as well as habits/entries created by that test.
+- [x] Keep direct `AvatarService` and pending-cleanup tests as Mockito unit tests. They must use a fixed test cloud name/key/secret/preset, and assertions must inspect only the resulting SHA-1 signature—not log the secret.
+- [x] Run hosted Auth0/Cloudinary scenarios only against the local profile. Do not put access tokens, Cloudinary API secrets, uploaded asset URLs containing sensitive query data, or test-user passwords in committed test files. The completed Bruno run used its ignored local environment; keep this rule in effect for the remaining scenarios.
+
+##### Unit Tests
+
+- [x] `CurrentUser`: verify the verified JWT `sub` is the only application user ID source, email is trimmed/lower-cased when present, and no profile write occurs while resolving the current identity.
+- [x] `UserProfileService`: verify `PUT /auth/profile` creates a profile from a verified identity once, normalizes its email, and is idempotent when the profile already exists. Ordinary protected requests must not create a profile implicitly.
+- [x] `SecurityConfiguration`: verify the composed issuer, audience, and timestamp validators accept a token with the expected issuer/audience/lifetime and reject wrong issuer, wrong audience, and expired claims. The production decoder is configured to validate Auth0 RS256 signatures through JWKS; this remains subject to the manual hosted-service run.
+- [x] `AvatarService` upload signature: verify only JPEG/PNG/WebP declarations from 1 byte through 5 MiB are accepted, the returned public ID is generated in `moodly/test/users/{sanitized-sub}/avatar/{uuid}`, the payload contains no API secret, and the pending record is scoped to the JWT subject and expires after the configured lifetime.
+- [x] `AvatarService` confirmation: verify a confirmation requires a non-expired pending record for the same subject, matching Cloudinary public ID/version, an allow-listed confirmed content type, and confirmed size at or below 5 MiB. Reject unknown/expired records, invalid versions, mismatched versions, invalid metadata, and a public ID outside the caller namespace without updating the profile.
+- [x] `AvatarService` lifecycle: verify confirmed metadata is persisted, the delivery URL uses the fixed square crop plus automatic format/quality transformation, and replacement deletes the previous asset only after the new profile metadata is saved.
+- [x] `PendingAvatarUploadCleanup`: verify expired unconfirmed uploads delete the remote asset and local pending record; when deletion fails, retain the record, increment its cleanup attempt count, and leave it available for a later retry.
+
+##### Web Integration Tests — Spring Security + MongoDB Testcontainer
+
+- [x] Protected endpoint contract: without a Bearer token, all habit, entry, statistics, search, profile, and avatar endpoints return the standard `401 UNAUTHORIZED` envelope. A malformed raw Bearer token returns the same envelope; valid mocked JWTs may reach only their authenticated controller/service paths.
+- [x] Profile bootstrap contract: `PUT /auth/profile` returns the authenticated `sub`, creates one normalized profile, and stays idempotent. A protected read such as `GET /habits` does not create one.
+- [x] Avatar request contract: `POST /me/avatar/upload-signature` rejects missing authentication before request validation, rejects invalid media declarations with the standard invalid-request response, creates a pending upload only for the authenticated subject, and returns the expected upload URL/preset/public ID/signature fields without the Cloudinary secret.
+- [x] Avatar confirmation contract: with mocked confirmed Cloudinary metadata, the owner can confirm the pending asset and `GET /me/avatar` returns its metadata and safe delivery URL. A second JWT subject receives an invalid-request response when attempting to confirm the owner's public ID, before any Cloudinary lookup or profile update.
+- [x] MongoDB/Elasticsearch isolation: retain the existing Testcontainers coverage that creates indexed entries for two JWT subjects and proves `/entries/search` returns only the caller's documents. Keep equivalent ownership assertions for MongoDB-backed habits and entries in the core API suite.
+
+##### Manual Hosted-Service Verification — Auth0 + Cloudinary
+
+- [x] **Prerequisites.** Confirm `make local-up` reports MongoDB `PRIMARY` and Elasticsearch healthy, then start `make local-run`. The backend must retrieve the configured Auth0 discovery/JWKS document successfully before this plan begins; record only the success/failure result, never credentials. Verified 2026-09-08: local MongoDB/Elasticsearch were healthy, backend started on port 8080, `GET /actuator/health` returned 200, and protected `GET /habits` returned the standard 401 response without a token. If JWKS retrieval times out, stop here, diagnose outbound DNS/TLS/proxy/firewall access to the Auth0 tenant, and leave this section unchecked.
+- [x] **Acquire two tokens.** Create/login as two dedicated local Auth0 demo users (user A and user B) through Universal Login. Obtain API **access** tokens with the exact `AUTH0_AUDIENCE`; do not use ID tokens. Paste them only into the ignored local Bruno environment or temporary `.http` variables. Verified through Bruno's separate user-A collection credential and user-B request-level credential.
+- [x] **Bootstrap and MongoDB isolation.** User A/B bootstrapped distinct profiles and created distinct habit/entry data. Bruno proved each caller sees only its habits, entries, and statistics. Verified 2026-09-12: the local `users` collection had two distinct `auth0Subject` values and no credential/session/refresh-token/password fields; `habits` and `daily_entries` were owned only by those subjects.
+- [x] **CDC/search isolation.** Both directions of unique-text search isolation passed in Bruno. Verified 2026-09-12: Elasticsearch documents were partitioned by the same two owner `userId` values (two documents for user A and one for user B); the search API exposes no caller-supplied user-ID override. Full reindex and real dead-letter replay had already passed.
+- [~] **Negative token matrix.** Missing and malformed/invalid token requests returned the standard `401 UNAUTHORIZED` envelope. The dedicated wrong-audience OAuth request also returned `401` on 2026-09-12. Still record the expired-token and invalid-signature outcomes if not already captured, exercise wrong issuer using a dedicated test mechanism, and confirm `403 FORBIDDEN` occurs only after a valid authenticated identity fails an explicit authorization rule.
+- [x] **Avatar upload.** User A requested a signed payload, uploaded a permitted image directly to Cloudinary, confirmed it, and retrieved the transformed delivery URL. The Bruno workflow kept the API secret out of request variables and responses.
+- [~] **Avatar validation.** Unsupported MIME type and declared size above 5 MiB were rejected before signature issuance. Verified 2026-09-12: fabricated public ID and altered version both returned `400`, while `GET /me/avatar` retained the prior confirmed metadata. Still test expired pending upload, asset outside the owner namespace, disallowed Cloudinary format, and Cloudinary-confirmed size above 5 MiB, verifying none replaces profile metadata.
+- [~] **Replacement and cleanup.** A second user-A avatar replaced the first and deleted the previous Cloudinary asset; an abandoned upload was cleaned after expiry. Still simulate a remote-deletion failure and verify the pending record remains, its cleanup attempt count increments, and a later retry succeeds.
+- [~] **Cross-user asset ownership.** Verified 2026-09-12: with a fresh unconfirmed user-A upload, User B confirmation returned `400` at the namespace ownership check and `GET /me/avatar` for user A remained unchanged. The signature endpoint has no caller-supplied public-ID input and no avatar overwrite/delete API exists; keep its short-lived Cloudinary signature private because it is a fixed-public-ID bearer capability, not an Auth0 authorization primitive.
+
+##### Required Execution Order
+
+1. Run the fast Auth0/Cloudinary unit and web integration tests on every related code change.
+2. Run the complete Maven suite, including MongoDB/Elasticsearch Testcontainers, before merging the Phase 3 branch.
+3. Resolve Auth0 JWKS connectivity, then execute the two-user manual hosted-service scenarios against `moodly-local` in the order above.
+4. Mark the existing local-backend verification checkboxes and the `test(auth)` checkpoint complete only after the automated suite and all applicable manual checks pass.
 
 #### Deployment Preparation After Local Verification
 

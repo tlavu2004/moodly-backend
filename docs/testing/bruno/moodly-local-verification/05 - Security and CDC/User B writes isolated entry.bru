@@ -1,11 +1,11 @@
 meta {
-  name: User B cannot confirm User A avatar
+  name: User B writes isolated entry
   type: http
-  seq: 14
+  seq: 18
 }
 
-post {
-  url: {{baseUrl}}/me/avatar/confirm
+put {
+  url: {{baseUrl}}/entries/today/mood
   body: json
   auth: oauth2
 }
@@ -41,13 +41,14 @@ auth:oauth2:additional_params:auth_req:queryparams {
 
 body:json {
   {
-    "publicId": "{{publicId}}",
-    "version": {{avatarVersion}}
+    "score": 2,
+    "tags": ["userbzephyrneedle"],
+    "note": "userbzephyrneedle"
   }
 }
 
 tests {
-  test("rejects user A's public ID for user B", function() {
-    expect(res.getStatus()).to.equal(400);
+  test("writes an entry owned by user B", function() {
+    expect(res.getStatus()).to.equal(200);
   });
 }
