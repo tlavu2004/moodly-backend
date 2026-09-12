@@ -163,6 +163,17 @@ class ApiIntegrationTest {
 	}
 
 	@Test
+	void returnsTheStandardUnauthorizedEnvelopeForASignatureShapedBearerTokenRejectedByTheDecoder() throws Exception {
+		var tamperedJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+				+ "eyJzdWIiOiJhdXRoMHx0ZXN0In0.invalid-signature";
+
+		mockMvc.perform(get("/habits").header("Authorization", "Bearer " + tamperedJwt))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void requiresAuthenticationForEveryAvatarEndpoint() throws Exception {
 		mockMvc.perform(get("/me/avatar"))
 				.andExpect(status().isUnauthorized())

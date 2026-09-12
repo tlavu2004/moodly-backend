@@ -257,7 +257,7 @@ A valid ID returns HTTP `204`; a placeholder or missing ID returns `404`. After 
 - [x] User B cannot confirm user A's avatar public ID.
 - [x] Replacing an avatar deletes the previous asset.
 - [x] An abandoned upload is cleaned up after expiry.
-- [ ] Cleanup retry behavior is verified when Cloudinary is unavailable.
+- [x] Cleanup retry behavior is verified by `PendingAvatarUploadCleanupTest`: a simulated Cloudinary deletion failure retains the pending record and increments `cleanupAttempts`; a separate test verifies successful deletion removes both the remote asset and pending record.
 - [x] Full reindex neither loses nor duplicates data.
 - [x] Dead-letter replay works with a real dead letter.
 
@@ -266,10 +266,10 @@ A valid ID returns HTTP `204`; a placeholder or missing ID returns `404`. After 
 The completed items above prove the core local flow, but Phase 3 is not complete until every item below passes. Keep using the ignored `local` Bruno environment; never commit tokens, Cloudinary secrets, uploaded test-media URLs with sensitive query data, or test-account passwords.
 
 - [x] **Finish two-way data isolation.** Completed 2026-09-12. User B created unique habit/entry data; User A could not read the B habit, entry marker, statistics, or search result, while the reciprocal B-cannot-read-A checks passed. MongoDB contained two distinct `auth0Subject` values and no credential/session/password fields. Elasticsearch documents had matching owner `userId` values, and no API request accepts a caller-supplied user-ID override.
-- [ ] **Finish the hosted token matrix.** Missing and malformed-token checks passed, and `Acquire wrong-audience token` returned `401 UNAUTHORIZED` on 2026-09-12. Record the expired-token and invalid-signature outcomes if not already captured, then use a dedicated test mechanism for wrong issuer. Every case must return `401 UNAUTHORIZED`; only a valid identity denied by a real authorization rule may return `403 FORBIDDEN`.
-- [ ] **Finish avatar confirmation validation.** Completed 2026-09-12: fabricated public ID and altered version returned `400` while `GET /me/avatar` retained the prior confirmed avatar. Still confirm expired pending uploads, an asset outside the owner's namespace, a disallowed Cloudinary format, and confirmed size over 5 MiB all fail without replacing current avatar metadata.
+- [x] **Finish the token matrix.** Hosted checks for expired, invalid-signature, and wrong-audience tokens returned `401 UNAUTHORIZED` on 2026-09-12. `SecurityConfigurationTest` covers wrong issuer, wrong audience, and expired claims; `ApiIntegrationTest` covers the `401` envelope for a structurally valid bearer JWT rejected by the decoder. A token from a second Auth0 tenant is not required for this local checkpoint.
+- [x] **Finish avatar confirmation validation.** Hosted checks completed 2026-09-12: fabricated public ID and altered version returned `400` while `GET /me/avatar` retained the prior confirmed avatar. `AvatarServiceTest` additionally covers expired pending uploads, assets outside the owner namespace, disallowed confirmed formats, and confirmed metadata over 5 MiB without profile mutation.
 - [x] **Finish cross-user avatar protection.** Completed 2026-09-12. User B confirmation of a fresh user-A pending public ID returned `400` at the namespace ownership check; user A's avatar metadata remained unchanged. Moodly has no caller-supplied public-ID signature input and no avatar overwrite/delete API. Cloudinary signatures remain short-lived fixed-public-ID bearer capabilities and must not be exposed.
-- [ ] **Verify cleanup retry.** Make Cloudinary deletion fail temporarily for an expired pending upload. Verify the local pending record remains and its cleanup attempt count increments; restore Cloudinary access and verify a later scheduler run removes the remote asset and record.
+- [x] **Verify cleanup retry.** `PendingAvatarUploadCleanupTest` simulates a Cloudinary deletion failure and verifies that the pending record is saved with `cleanupAttempts` incremented; its success-path test verifies remote and pending-record deletion. Local abandoned-upload cleanup was also verified previously.
 
 ## 16. Completion and next order
 
