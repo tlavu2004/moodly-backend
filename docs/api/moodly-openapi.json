@@ -1,0 +1,1114 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Moodly API",
+    "description": "Moodly backend API. Authenticate requests with an Auth0 access token.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Authenticated user profile operations"
+    },
+    {
+      "name": "Entry search",
+      "description": "Full-text search over the authenticated user's daily entries"
+    },
+    {
+      "name": "Habit statistics",
+      "description": "Statistics for the authenticated user's habits"
+    },
+    {
+      "name": "CDC maintenance",
+      "description": "Internal operations protected by the X-Maintenance-Key header"
+    },
+    {
+      "name": "Habits",
+      "description": "Habit management for the authenticated user"
+    },
+    {
+      "name": "Avatar",
+      "description": "Avatar upload and retrieval for the authenticated user"
+    },
+    {
+      "name": "Daily entries",
+      "description": "Daily mood and habit-log entries for the authenticated user"
+    },
+    {
+      "name": "Statistics",
+      "description": "Mood and habit statistics for the authenticated user"
+    }
+  ],
+  "paths": {
+    "/entries/today/mood": {
+      "put": {
+        "tags": [
+          "Daily entries"
+        ],
+        "summary": "Set today's mood",
+        "description": "Sets the mood in the authenticated user's entry for today.",
+        "operationId": "setTodayMood",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetMoodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDailyEntry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/profile": {
+      "put": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Synchronize the current user profile",
+        "description": "Creates or refreshes the profile for the authenticated Auth0 user. This operation is idempotent.",
+        "operationId": "synchronize",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/avatar/upload-signature": {
+      "post": {
+        "tags": [
+          "Avatar"
+        ],
+        "summary": "Create an avatar upload signature",
+        "description": "Creates a signed upload payload for Cloudinary after validating the image content type and size.",
+        "operationId": "signature",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUploadSignature"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/avatar/confirm": {
+      "post": {
+        "tags": [
+          "Avatar"
+        ],
+        "summary": "Confirm an uploaded avatar",
+        "description": "Verifies the uploaded Cloudinary asset and saves it as the current user's avatar.",
+        "operationId": "confirm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/cdc/reindex": {
+      "post": {
+        "tags": [
+          "CDC maintenance"
+        ],
+        "summary": "Reindex daily entries",
+        "description": "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
+        "operationId": "reindex",
+        "parameters": [
+          {
+            "name": "X-Maintenance-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReindexResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/cdc/dead-letters/{id}/replay": {
+      "post": {
+        "tags": [
+          "CDC maintenance"
+        ],
+        "summary": "Replay a CDC dead letter",
+        "description": "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
+        "operationId": "replay",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Maintenance-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/habits": {
+      "get": {
+        "tags": [
+          "Habits"
+        ],
+        "summary": "List active habits",
+        "description": "Returns all active habits owned by the authenticated user.",
+        "operationId": "findActive",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListHabit"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Habits"
+        ],
+        "summary": "Create a habit",
+        "description": "Creates a new habit owned by the authenticated user.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHabitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHabit"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entries/today": {
+      "patch": {
+        "tags": [
+          "Daily entries"
+        ],
+        "summary": "Update today's habit log",
+        "description": "Marks or unmarks a habit in the authenticated user's entry for today.",
+        "operationId": "updateTodayHabit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHabitLogRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDailyEntry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/most-missed-habits": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get most missed habits",
+        "description": "Returns the authenticated user's habits ranked by missed completions.",
+        "operationId": "mostMissedHabits",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListMostMissedHabitResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/mood-trend": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get weekly mood trend",
+        "description": "Returns the authenticated user's mood trend for the current week. Only `period=week` is currently supported.",
+        "operationId": "moodTrend",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "week"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListMoodTrendResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/avatar": {
+      "get": {
+        "tags": [
+          "Avatar"
+        ],
+        "summary": "Get the current avatar",
+        "description": "Returns the authenticated user's current avatar metadata.",
+        "operationId": "current",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/habits/{habitId}/streak": {
+      "get": {
+        "tags": [
+          "Habit statistics"
+        ],
+        "summary": "Get a habit's current streak",
+        "description": "Calculates the current consecutive-completion streak for one of the authenticated user's habits.",
+        "operationId": "currentStreak",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHabitStreakResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entries": {
+      "get": {
+        "tags": [
+          "Daily entries"
+        ],
+        "summary": "List entries by date range",
+        "description": "Returns the authenticated user's daily entries from `from` through `to`, inclusive. Future dates are not allowed.",
+        "operationId": "findBetween",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListDailyEntry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entries/search": {
+      "get": {
+        "tags": [
+          "Entry search"
+        ],
+        "summary": "Search daily entries",
+        "description": "Searches the authenticated user's entries by text, optionally limited to an inclusive date range.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListEntrySearchResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SetMoodRequest": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorResponse"
+            }
+          }
+        }
+      },
+      "ApiResponseDailyEntry": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DailyEntry"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DailyEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "mood": {
+            "$ref": "#/components/schemas/Mood"
+          },
+          "habits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HabitLog"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FieldErrorResponse": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "HabitLog": {
+        "type": "object",
+        "properties": {
+          "habitId": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "Mood": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseProfileResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProfileResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UploadRequest": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "contentType"
+        ]
+      },
+      "ApiResponseUploadSignature": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadSignature"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UploadSignature": {
+        "type": "object",
+        "properties": {
+          "cloudName": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "uploadPreset": {
+            "type": "string"
+          },
+          "publicId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "publicId"
+        ]
+      },
+      "ApiResponseAvatar": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Avatar": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deliveryUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseReindexResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReindexResult"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReindexResult": {
+        "type": "object",
+        "properties": {
+          "indexedEntries": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CreateHabitRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "string"
+          },
+          "targetFrequency": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "targetFrequency"
+        ]
+      },
+      "ApiResponseHabit": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Habit"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Habit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "targetFrequency": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateHabitLogRequest": {
+        "type": "object",
+        "properties": {
+          "habitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "habitId"
+        ]
+      },
+      "ApiResponseListMostMissedHabitResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MostMissedHabitResponse"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MostMissedHabitResponse": {
+        "type": "object",
+        "properties": {
+          "habitId": {
+            "type": "string"
+          },
+          "missedCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseListMoodTrendResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MoodTrendResponse"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MoodTrendResponse": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "averageScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "entryCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseListHabit": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Habit"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseHabitStreakResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HabitStreakResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HabitStreakResponse": {
+        "type": "object",
+        "properties": {
+          "habitId": {
+            "type": "string"
+          },
+          "currentStreak": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseListDailyEntry": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyEntry"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListEntrySearchResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntrySearchResult"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EntrySearchResult": {
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "highlights": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
