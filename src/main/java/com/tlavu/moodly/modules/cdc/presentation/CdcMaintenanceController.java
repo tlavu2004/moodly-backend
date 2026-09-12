@@ -5,6 +5,8 @@ import com.tlavu.moodly.modules.cdc.application.CdcDeliveryService;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.application.exception.ForbiddenException;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Temporary maintenance guard; replace this header with an admin authority in Phase 3. */
 @RestController
 @RequestMapping("/internal/cdc")
+@Tag(name = "CDC maintenance", description = "Internal operations protected by the X-Maintenance-Key header")
 public class CdcMaintenanceController {
 
 	private final DailyEntryReindexService reindexService;
@@ -37,6 +40,7 @@ public class CdcMaintenanceController {
 	}
 
 	@PostMapping("/reindex")
+	@Operation(summary = "Reindex daily entries", description = "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.")
 	public ResponseEntity<ApiResponse<DailyEntryReindexService.ReindexResult>> reindex(
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
@@ -47,6 +51,7 @@ public class CdcMaintenanceController {
 	}
 
 	@PostMapping("/dead-letters/{id}/replay")
+	@Operation(summary = "Replay a CDC dead letter", description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.")
 	public ResponseEntity<Void> replay(
 			@org.springframework.web.bind.annotation.PathVariable String id,
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey

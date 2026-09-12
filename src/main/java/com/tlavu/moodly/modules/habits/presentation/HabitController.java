@@ -4,6 +4,8 @@ import com.tlavu.moodly.modules.habits.application.HabitService;
 import com.tlavu.moodly.modules.habits.domain.Habit;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/habits")
+@Tag(name = "Habits", description = "Habit management for the authenticated user")
 public class HabitController {
 
 	private final HabitService habitService;
@@ -28,6 +31,7 @@ public class HabitController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
+	@Operation(summary = "Create a habit", description = "Creates a new habit owned by the authenticated user.")
 	public ApiResponse<Habit> create(
 			@Valid @RequestBody CreateHabitRequest request
 	) {
@@ -35,6 +39,7 @@ public class HabitController {
 	}
 
 	@GetMapping
+	@Operation(summary = "List active habits", description = "Returns all active habits owned by the authenticated user.")
 	public ApiResponse<List<Habit>> findActive() {
 		return ApiResponse.success(habitService.findActive(currentUser.id()));
 	}
