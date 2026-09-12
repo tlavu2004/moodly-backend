@@ -1,0 +1,28 @@
+meta {
+  name: Reject fabricated avatar public ID
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/me/avatar/confirm
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "publicId": "{{publicId}}-fabricated",
+    "version": 1
+  }
+}
+
+tests {
+  test("rejects a public ID that has no pending upload", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

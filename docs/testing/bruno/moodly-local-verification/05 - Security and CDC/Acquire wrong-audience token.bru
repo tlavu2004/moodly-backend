@@ -1,17 +1,13 @@
 meta {
-  name: User B cannot confirm User A avatar
+  name: Acquire wrong-audience token
   type: http
-  seq: 14
+  seq: 3
 }
 
-post {
-  url: {{baseUrl}}/me/avatar/confirm
-  body: json
+get {
+  url: {{baseUrl}}/habits
+  body: none
   auth: oauth2
-}
-
-headers {
-  Content-Type: application/json
 }
 
 auth:oauth2 {
@@ -26,7 +22,7 @@ auth:oauth2 {
   state: 
   pkce: true
   credentials_placement: body
-  credentials_id: moodly-user-b-local
+  credentials_id: moodly-wrong-audience-local
   token_source: access_token
   token_placement: header
   token_header_prefix: Bearer
@@ -35,19 +31,11 @@ auth:oauth2 {
 }
 
 auth:oauth2:additional_params:auth_req:queryparams {
-  audience: {{auth0Audience}}
-  prompt: login
-}
-
-body:json {
-  {
-    "publicId": "{{publicId}}",
-    "version": {{avatarVersion}}
-  }
+  audience: https://api.moodly-wrong-audience.local
 }
 
 tests {
-  test("rejects user A's public ID for user B", function() {
-    expect(res.getStatus()).to.equal(400);
+  test("obtains a token for another API and Moodly rejects it", function() {
+    expect(res.getStatus()).to.equal(401);
   });
 }

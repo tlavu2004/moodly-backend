@@ -1,0 +1,21 @@
+meta {
+  name: Invalid signature token is unauthorized
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/habits
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{invalidSignatureAccessToken}}
+}
+
+tests {
+  test("returns unauthorized for a token with an invalid signature", function() {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

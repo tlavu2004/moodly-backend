@@ -1,7 +1,7 @@
 meta {
-  name: Invalid token is unauthorized
+  name: Wrong issuer token is unauthorized
   type: http
-  seq: 12
+  seq: 4
 }
 
 get {
@@ -11,11 +11,11 @@ get {
 }
 
 auth:bearer {
-  token: invalid-or-expired-token
+  token: {{wrongIssuerAccessToken}}
 }
 
 tests {
-  test("returns 401", function() {
+  test("returns unauthorized for an unexpected issuer", function() {
     expect(res.getStatus()).to.equal(401);
   });
 }
