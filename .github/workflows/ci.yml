@@ -33,8 +33,10 @@ jobs:
       - name: Run tests
         run: ./mvnw --batch-mode verify
 
-      - name: Validate committed OpenAPI document
+      - name: Generate and validate OpenAPI document
         run: |
+          chmod +x src/main/resources/scripts/openapi/generate-openapi.sh
+          src/main/resources/scripts/openapi/generate-openapi.sh
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -45,6 +47,9 @@ jobs:
           assert document.get("paths"), "OpenAPI document must define at least one path"
           print(f"Validated {document_path}: {len(document['paths'])} paths")
           PY
+
+      - name: Ensure the committed OpenAPI document is current
+        run: git diff --exit-code -- docs/api/moodly-openapi.json
 
   build-image:
     name: Build container image
