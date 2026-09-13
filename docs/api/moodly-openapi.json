@@ -79,6 +79,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -101,6 +113,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -133,6 +157,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -165,6 +201,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -197,6 +245,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -230,6 +290,18 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -252,6 +324,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       },
@@ -282,6 +366,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -314,6 +410,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -336,6 +444,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -369,6 +489,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -391,6 +523,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -423,6 +567,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -465,6 +621,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -515,6 +683,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -528,17 +708,26 @@
           "score": {
             "type": "integer",
             "format": "int32",
+            "description": "Mood score, from 1 (lowest) to 5 (highest)",
+            "example": 4,
             "maximum": 5,
             "minimum": 1
           },
           "tags": {
             "type": "array",
+            "description": "Optional labels describing the mood",
+            "example": [
+              "productive",
+              "calm"
+            ],
             "items": {
               "type": "string"
             }
           },
           "note": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional note for the day",
+            "example": "Finished the release plan."
           }
         }
       },
@@ -843,13 +1032,19 @@
         "properties": {
           "name": {
             "type": "string",
+            "description": "Habit name",
+            "example": "Morning walk",
             "minLength": 1
           },
           "icon": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional icon or emoji",
+            "example": "🚶"
           },
           "targetFrequency": {
             "type": "string",
+            "description": "Target completion frequency",
+            "example": "DAILY",
             "minLength": 1
           }
         },
@@ -904,13 +1099,19 @@
         "properties": {
           "habitId": {
             "type": "string",
+            "description": "ID of the habit to update",
+            "example": "66d34a8e7eb1e840cb8a85c1",
             "minLength": 1
           },
           "done": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the habit was completed today",
+            "example": true
           },
           "note": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional completion note",
+            "example": "Walked for 30 minutes."
           }
         },
         "required": [
@@ -1097,6 +1298,88 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ApiResponseApiError": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "data": {
+            "type": "object"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-12T10:00:00Z"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"VALIDATION_FAILED\",\"message\":\"One or more fields are invalid.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication is required or the access token is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":401,\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The authenticated user is not allowed to perform this operation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"Access is denied.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "An unexpected server error occurred.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":500,\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An unexpected error occurred.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
