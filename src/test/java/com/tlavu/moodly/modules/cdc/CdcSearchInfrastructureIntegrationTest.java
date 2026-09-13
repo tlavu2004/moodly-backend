@@ -194,8 +194,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
 		var first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
 		cdcSearchTestSupport.awaitIndexed(first.getId());
-		var tokenBeforeRestart = resumeTokenRepository.findById("daily_entries_cdc_test")
-				.map(CdcResumeToken::getToken).orElseThrow();
+		var tokenBeforeRestart = awaitResumeToken();
 		clearInvocations(reindexService);
 
 		listener.stop();
@@ -225,6 +224,17 @@ class CdcSearchInfrastructureIntegrationTest {
 	private void awaitDocument(String entryId, java.util.function.Predicate<DailyEntrySearchDocument> predicate) throws Exception {
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("updated Elasticsearch document " + entryId,
 				() -> predicate.test(document(entryId)), () -> "entryId=" + entryId);
+	}
+
+	private String awaitResumeToken() throws Exception {
+		com.tlavu.moodly.support.AsyncTestAwaiter.until(
+				"CDC resume token to be persisted",
+				() -> resumeTokenRepository.findById("daily_entries_cdc_test").isPresent(),
+				() -> "streamId=daily_entries_cdc_test"
+		);
+		return resumeTokenRepository.findById("daily_entries_cdc_test")
+				.map(CdcResumeToken::getToken)
+				.orElseThrow();
 	}
 
 	/** Waits for the asynchronous driver subscription created by the listener container. */
