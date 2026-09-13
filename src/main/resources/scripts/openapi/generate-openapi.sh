@@ -2,12 +2,14 @@
 set -euo pipefail
 
 output_path="${1:-docs/api/moodly-openapi.json}"
+response_path="$(mktemp)"
 
 cleanup() {
   if [[ -n "${application_pid:-}" ]]; then
     kill "$application_pid" 2>/dev/null || true
     wait "$application_pid" 2>/dev/null || true
   fi
+  rm -f "$response_path"
 }
 trap cleanup EXIT
 
@@ -16,10 +18,9 @@ echo "Starting the documentation profile..."
 application_pid=$!
 
 for _ in {1..45}; do
-  if curl --fail --silent --show-error http://127.0.0.1:8081/actuator/health >/dev/null 2>&1; then
+  if curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
-    curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs \
-      | python3 -m json.tool >"$output_path"
+    python3 -m json.tool <"$response_path" >"$output_path"
     exit 0
   fi
   if ! kill -0 "$application_pid" 2>/dev/null; then
