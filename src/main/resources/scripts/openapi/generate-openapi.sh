@@ -20,7 +20,7 @@ application_pid=$!
 for _ in {1..45}; do
   if curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
-    python3 -m json.tool <"$response_path" >"$output_path"
+    python3 -m json.tool --indent 2 --no-ensure-ascii <"$response_path" >"$output_path"
     exit 0
   fi
   if ! kill -0 "$application_pid" 2>/dev/null; then
