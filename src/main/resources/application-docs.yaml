@@ -2,6 +2,9 @@ server:
   port: 8081
 
 spring:
+  data:
+    mongodb:
+      auto-index-creation: false
   elasticsearch:
     uris: http://127.0.0.1:9200
   task:
