@@ -46,6 +46,7 @@ public class OpenApiConfiguration {
 			components.addResponses("BadRequest", errorResponse("The request is invalid.", 400, "VALIDATION_FAILED", "One or more fields are invalid."));
 			components.addResponses("Unauthorized", errorResponse("Authentication is required or the access token is invalid.", 401, "UNAUTHORIZED", "Authentication is required."));
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
+			components.addResponses("NotFound", errorResponse("The requested resource was not found.", 404, "NOT_FOUND", "The requested resource was not found."));
 			components.addResponses("InternalServerError", errorResponse("An unexpected server error occurred.", 500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."));
 
 			openApi.getPaths().values().forEach(pathItem -> pathItem.readOperations().forEach(operation -> {

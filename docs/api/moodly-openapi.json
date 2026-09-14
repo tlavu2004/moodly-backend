@@ -288,8 +288,11 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "CDC dead letter replayed successfully."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -1365,6 +1368,21 @@
             "examples": {
               "default": {
                 "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"Access is denied.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested resource was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":404,\"code\":\"NOT_FOUND\",\"message\":\"The requested resource was not found.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }

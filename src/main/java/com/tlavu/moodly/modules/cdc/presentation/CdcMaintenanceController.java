@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.cdc.application.DailyEntryReindexService;
 import com.tlavu.moodly.modules.cdc.application.CdcDeliveryService;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.application.exception.ForbiddenException;
+import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,6 +53,16 @@ public class CdcMaintenanceController {
 
 	@PostMapping("/dead-letters/{id}/replay")
 	@Operation(summary = "Replay a CDC dead letter", description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "204",
+					description = "CDC dead letter replayed successfully."
+			),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "404",
+					ref = "#/components/responses/NotFound"
+			)
+	})
 	public ResponseEntity<Void> replay(
 			@org.springframework.web.bind.annotation.PathVariable String id,
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
@@ -59,10 +70,8 @@ public class CdcMaintenanceController {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}
-		var deadLetter = deadLetterRepository.findById(id).orElse(null);
-		if (deadLetter == null) {
-			return ResponseEntity.notFound().build();
-		}
+		var deadLetter = deadLetterRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
 		deliveryService.replay(deadLetter);
 		return ResponseEntity.noContent().build();
 	}
