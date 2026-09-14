@@ -67,7 +67,7 @@ jobs:
               f"| {metric} | {covered} | {total} | {percentage:.1f}% |"
               for metric, covered, total, percentage in rows
           )
-          summary.extend(("", "Coverage is reported only; no quality gate is enforced yet."))
+          summary.extend(("", "Quality gate: Instruction coverage ≥80%; Branch coverage ≥70%."))
           output = "\n".join(summary) + "\n"
 
           print(output)
@@ -98,6 +98,15 @@ jobs:
           assert document.get("paths"), "OpenAPI document must define at least one path"
           print(f"Validated {document_path}: {len(document['paths'])} paths")
           PY
+
+      - name: Upload generated OpenAPI document
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: moodly-openapi-document
+          path: docs/api/moodly-openapi.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Ensure the committed OpenAPI document is current
         run: git diff --exit-code -- docs/api/moodly-openapi.json
