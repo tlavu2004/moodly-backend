@@ -4,11 +4,13 @@ import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.infrastructure.PendingAvatarUploadRepository;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "moodly.cloudinary.pending-cleanup.enabled", havingValue = "true", matchIfMissing = true)
 public class PendingAvatarUploadCleanup {
 	private final PendingAvatarUploadRepository pendingUploads;
 	private final CloudinaryAssetClient cloudinary;
