@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+.env.local
+.env.test
+target
+docs
+src/test
+*.iml
+*.ipr
+*.iws

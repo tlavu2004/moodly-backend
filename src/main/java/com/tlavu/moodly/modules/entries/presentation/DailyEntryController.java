@@ -4,6 +4,8 @@ import com.tlavu.moodly.modules.entries.application.DailyEntryService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/entries")
+@Tag(name = "Daily entries", description = "Daily mood and habit-log entries for the authenticated user")
 public class DailyEntryController {
 
 	private final DailyEntryService dailyEntryService;
@@ -29,6 +32,7 @@ public class DailyEntryController {
 	}
 
 	@PatchMapping("/today")
+	@Operation(summary = "Update today's habit log", description = "Marks or unmarks a habit in the authenticated user's entry for today.")
 	public ApiResponse<DailyEntry> updateTodayHabit(
 			@Valid @RequestBody UpdateHabitLogRequest request
 	) {
@@ -36,6 +40,7 @@ public class DailyEntryController {
 	}
 
 	@PutMapping("/today/mood")
+	@Operation(summary = "Set today's mood", description = "Sets the mood in the authenticated user's entry for today.")
 	public ApiResponse<DailyEntry> setTodayMood(
 			@Valid @RequestBody SetMoodRequest request
 	) {
@@ -43,6 +48,7 @@ public class DailyEntryController {
 	}
 
 	@GetMapping
+	@Operation(summary = "List entries by date range", description = "Returns the authenticated user's daily entries from `from` through `to`, inclusive. Future dates are not allowed.")
 	public ApiResponse<List<DailyEntry>> findBetween(
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
 				@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to

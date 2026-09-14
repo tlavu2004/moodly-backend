@@ -16,6 +16,8 @@ public class CdcResumeToken {
 	private String token;
 	private Instant updatedAt;
 
+	/** Required by Spring Data MongoDB when materializing a persisted document. */
+	@SuppressWarnings("unused")
 	public CdcResumeToken() {
 	}
 

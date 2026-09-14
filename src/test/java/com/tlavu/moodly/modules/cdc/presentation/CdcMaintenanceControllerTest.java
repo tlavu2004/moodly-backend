@@ -71,7 +71,8 @@ class CdcMaintenanceControllerTest {
 		mockMvc.perform(post("/internal/cdc/dead-letters/dead-letter-1/replay").header("X-Maintenance-Key", "test-key"))
 				.andExpect(status().isNoContent());
 		mockMvc.perform(post("/internal/cdc/dead-letters/missing/replay").header("X-Maintenance-Key", "test-key"))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
 
 		verify(deliveryService).replay(deadLetter);
 	}

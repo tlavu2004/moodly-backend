@@ -3,6 +3,8 @@ package com.tlavu.moodly.modules.auth.presentation;
 import com.tlavu.moodly.modules.auth.application.UserProfileService;
 import com.tlavu.moodly.modules.auth.domain.UserProfile;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth/profile")
+@Tag(name = "Authentication", description = "Authenticated user profile operations")
 public class AuthProfileController {
 
 	private final UserProfileService profiles;
@@ -20,6 +23,10 @@ public class AuthProfileController {
 
 	/** Idempotent post-authentication bootstrap; credentials and tokens remain owned by Auth0. */
 	@PutMapping
+	@Operation(
+			summary = "Synchronize the current user profile",
+			description = "Creates or refreshes the profile for the authenticated Auth0 user. This operation is idempotent."
+	)
 	public ApiResponse<ProfileResponse> synchronize() {
 		return ApiResponse.success(ProfileResponse.from(profiles.synchronizeCurrent()));
 	}

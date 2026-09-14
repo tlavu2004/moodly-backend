@@ -44,7 +44,10 @@ public class SecurityConfiguration {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-						.requestMatchers("/actuator/health", "/internal/cdc/**").permitAll()
+						.requestMatchers(
+								"/actuator/health", "/internal/cdc/**",
+								"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
+						).permitAll()
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(resourceServer -> resourceServer
 						.jwt(Customizer.withDefaults())

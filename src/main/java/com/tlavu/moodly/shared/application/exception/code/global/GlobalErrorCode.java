@@ -14,6 +14,7 @@ public enum GlobalErrorCode implements ErrorCode {
 	DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "A document with the same unique key already exists."),
 	UNAUTHORIZED("UNAUTHORIZED", "Authentication is required or the access token is invalid."),
 	FORBIDDEN("FORBIDDEN", "You are not allowed to perform this operation."),
+	NOT_FOUND("NOT_FOUND", "The requested resource was not found."),
 	SEARCH_UNAVAILABLE("SEARCH_UNAVAILABLE", "Search is temporarily unavailable."),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred.");
 
