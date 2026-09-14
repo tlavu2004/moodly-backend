@@ -36,6 +36,15 @@ jobs:
       - name: Run tests
         run: ./mvnw --batch-mode verify
 
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: jacoco-coverage-report
+          path: target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Generate and validate OpenAPI document
         run: |
           chmod +x src/main/resources/scripts/openapi/generate-openapi.sh
