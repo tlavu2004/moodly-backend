@@ -36,9 +36,48 @@ jobs:
       - name: Run tests
         run: ./mvnw --batch-mode verify
 
+      - name: Summarize coverage
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report_path = Path("target/site/jacoco/jacoco.xml")
+          root = ET.parse(report_path).getroot()
+          counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
+
+          rows = []
+          for metric in ("INSTRUCTION", "BRANCH", "LINE", "METHOD", "CLASS"):
+              counter = counters[metric]
+              missed = int(counter["missed"])
+              covered = int(counter["covered"])
+              total = missed + covered
+              percentage = covered / total * 100 if total else 100
+              rows.append((metric.title(), covered, total, percentage))
+
+          summary = [
+              "## JaCoCo coverage",
+              "",
+              "| Metric | Covered | Total | Coverage |",
+              "| --- | ---: | ---: | ---: |",
+          ]
+          summary.extend(
+              f"| {metric} | {covered} | {total} | {percentage:.1f}% |"
+              for metric, covered, total, percentage in rows
+          )
+          summary.extend(("", "Coverage is reported only; no quality gate is enforced yet."))
+          output = "\n".join(summary) + "\n"
+
+          print(output)
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as summary_file:
+              summary_file.write(output)
+          PY
+
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: jacoco-coverage-report
           path: target/site/jacoco/
