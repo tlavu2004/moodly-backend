@@ -39,3 +39,5 @@ moodly:
     api-secret: docs-api-secret
     upload-preset: docs-upload-preset
     folder: moodly/docs
+    pending-cleanup:
+      enabled: false
