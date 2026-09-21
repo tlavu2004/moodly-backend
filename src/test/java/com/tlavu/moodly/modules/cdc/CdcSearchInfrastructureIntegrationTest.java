@@ -173,16 +173,16 @@ class CdcSearchInfrastructureIntegrationTest {
 						.anyMatch(result -> own.getId().equals(result.entryId())), () -> "entryId=" + own.getId());
 
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
-				.andExpect(jsonPath("$.data[0].entryId").value(own.getId()))
-				.andExpect(jsonPath("$.data[0].highlights['mood.note'][0]", containsString("<em>unique</em>")));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
+				.andExpect(jsonPath("$.data.items[0].entryId").value(own.getId()))
+				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0]", containsString("<em>unique</em>")));
 
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "does-not-match"))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0));
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1));
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("to", own.getDate().toString()))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1));
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "   "))
 				.andExpect(status().isBadRequest());
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique")

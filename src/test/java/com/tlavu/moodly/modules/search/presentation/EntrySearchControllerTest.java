@@ -11,6 +11,7 @@ import com.tlavu.moodly.modules.search.application.EntrySearchService;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.presentation.advice.GlobalExceptionHandler;
+import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,8 @@ class EntrySearchControllerTest {
 				LocalDate.of(2026, 8, 6),
 				Map.of("mood.note", List.of("I felt <em>tired</em>."))
 		);
-		when(entrySearchService.search(USER_ID, "tired", from, to)).thenReturn(List.of(result));
+		when(entrySearchService.search(USER_ID, "tired", from, to, 0, 20))
+				.thenReturn(PageResponse.of(List.of(result), 0, 20, 1));
 
 		mockMvc.perform(get("/entries/search")
 					.param("q", "  tired  ")
@@ -61,10 +63,11 @@ class EntrySearchControllerTest {
 					.param("to", to.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data[0].entryId").value("entry-1"))
-				.andExpect(jsonPath("$.data[0].highlights['mood.note'][0]").value("I felt <em>tired</em>."));
+				.andExpect(jsonPath("$.data.items[0].entryId").value("entry-1"))
+				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0]").value("I felt <em>tired</em>."))
+				.andExpect(jsonPath("$.data.totalElements").value(1));
 
-		verify(entrySearchService).search(USER_ID, "tired", from, to);
+		verify(entrySearchService).search(USER_ID, "tired", from, to, 0, 20);
 	}
 
 	@Test
@@ -92,7 +95,7 @@ class EntrySearchControllerTest {
 
 	@Test
 	void returnsServiceUnavailableWhenElasticsearchCannotServeSearch() throws Exception {
-		when(entrySearchService.search(USER_ID, "tired", null, null))
+		when(entrySearchService.search(USER_ID, "tired", null, null, 0, 20))
 				.thenThrow(new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", new java.io.IOException("down")));
 
 		mockMvc.perform(get("/entries/search")
@@ -100,5 +103,13 @@ class EntrySearchControllerTest {
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"));
+	}
+
+	@Test
+	void rejectsPageSizesAboveTheSharedMaximum() throws Exception {
+		mockMvc.perform(get("/entries/search").param("q", "tired").param("size", "101"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		verifyNoInteractions(entrySearchService);
 	}
 }

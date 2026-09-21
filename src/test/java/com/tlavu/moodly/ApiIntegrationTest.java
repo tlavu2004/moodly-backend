@@ -109,7 +109,10 @@ class ApiIntegrationTest {
 					.param("to", entryDate.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.length()").value(1));
+				.andExpect(jsonPath("$.data.items.length()").value(1))
+				.andExpect(jsonPath("$.data.page").value(0))
+				.andExpect(jsonPath("$.data.totalElements").value(1))
+				.andExpect(jsonPath("$.data.hasNext").value(false));
 
 		mockMvc.perform(get("/stats/mood-trend")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
@@ -330,7 +333,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/entries").with(jwt().jwt(token -> token.subject(userB)))
 					.param("from", LocalDate.now().toString()).param("to", LocalDate.now().toString()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.length()").value(0));
+				.andExpect(jsonPath("$.data.items.length()").value(0));
 		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.todayEntry").doesNotExist())
