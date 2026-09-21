@@ -111,6 +111,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/stats/mood-trend")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data[0].date").value(entryDate.toString()))
 				.andExpect(jsonPath("$.data[0].averageScore").value(4.0));
 
 		mockMvc.perform(get("/stats/most-missed-habits")
@@ -343,7 +344,8 @@ class ApiIntegrationTest {
 					.param("period", "month"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period: month. Supported values: week."));
 	}
 
 }

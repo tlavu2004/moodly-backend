@@ -474,8 +474,8 @@
         "tags": [
           "Statistics"
         ],
-        "summary": "Get weekly mood trend",
-        "description": "Returns the authenticated user's mood trend for the current week. Only `period=week` is currently supported.",
+        "summary": "Get current-week mood trend",
+        "description": "Returns daily mood buckets for the current Monday-through-Sunday week in the Asia/Ho_Chi_Minh timezone. Only `period=week` is supported.",
         "operationId": "moodTrend",
         "parameters": [
           {
@@ -484,7 +484,9 @@
             "required": false,
             "schema": {
               "type": "string",
-              "default": "week"
+              "enum": [
+                "week"
+              ]
             }
           }
         ],
@@ -1190,7 +1192,7 @@
       "MoodTrendResponse": {
         "type": "object",
         "properties": {
-          "weekStart": {
+          "date": {
             "type": "string",
             "format": "date"
           },
