@@ -28,5 +28,6 @@ class GlobalExceptionHandlerTest {
 		assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
 		assertThat(response.getBody().error().message()).isEqualTo("An unexpected error occurred.");
 		assertThat(response.getBody().error().message()).doesNotContain("secret");
+		assertThat(response.getBody().error().requestId()).isEqualTo("unavailable");
 	}
 }

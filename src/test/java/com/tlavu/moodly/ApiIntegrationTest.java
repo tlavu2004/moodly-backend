@@ -239,10 +239,12 @@ class ApiIntegrationTest {
 
 	@Test
 	void rejectsARequestWithoutAnAccessToken() throws Exception {
-		mockMvc.perform(get("/habits"))
+		mockMvc.perform(get("/habits").header("X-Request-ID", "unauthorized-test"))
 				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("X-Request-ID", "unauthorized-test"))
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.error.requestId").value("unauthorized-test"));
 		mockMvc.perform(get("/entries"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/entries/search").param("q", "mood"))
