@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Moodly API",
-    "description": "Moodly backend API. Authenticate requests with an Auth0 access token.",
+    "description": "Moodly backend API. Authenticate requests with an Auth0 access token. Calendar dates use Asia/Ho_Chi_Minh; weeks start on Monday.",
     "version": "v1"
   },
   "servers": [
@@ -1070,7 +1070,8 @@
             "format": "int32"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable machine-readable error code. See the ErrorEnvelope example and documented error responses."
           },
           "message": {
             "type": "string"
@@ -1083,8 +1084,19 @@
             "items": {
               "$ref": "#/components/schemas/FieldErrorResponse"
             }
+          },
+          "requestId": {
+            "type": "string"
           }
-        }
+        },
+        "required": [
+          "code",
+          "errors",
+          "message",
+          "path",
+          "requestId",
+          "status"
+        ]
       },
       "ApiResponseDailyEntry": {
         "type": "object",
@@ -1093,16 +1105,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/DailyEntry"
+            "type": "null",
+            "$ref": "#/components/schemas/DailyEntry",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "DailyEntry": {
         "type": "object",
@@ -1118,6 +1138,7 @@
             "format": "date"
           },
           "mood": {
+            "type": "null",
             "$ref": "#/components/schemas/Mood"
           },
           "habits": {
@@ -1134,7 +1155,15 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "createdAt",
+          "date",
+          "habits",
+          "id",
+          "updatedAt",
+          "userId"
+        ]
       },
       "FieldErrorResponse": {
         "type": "object",
@@ -1157,9 +1186,16 @@
             "type": "boolean"
           },
           "note": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
-        }
+        },
+        "required": [
+          "done",
+          "habitId"
+        ]
       },
       "Mood": {
         "type": "object",
@@ -1175,9 +1211,16 @@
             }
           },
           "note": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
-        }
+        },
+        "required": [
+          "score",
+          "tags"
+        ]
       },
       "ApiResponseProfileResponse": {
         "type": "object",
@@ -1186,16 +1229,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/ProfileResponse"
+            "type": "null",
+            "$ref": "#/components/schemas/ProfileResponse",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "ProfileResponse": {
         "type": "object",
@@ -1214,7 +1265,13 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "createdAt",
+          "email",
+          "updatedAt",
+          "userId"
+        ]
       },
       "UploadRequest": {
         "type": "object",
@@ -1247,16 +1304,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/UploadSignature"
+            "type": "null",
+            "$ref": "#/components/schemas/UploadSignature",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "UploadSignature": {
         "type": "object",
@@ -1313,16 +1378,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/Avatar"
+            "type": "null",
+            "$ref": "#/components/schemas/Avatar",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "Avatar": {
         "type": "object",
@@ -1349,16 +1422,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/ReindexResult"
+            "type": "null",
+            "$ref": "#/components/schemas/ReindexResult",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "ReindexResult": {
         "type": "object",
@@ -1405,16 +1486,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/Habit"
+            "type": "null",
+            "$ref": "#/components/schemas/Habit",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "Habit": {
         "type": "object",
@@ -1429,7 +1518,10 @@
             "type": "string"
           },
           "icon": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "targetFrequency": {
             "type": "string",
@@ -1444,7 +1536,15 @@
             "type": "integer",
             "format": "int64"
           }
-        }
+        },
+        "required": [
+          "active",
+          "id",
+          "name",
+          "targetFrequency",
+          "userId",
+          "version"
+        ]
       },
       "HabitVersionRequest": {
         "type": "object",
@@ -1519,19 +1619,29 @@
             "type": "boolean"
           },
           "data": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Present for successful responses.",
             "items": {
               "$ref": "#/components/schemas/MostMissedHabitResponse"
             }
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "MostMissedHabitResponse": {
         "type": "object",
@@ -1543,7 +1653,11 @@
             "type": "integer",
             "format": "int64"
           }
-        }
+        },
+        "required": [
+          "habitId",
+          "missedCount"
+        ]
       },
       "ApiResponseListMoodTrendResponse": {
         "type": "object",
@@ -1552,19 +1666,29 @@
             "type": "boolean"
           },
           "data": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Present for successful responses.",
             "items": {
               "$ref": "#/components/schemas/MoodTrendResponse"
             }
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "MoodTrendResponse": {
         "type": "object",
@@ -1581,7 +1705,12 @@
             "type": "integer",
             "format": "int64"
           }
-        }
+        },
+        "required": [
+          "averageScore",
+          "date",
+          "entryCount"
+        ]
       },
       "ApiResponseListHabit": {
         "type": "object",
@@ -1590,19 +1719,29 @@
             "type": "boolean"
           },
           "data": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Present for successful responses.",
             "items": {
               "$ref": "#/components/schemas/Habit"
             }
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "ApiResponseHabitStreakResponse": {
         "type": "object",
@@ -1611,16 +1750,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/HabitStreakResponse"
+            "type": "null",
+            "$ref": "#/components/schemas/HabitStreakResponse",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "HabitStreakResponse": {
         "type": "object",
@@ -1632,7 +1779,11 @@
             "type": "integer",
             "format": "int32"
           }
-        }
+        },
+        "required": [
+          "currentStreak",
+          "habitId"
+        ]
       },
       "ApiResponsePageResponseDailyEntry": {
         "type": "object",
@@ -1641,16 +1792,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/PageResponseDailyEntry"
+            "type": "null",
+            "$ref": "#/components/schemas/PageResponseDailyEntry",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "PageResponseDailyEntry": {
         "type": "object",
@@ -1680,7 +1839,15 @@
           "hasNext": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "hasNext",
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ]
       },
       "ApiResponseTodayEntryResponse": {
         "type": "object",
@@ -1689,16 +1856,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/TodayEntryResponse"
+            "type": "null",
+            "$ref": "#/components/schemas/TodayEntryResponse",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "TodayEntryResponse": {
         "type": "object",
@@ -1715,7 +1890,11 @@
             "$ref": "#/components/schemas/DailyEntry",
             "description": "The complete entry, or null when the user has not checked in today."
           }
-        }
+        },
+        "required": [
+          "checkedIn",
+          "date"
+        ]
       },
       "ApiResponsePageResponseEntrySearchResult": {
         "type": "object",
@@ -1724,16 +1903,24 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/PageResponseEntrySearchResult"
+            "type": "null",
+            "$ref": "#/components/schemas/PageResponseEntrySearchResult",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "EntrySearchResult": {
         "type": "object",
@@ -1755,7 +1942,12 @@
             },
             "description": "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets."
           }
-        }
+        },
+        "required": [
+          "date",
+          "entryId",
+          "highlights"
+        ]
       },
       "HighlightFragment": {
         "type": "object",
@@ -1769,7 +1961,11 @@
               "$ref": "#/components/schemas/HighlightRange"
             }
           }
-        }
+        },
+        "required": [
+          "ranges",
+          "text"
+        ]
       },
       "HighlightRange": {
         "type": "object",
@@ -1782,7 +1978,11 @@
             "type": "integer",
             "format": "int32"
           }
-        }
+        },
+        "required": [
+          "end",
+          "start"
+        ]
       },
       "PageResponseEntrySearchResult": {
         "type": "object",
@@ -1812,7 +2012,15 @@
           "hasNext": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "hasNext",
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ]
       },
       "ApiResponseDashboardResponse": {
         "type": "object",
@@ -1821,21 +2029,30 @@
             "type": "boolean"
           },
           "data": {
-            "$ref": "#/components/schemas/DashboardResponse"
+            "type": "null",
+            "$ref": "#/components/schemas/DashboardResponse",
+            "description": "Present for successful responses."
           },
           "error": {
-            "$ref": "#/components/schemas/ApiError"
+            "type": "null",
+            "$ref": "#/components/schemas/ApiError",
+            "description": "Present for error responses."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "success",
+          "timestamp"
+        ]
       },
       "DashboardResponse": {
         "type": "object",
         "properties": {
           "todayEntry": {
+            "type": "null",
             "$ref": "#/components/schemas/DailyEntry"
           },
           "activeHabits": {
@@ -1863,20 +2080,34 @@
             "type": "integer",
             "format": "int32"
           }
-        }
+        },
+        "required": [
+          "activeHabits",
+          "bestCurrentStreak",
+          "completedHabitCount",
+          "completionRatio",
+          "totalHabitCount",
+          "weeklyMood"
+        ]
       },
       "WeeklyMoodSummary": {
         "type": "object",
         "properties": {
           "averageScore": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "format": "double"
           },
           "entryCount": {
             "type": "integer",
             "format": "int64"
           }
-        }
+        },
+        "required": [
+          "entryCount"
+        ]
       },
       "ApiResponseApiError": {
         "type": "object",
@@ -1896,7 +2127,12 @@
             "format": "date-time",
             "example": "2026-09-12T10:00:00Z"
           }
-        }
+        },
+        "required": [
+          "error",
+          "success",
+          "timestamp"
+        ]
       }
     },
     "responses": {
@@ -1909,7 +2145,7 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"VALIDATION_FAILED\",\"message\":\"One or more fields are invalid.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"VALIDATION_FAILED\",\"message\":\"One or more fields are invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
@@ -1924,7 +2160,7 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":401,\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":401,\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
@@ -1939,7 +2175,7 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"Access is denied.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"Access is denied.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
@@ -1954,7 +2190,7 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"You are not allowed to perform this operation.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"You are not allowed to perform this operation.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
@@ -1969,7 +2205,37 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":404,\"code\":\"NOT_FOUND\",\"message\":\"The requested resource was not found.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":404,\"code\":\"NOT_FOUND\",\"message\":\"The requested resource was not found.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The resource conflicts with its current state.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":409,\"code\":\"CONFLICT\",\"message\":\"Refresh the resource and retry.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
+      "AvatarUploadNotFound": {
+        "description": "The avatar upload is unknown, expired, or belongs to another user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"AVATAR_UPLOAD_NOT_FOUND\",\"message\":\"The avatar upload was not found or has expired.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
@@ -1984,10 +2250,47 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":500,\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An unexpected error occurred.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":500,\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An unexpected error occurred.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
               }
             }
           }
+        }
+      }
+    },
+    "examples": {
+      "SuccessEnvelope": {
+        "summary": "Successful response",
+        "value": {
+          "success": true,
+          "data": {
+            "id": "example-id"
+          },
+          "timestamp": "2026-09-12T10:00:00Z"
+        }
+      },
+      "EmptyEnvelope": {
+        "summary": "Successful structured empty response",
+        "value": {
+          "success": true,
+          "data": {
+            "items": []
+          },
+          "timestamp": "2026-09-12T10:00:00Z"
+        }
+      },
+      "ErrorEnvelope": {
+        "summary": "Error response",
+        "value": {
+          "success": false,
+          "error": {
+            "code": "INVALID_REQUEST",
+            "path": "/example",
+            "errors": [],
+            "status": 400,
+            "message": "The request is invalid.",
+            "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+          },
+          "timestamp": "2026-09-12T10:00:00Z"
         }
       }
     },
