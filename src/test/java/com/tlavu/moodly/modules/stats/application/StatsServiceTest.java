@@ -89,6 +89,29 @@ class StatsServiceTest {
 		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
 	}
 
+	@Test
+	void calculatesTheBestStreakFromOneEntryHistoryRead() {
+		var today = LocalDate.of(2026, 8, 5);
+		var todayEntry = new DailyEntry("user-1", today);
+		todayEntry.getHabits().addAll(List.of(
+				new DailyEntry.HabitLog("exercise", true, null),
+				new DailyEntry.HabitLog("reading", true, null)
+		));
+		var yesterdayEntry = new DailyEntry("user-1", today.minusDays(1));
+		yesterdayEntry.getHabits().addAll(List.of(
+				new DailyEntry.HabitLog("exercise", false, null),
+				new DailyEntry.HabitLog("reading", true, null)
+		));
+		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(todayEntry, yesterdayEntry));
+
+		assertEquals(2, statsService.calculateBestCurrentStreak(
+				"user-1",
+				List.of("exercise", "reading"),
+				today
+		));
+		verify(entryReadService).findOnOrBefore("user-1", today);
+	}
+
 	private DailyEntry entry(LocalDate date, boolean done) {
 		var entry = new DailyEntry("user-1", date);
 		entry.getHabits().add(new DailyEntry.HabitLog("exercise", done, null));
