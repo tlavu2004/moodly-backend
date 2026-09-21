@@ -1,10 +1,12 @@
 package com.tlavu.moodly.modules.auth.application;
 
 import com.tlavu.moodly.modules.auth.domain.UserProfile;
+import com.tlavu.moodly.modules.auth.domain.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.infrastructure.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.domain.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.infrastructure.PendingAvatarUploadRepository;
+import com.tlavu.moodly.modules.auth.infrastructure.PendingAssetDeletionRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -27,6 +29,7 @@ public class AvatarService {
 	private final UserProfileRepository profiles;
 	private final CloudinaryAssetClient cloudinary;
 	private final PendingAvatarUploadRepository pendingUploads;
+	private final PendingAssetDeletionRepository pendingDeletions;
 	private final String cloudName;
 	private final String apiKey;
 	private final String apiSecret;
@@ -34,12 +37,13 @@ public class AvatarService {
 	private final String folder;
 
 	public AvatarService(CurrentUser currentUser, UserProfileService userProfileService, UserProfileRepository profiles, CloudinaryAssetClient cloudinary, PendingAvatarUploadRepository pendingUploads,
+			PendingAssetDeletionRepository pendingDeletions,
 			@Value("${moodly.cloudinary.cloud-name}") String cloudName,
 			@Value("${moodly.cloudinary.api-key}") String apiKey,
 			@Value("${moodly.cloudinary.api-secret}") String apiSecret,
 			@Value("${moodly.cloudinary.upload-preset}") String uploadPreset,
 			@Value("${moodly.cloudinary.folder}") String folder) {
-		this.currentUser = currentUser; this.userProfileService = userProfileService; this.profiles = profiles; this.cloudinary = cloudinary; this.pendingUploads = pendingUploads; this.cloudName = cloudName; this.apiKey = apiKey;
+		this.currentUser = currentUser; this.userProfileService = userProfileService; this.profiles = profiles; this.cloudinary = cloudinary; this.pendingUploads = pendingUploads; this.pendingDeletions = pendingDeletions; this.cloudName = cloudName; this.apiKey = apiKey;
 		this.apiSecret = apiSecret; this.uploadPreset = uploadPreset; this.folder = trimSlash(folder);
 	}
 
@@ -93,7 +97,16 @@ public class AvatarService {
 		try {
 			cloudinary.deleteImage(publicId);
 		} catch (RuntimeException exception) {
-			log.warn("Cloudinary avatar cleanup failed after profile persistence ({})", exception.getClass().getSimpleName());
+			try {
+				var pending = pendingDeletions.findByPublicId(publicId)
+						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
+				pending.recordFailure(Instant.now());
+				pendingDeletions.save(pending);
+				log.warn("Cloudinary avatar cleanup queued after profile persistence ({})", exception.getClass().getSimpleName());
+			} catch (RuntimeException schedulingException) {
+				log.error("Cloudinary avatar cleanup could not be queued after profile persistence ({})",
+						schedulingException.getClass().getSimpleName());
+			}
 		}
 	}
 
