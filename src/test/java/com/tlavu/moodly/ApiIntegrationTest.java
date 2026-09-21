@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
@@ -60,14 +61,16 @@ class ApiIntegrationTest {
 
 	@Test
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
-		mockMvc.perform(post("/habits")
+		var createHabitResponse = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.name").value("Exercise"))
-				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"));
+				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"))
+				.andReturn().getResponse().getContentAsString();
+		var habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -77,7 +80,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(patch("/entries/today")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"habitId\":\"exercise\",\"done\":true,\"note\":\"Completed\"}"))
+					.content("{\"habitId\":\"" + habitId + "\",\"done\":true,\"note\":\"Completed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
@@ -120,7 +123,20 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
 				.andExpect(jsonPath("$.data[0].missedCount").value(1));
 
-		mockMvc.perform(get("/habits/exercise/streak")
+		mockMvc.perform(get("/dashboard")
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(jsonPath("$.data.todayEntry.date").value(entryDate.toString()))
+				.andExpect(jsonPath("$.data.activeHabits.length()").value(1))
+				.andExpect(jsonPath("$.data.completedHabitCount").value(1))
+				.andExpect(jsonPath("$.data.totalHabitCount").value(1))
+				.andExpect(jsonPath("$.data.completionRatio").value(1.0))
+				.andExpect(jsonPath("$.data.weeklyMood.averageScore").value(4.0))
+				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(1))
+				.andExpect(jsonPath("$.data.bestCurrentStreak").value(1));
+
+		mockMvc.perform(get("/habits/{habitId}/streak", habitId)
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.currentStreak").value(1));
@@ -165,6 +181,8 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/stats/mood-trend"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/stats/most-missed-habits"))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(put("/auth/profile"))
 				.andExpect(status().isUnauthorized());
@@ -270,6 +288,12 @@ class ApiIntegrationTest {
 					.param("from", LocalDate.now().toString()).param("to", LocalDate.now().toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(0));
+		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.todayEntry").doesNotExist())
+				.andExpect(jsonPath("$.data.activeHabits.length()").value(0))
+				.andExpect(jsonPath("$.data.totalHabitCount").value(0))
+				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
 	}
 
 	@Test

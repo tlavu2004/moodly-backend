@@ -18,6 +18,10 @@
   ],
   "tags": [
     {
+      "name": "Dashboard",
+      "description": "Authenticated user's current dashboard summary"
+    },
+    {
       "name": "Authentication",
       "description": "Authenticated user profile operations"
     },
@@ -709,6 +713,40 @@
           }
         }
       }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get dashboard summary",
+        "description": "Returns today's entry, active habits, completion ratio, current-week mood summary, and the best current streak. The response is user-specific and is not cacheable.",
+        "operationId": "getDashboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDashboardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1317,6 +1355,70 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "ApiResponseDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DashboardResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "properties": {
+          "todayEntry": {
+            "$ref": "#/components/schemas/DailyEntry"
+          },
+          "activeHabits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Habit"
+            }
+          },
+          "completedHabitCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalHabitCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completionRatio": {
+            "type": "number",
+            "format": "double"
+          },
+          "weeklyMood": {
+            "$ref": "#/components/schemas/WeeklyMoodSummary"
+          },
+          "bestCurrentStreak": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WeeklyMoodSummary": {
+        "type": "object",
+        "properties": {
+          "averageScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "entryCount": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
