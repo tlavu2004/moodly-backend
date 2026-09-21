@@ -88,7 +88,7 @@ const habit = {
   userId: "user_123",
   name: "Exercise",
   icon: "🏃",
-  targetFrequency: "daily",
+  targetFrequency: "DAILY",
   active: true
 };
 ```

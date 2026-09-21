@@ -63,10 +63,11 @@ class ApiIntegrationTest {
 		mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"daily\"}"))
+					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.name").value("Exercise"));
+				.andExpect(jsonPath("$.data.name").value("Exercise"))
+				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"));
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -134,6 +135,20 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
 				.andExpect(jsonPath("$.error.errors.length()").value(2));
+	}
+
+	@Test
+	void rejectsUnsupportedTargetFrequencyWithAFieldValidationError() throws Exception {
+		mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Exercise\",\"targetFrequency\":\"WEEKLY\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.error.errors.length()").value(1))
+				.andExpect(jsonPath("$.error.errors[0].field").value("targetFrequency"))
+				.andExpect(jsonPath("$.error.errors[0].message").value("must be DAILY"));
 	}
 
 	@Test
@@ -241,7 +256,7 @@ class ApiIntegrationTest {
 		var userA = "auth0|mongo-owner";
 		var userB = "auth0|mongo-other";
 		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
-					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"daily\"}"))
+					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated());
 		mockMvc.perform(patch("/entries/today").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"private-a\",\"done\":true}"))

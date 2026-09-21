@@ -1052,9 +1052,12 @@
           },
           "targetFrequency": {
             "type": "string",
-            "description": "Target completion frequency",
+            "description": "Target completion frequency. Moodly currently supports daily habits only.",
+            "enum": [
+              "DAILY"
+            ],
             "example": "DAILY",
-            "minLength": 1
+            "pattern": "DAILY"
           }
         },
         "required": [
@@ -1096,7 +1099,10 @@
             "type": "string"
           },
           "targetFrequency": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "DAILY"
+            ]
           },
           "active": {
             "type": "boolean"
