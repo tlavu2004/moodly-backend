@@ -66,6 +66,15 @@ public class DailyEntryController {
 		return ApiResponse.success(PageResponse.from(dailyEntryService.findBetween(currentUser.id(), from, to, page, size)));
 	}
 
+	@GetMapping("/today")
+	@Operation(summary = "Get today's entry", description = "Returns a structured empty state when the authenticated user has not checked in today.")
+	public ApiResponse<TodayEntryResponse> today() {
+		var today = LocalDate.now();
+		return ApiResponse.success(dailyEntryService.findByDate(currentUser.id(), today)
+				.map(entry -> new TodayEntryResponse(today, true, entry))
+				.orElseGet(() -> TodayEntryResponse.empty(today)));
+	}
+
 	private void validatePage(int page, int size) {
 		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
 		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");

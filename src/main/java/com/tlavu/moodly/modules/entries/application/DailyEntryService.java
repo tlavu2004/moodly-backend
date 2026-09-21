@@ -7,6 +7,7 @@ import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +54,10 @@ public class DailyEntryService {
 				to,
 				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"))
 		);
+	}
+
+	public Optional<DailyEntry> findByDate(String userId, LocalDate date) {
+		return dailyEntryRepository.findByUserIdAndDate(userId, date);
 	}
 
 	private DailyEntry getOrCreate(String userId, LocalDate date) {
