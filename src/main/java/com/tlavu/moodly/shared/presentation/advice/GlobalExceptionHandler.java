@@ -248,7 +248,7 @@ public class GlobalExceptionHandler {
 	}
 
 	private String requestId() {
-		return java.util.Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable");
+		return Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable");
 	}
 
 	private String safeMessage(Throwable exception) {
