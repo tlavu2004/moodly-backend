@@ -11,11 +11,13 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
 
 @Service
+@Slf4j
 public class AvatarService {
 	private static final long MAX_BYTES = 5L * 1024 * 1024;
 	private static final long SIGNATURE_TTL_SECONDS = 3600;
@@ -69,7 +71,7 @@ public class AvatarService {
 		profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
 		profiles.save(profile);
 		pendingUploads.delete(pending);
-		if (previousPublicId != null && !previousPublicId.equals(asset.publicId())) cloudinary.deleteImage(previousPublicId);
+		if (previousPublicId != null && !previousPublicId.equals(asset.publicId())) deleteObsoleteAsset(previousPublicId);
 		return avatar(profile);
 	}
 
@@ -83,8 +85,16 @@ public class AvatarService {
 		var previousPublicId = profile.getAvatarPublicId();
 		profile.clearAvatar(Instant.now());
 		profiles.save(profile);
-		cloudinary.deleteImage(previousPublicId);
+		deleteObsoleteAsset(previousPublicId);
 		return new Avatar(null, null, null, null);
+	}
+
+	private void deleteObsoleteAsset(String publicId) {
+		try {
+			cloudinary.deleteImage(publicId);
+		} catch (RuntimeException exception) {
+			log.warn("Cloudinary avatar cleanup failed after profile persistence ({})", exception.getClass().getSimpleName());
+		}
 	}
 
 	private Avatar avatar(UserProfile profile) {

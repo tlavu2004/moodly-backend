@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.auth.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
@@ -196,6 +197,25 @@ class AvatarServiceTest {
 	}
 
 	@Test
+	void returnsThePersistedReplacementWhenObsoleteAssetCleanupFails() {
+		var publicId = NAMESPACE + "new-avatar";
+		var previousPublicId = NAMESPACE + "old-avatar";
+		when(currentUser.id()).thenReturn(SUBJECT);
+		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
+		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
+				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
+		when(cloudinary.findImage(publicId))
+				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 4, "image/webp", 2048));
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
+		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
+
+		assertThat(service.confirm(publicId, 4).publicId()).isEqualTo(publicId);
+		assertThat(profile.getAvatarPublicId()).isEqualTo(publicId);
+		verify(profiles).save(profile);
+	}
+
+	@Test
 	void deletesTheCurrentAvatarAfterClearingTheProfile() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
@@ -207,6 +227,20 @@ class AvatarServiceTest {
 		InOrder ordered = inOrder(profiles, cloudinary);
 		ordered.verify(profiles).save(profile);
 		ordered.verify(cloudinary).deleteImage(NAMESPACE + "old-avatar");
+	}
+
+	@Test
+	void returnsThePersistedEmptyAvatarWhenObsoleteAssetCleanupFails() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		var previousPublicId = NAMESPACE + "old-avatar";
+		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
+		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
+
+		assertThat(service.delete()).isEqualTo(new AvatarService.Avatar(null, null, null, null));
+		assertThat(profile.getAvatarPublicId()).isNull();
+		verify(profiles).save(profile);
 	}
 
 	private static String sha1(String value) throws Exception {
