@@ -46,19 +46,22 @@ class EntrySearchServiceTest {
 		when(hits.hits()).thenReturn(List.of(hit));
 		when(hit.id()).thenReturn("entry-1");
 		when(hit.source()).thenReturn(new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, List.of()));
-		when(hit.highlight()).thenReturn(null);
+		when(hit.highlight()).thenReturn(java.util.Map.of("mood.note", List.of("I felt <em>tired</em>.")));
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
 		var result = service.search("user-1", "tired", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31));
 
 		assertThat(result).singleElement().satisfies(searchResult -> {
 			assertThat(searchResult.entryId()).isEqualTo("entry-1");
-			assertThat(searchResult.highlights()).isEmpty();
+			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
+				assertThat(fragment.text()).isEqualTo("I felt tired.");
+				assertThat(fragment.ranges()).containsExactly(new EntrySearchService.HighlightRange(7, 12));
+			});
 		});
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var builtRequest = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
 		assertThat(builtRequest.index()).containsExactly("entries-test");
-		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired");
+		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired", "_score", "date");
 	}
 
 	@Test

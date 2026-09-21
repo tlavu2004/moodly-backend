@@ -52,7 +52,8 @@ class EntrySearchControllerTest {
 		var result = new EntrySearchService.EntrySearchResult(
 				"entry-1",
 				LocalDate.of(2026, 8, 6),
-				Map.of("mood.note", List.of("I felt <em>tired</em>."))
+				Map.of("mood.note", List.of(new EntrySearchService.HighlightFragment(
+						"I felt tired.", List.of(new EntrySearchService.HighlightRange(7, 12)))))
 		);
 		when(entrySearchService.search(USER_ID, "tired", from, to, 0, 20))
 				.thenReturn(PageResponse.of(List.of(result), 0, 20, 1));
@@ -64,7 +65,9 @@ class EntrySearchControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.items[0].entryId").value("entry-1"))
-				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0]").value("I felt <em>tired</em>."))
+				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0].text").value("I felt tired."))
+				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0].ranges[0].start").value(7))
+				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0].ranges[0].end").value(12))
 				.andExpect(jsonPath("$.data.totalElements").value(1));
 
 		verify(entrySearchService).search(USER_ID, "tired", from, to, 0, 20);
@@ -108,6 +111,14 @@ class EntrySearchControllerTest {
 	@Test
 	void rejectsPageSizesAboveTheSharedMaximum() throws Exception {
 		mockMvc.perform(get("/entries/search").param("q", "tired").param("size", "101"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		verifyNoInteractions(entrySearchService);
+	}
+
+	@Test
+	void rejectsQueriesLongerThanTwoHundredCharacters() throws Exception {
+		mockMvc.perform(get("/entries/search").param("q", "x".repeat(201)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 		verifyNoInteractions(entrySearchService);
