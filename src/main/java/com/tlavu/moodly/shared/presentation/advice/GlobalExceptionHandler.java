@@ -94,7 +94,7 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AvatarException.class)
 	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
 		logByStatus(HttpStatus.BAD_REQUEST, request, exception);
-		var error = new ApiError(400, exception.getCode().name(), exception.getMessage(), request.getRequestURI(), List.of());
+		var error = new ApiError(400, exception.getCode().getCode(), exception.getMessage(), request.getRequestURI(), List.of());
 		return ResponseEntity.badRequest().body(ApiResponse.error(error));
 	}
 
@@ -205,19 +205,17 @@ public class GlobalExceptionHandler {
 	}
 
 	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
-		var message = safeMessage(exception);
 		if (status.is5xxServerError()) {
 			log.error(
-					"Request failed at {}: {}",
+					"Unexpected request failure at {} ({})",
 					request.getRequestURI(),
-					message,
-					exception
+					exception.getClass().getSimpleName()
 			);
 		} else {
 			log.warn(
-					"Request failed at {}: {}",
+					"Request rejected at {} ({})",
 					request.getRequestURI(),
-					message
+					exception.getClass().getSimpleName()
 			);
 		}
 	}

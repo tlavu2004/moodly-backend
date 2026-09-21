@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
 
 @Service
 public class AvatarService {
@@ -41,8 +42,8 @@ public class AvatarService {
 	}
 
 	public UploadSignature createSignature(String contentType, long sizeBytes) {
-		if (!ALLOWED_TYPES.contains(contentType)) throw new AvatarException(AvatarException.Code.AVATAR_CONTENT_TYPE_UNSUPPORTED, "Avatar content type must be image/jpeg, image/png, or image/webp.");
-		if (sizeBytes < 1 || sizeBytes > MAX_BYTES) throw new AvatarException(AvatarException.Code.AVATAR_FILE_TOO_LARGE, "Avatar must be between 1 byte and 5 MiB.");
+		if (!ALLOWED_TYPES.contains(contentType)) throw new AvatarException(GlobalErrorCode.AVATAR_CONTENT_TYPE_UNSUPPORTED, "Avatar content type must be image/jpeg, image/png, or image/webp.");
+		if (sizeBytes < 1 || sizeBytes > MAX_BYTES) throw new AvatarException(GlobalErrorCode.AVATAR_FILE_TOO_LARGE, "Avatar must be between 1 byte and 5 MiB.");
 		userProfileService.synchronizeCurrent();
 		var timestamp = Instant.now().getEpochSecond();
 		var publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
@@ -55,11 +56,11 @@ public class AvatarService {
 
 	public Avatar confirm(String publicId, long version) {
 		var subject = currentUser.id();
-		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) throw new AvatarException(AvatarException.Code.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload was not found.");
+		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) throw new AvatarException(GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload was not found.");
 		if (version < 1) throw new IllegalArgumentException("Avatar version must be positive.");
 		var pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
 				.filter(upload -> upload.getExpiresAt().isAfter(Instant.now()))
-				.orElseThrow(() -> new AvatarException(AvatarException.Code.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload is unknown or has expired."));
+				.orElseThrow(() -> new AvatarException(GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload is unknown or has expired."));
 		var asset = cloudinary.findImage(publicId);
 		if (asset.version() != version) throw new IllegalArgumentException("Avatar version does not match the uploaded asset.");
 		if (!publicId.equals(asset.publicId()) || !ALLOWED_TYPES.contains(asset.contentType()) || asset.sizeBytes() > MAX_BYTES) throw new IllegalArgumentException("Cloudinary avatar metadata is invalid.");

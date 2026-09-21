@@ -62,6 +62,8 @@ public class OpenApiConfiguration {
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
 			components.addResponses("MaintenanceKeyRequired", errorResponse("A valid X-Maintenance-Key header is required.", 403, "FORBIDDEN", "You are not allowed to perform this operation."));
 			components.addResponses("NotFound", errorResponse("The requested resource was not found.", 404, "NOT_FOUND", "The requested resource was not found."));
+			components.addResponses("Conflict", errorResponse("The resource conflicts with its current state.", 409, "CONFLICT", "Refresh the resource and retry."));
+			components.addResponses("AvatarUploadNotFound", errorResponse("The avatar upload is unknown, expired, or belongs to another user.", 400, "AVATAR_UPLOAD_NOT_FOUND", "The avatar upload was not found or has expired."));
 			components.addResponses("InternalServerError", errorResponse("An unexpected server error occurred.", 500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."));
 
 			openApi.getPaths().values().forEach(pathItem -> pathItem.readOperations().forEach(operation -> {
