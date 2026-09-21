@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.search.application;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
@@ -10,6 +11,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Service;
 import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
 
@@ -41,6 +45,8 @@ public class EntrySearchService {
 					.from(page * size)
 					.size(size)
 					.trackTotalHits(track -> track.enabled(true))
+					.sort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
+					.sort(sort -> sort.field(field -> field.field("date").order(SortOrder.Desc)))
 					.query(searchQuery -> searchQuery.bool(bool -> {
 						bool.must(match -> match.multiMatch(multiMatch -> multiMatch
 								.query(query)
@@ -71,9 +77,7 @@ public class EntrySearchService {
 			var items = response.hits().hits().stream()
 					.filter(hit -> hit.source() != null)
 					.map(hit -> {
-						var highlights = hit.highlight() == null
-								? Map.<String, List<String>>of()
-								: Map.copyOf(hit.highlight());
+						var highlights = normalizeHighlights(hit.highlight());
 						return new EntrySearchResult(hit.id(), hit.source().date(), highlights);
 					})
 					.toList();
@@ -84,6 +88,44 @@ public class EntrySearchService {
 		}
 	}
 
-	public record EntrySearchResult(String entryId, LocalDate date, Map<String, List<String>> highlights) {
+	private Map<String, List<HighlightFragment>> normalizeHighlights(Map<String, List<String>> raw) {
+		if (raw == null || raw.isEmpty()) return Map.of();
+		var normalized = new LinkedHashMap<String, List<HighlightFragment>>();
+		raw.forEach((field, fragments) -> normalized.put(field, fragments.stream().map(this::plainFragment).toList()));
+		return Map.copyOf(normalized);
 	}
+
+	private HighlightFragment plainFragment(String marked) {
+		var text = new StringBuilder();
+		var ranges = new ArrayList<HighlightRange>();
+		int cursor = 0;
+		while (cursor < marked.length()) {
+			int startTag = marked.indexOf("<em>", cursor);
+			if (startTag < 0) {
+				text.append(marked, cursor, marked.length());
+				break;
+			}
+			text.append(marked, cursor, startTag);
+			int endTag = marked.indexOf("</em>", startTag + 4);
+			if (endTag < 0) {
+				text.append(marked, startTag, marked.length());
+				break;
+			}
+			int start = text.length();
+			text.append(marked, startTag + 4, endTag);
+			ranges.add(new HighlightRange(start, text.length()));
+			cursor = endTag + 5;
+		}
+		return new HighlightFragment(text.toString(), List.copyOf(ranges));
+	}
+
+	public record EntrySearchResult(
+			String entryId,
+			LocalDate date,
+			@Schema(description = "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets.")
+			Map<String, List<HighlightFragment>> highlights
+	) {
+	}
+	public record HighlightFragment(String text, List<HighlightRange> ranges) {}
+	public record HighlightRange(int start, int end) {}
 }

@@ -41,6 +41,9 @@ public class EntrySearchController {
 		if (q.isBlank()) {
 			throw new IllegalArgumentException("The 'q' parameter must not be blank.");
 		}
+		if (q.trim().length() > 200) {
+			throw new IllegalArgumentException("The 'q' parameter must not exceed 200 characters.");
+		}
 		if (from != null && to != null && from.isAfter(to)) {
 			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
 		}
