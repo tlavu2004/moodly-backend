@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.habits.domain;
 
 import lombok.Getter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -17,6 +18,8 @@ public class Habit {
 	private String icon;
 	private TargetFrequency targetFrequency;
 	private boolean active;
+	@Version
+	private Long version;
 
 	public Habit() {
 	}
@@ -28,6 +31,19 @@ public class Habit {
 		this.icon = icon;
 		this.targetFrequency = targetFrequency;
 		this.active = active;
+	}
+
+	public void update(String name, String icon) {
+		this.name = name;
+		this.icon = icon;
+	}
+
+	public void archive() {
+		this.active = false;
+	}
+
+	public void restore() {
+		this.active = true;
 	}
 
 }
