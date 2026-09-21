@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.tlavu.moodly.modules.habits.domain.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import com.tlavu.moodly.modules.habits.presentation.CreateHabitRequest;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -50,5 +52,22 @@ class HabitServiceTest {
 
 		assertEquals(habits, habitService.findActive("user-1"));
 		verify(habitRepository).findByUserIdAndActiveTrue("user-1");
+	}
+
+	@Test
+	void updatesAndArchivesOnlyAnOwnedHabitAtTheExpectedVersion() {
+		var habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
+		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
+		when(habitRepository.save(habit)).thenReturn(habit);
+
+		var updated = habitService.update(
+				"user-1",
+				"habit-1",
+				new com.tlavu.moodly.modules.habits.presentation.UpdateHabitRequest("Read more", "📖", 0L)
+		);
+		assertEquals("Read more", updated.getName());
+
+		var archived = habitService.archive("user-1", "habit-1", 0L);
+		assertFalse(archived.isActive());
 	}
 }

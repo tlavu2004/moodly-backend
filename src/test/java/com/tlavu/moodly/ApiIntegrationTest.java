@@ -169,6 +169,49 @@ class ApiIntegrationTest {
 	}
 
 	@Test
+	void supportsHabitUpdateArchiveRestoreAndStatusFiltering() throws Exception {
+		var response = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		var data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
+		var habitId = data.path("id").asString();
+		var version = data.path("version").asLong();
+
+		response = mockMvc.perform(patch("/habits/{habitId}", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Read daily\",\"icon\":\"books\",\"version\":" + version + "}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.name").value("Read daily"))
+				.andReturn().getResponse().getContentAsString();
+		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
+
+		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + version + "}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.active").value(false))
+				.andReturn().getResponse().getContentAsString();
+		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
+
+		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
+		mockMvc.perform(get("/habits").param("status", "archived")
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(habitId));
+
+		mockMvc.perform(post("/habits/{habitId}/restore", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + version + "}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.active").value(true));
+	}
+
+	@Test
 	void rejectsARequestWithoutAnAccessToken() throws Exception {
 		mockMvc.perform(get("/habits"))
 				.andExpect(status().isUnauthorized())
