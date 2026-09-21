@@ -229,7 +229,8 @@
           {
             "name": "X-Maintenance-Key",
             "in": "header",
-            "required": false,
+            "description": "Internal CDC maintenance key.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -249,16 +250,18 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "$ref": "#/components/responses/MaintenanceKeyRequired"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "security": [
+          {
+            "maintenanceKey": []
+          }
+        ]
       }
     },
     "/internal/cdc/dead-letters/{id}/replay": {
@@ -281,7 +284,8 @@
           {
             "name": "X-Maintenance-Key",
             "in": "header",
-            "required": false,
+            "description": "Internal CDC maintenance key.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -297,16 +301,18 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "$ref": "#/components/responses/MaintenanceKeyRequired"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "security": [
+          {
+            "maintenanceKey": []
+          }
+        ]
       }
     },
     "/habits": {
@@ -1373,6 +1379,21 @@
           }
         }
       },
+      "MaintenanceKeyRequired": {
+        "description": "A valid X-Maintenance-Key header is required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"You are not allowed to perform this operation.\",\"path\":\"/example\",\"errors\":[]},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+              }
+            }
+          }
+        }
+      },
       "NotFound": {
         "description": "The requested resource was not found.",
         "content": {
@@ -1409,6 +1430,12 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "maintenanceKey": {
+        "type": "apiKey",
+        "description": "Internal maintenance credential. This is not an Auth0 bearer token.",
+        "name": "X-Maintenance-Key",
+        "in": "header"
       }
     }
   }

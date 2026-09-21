@@ -22,6 +22,7 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 public class OpenApiConfiguration {
 
 	private static final String BEARER_AUTH = "bearerAuth";
+	private static final String MAINTENANCE_KEY = "maintenanceKey";
 
 	@Bean
 	OpenAPI moodlyOpenApi() {
@@ -35,7 +36,12 @@ public class OpenApiConfiguration {
 				.components(new Components().addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
 						.type(SecurityScheme.Type.HTTP)
 						.scheme("bearer")
-						.bearerFormat("JWT")));
+						.bearerFormat("JWT"))
+						.addSecuritySchemes(MAINTENANCE_KEY, new SecurityScheme()
+								.type(SecurityScheme.Type.APIKEY)
+								.in(SecurityScheme.In.HEADER)
+								.name("X-Maintenance-Key")
+								.description("Internal maintenance credential. This is not an Auth0 bearer token.")));
 	}
 
 	@Bean
@@ -46,17 +52,27 @@ public class OpenApiConfiguration {
 			components.addResponses("BadRequest", errorResponse("The request is invalid.", 400, "VALIDATION_FAILED", "One or more fields are invalid."));
 			components.addResponses("Unauthorized", errorResponse("Authentication is required or the access token is invalid.", 401, "UNAUTHORIZED", "Authentication is required."));
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
+			components.addResponses("MaintenanceKeyRequired", errorResponse("A valid X-Maintenance-Key header is required.", 403, "FORBIDDEN", "You are not allowed to perform this operation."));
 			components.addResponses("NotFound", errorResponse("The requested resource was not found.", 404, "NOT_FOUND", "The requested resource was not found."));
 			components.addResponses("InternalServerError", errorResponse("An unexpected server error occurred.", 500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."));
 
 			openApi.getPaths().values().forEach(pathItem -> pathItem.readOperations().forEach(operation -> {
 				var responses = operation.getResponses();
 				responses.addApiResponse("400", reference("BadRequest"));
-				responses.addApiResponse("401", reference("Unauthorized"));
-				responses.addApiResponse("403", reference("Forbidden"));
+				if (usesMaintenanceKey(operation)) {
+					responses.addApiResponse("403", reference("MaintenanceKeyRequired"));
+				} else {
+					responses.addApiResponse("401", reference("Unauthorized"));
+					responses.addApiResponse("403", reference("Forbidden"));
+				}
 				responses.addApiResponse("500", reference("InternalServerError"));
 			}));
 		};
+	}
+
+	private boolean usesMaintenanceKey(io.swagger.v3.oas.models.Operation operation) {
+		return operation.getSecurity() != null && operation.getSecurity().stream()
+				.anyMatch(requirement -> requirement.containsKey(MAINTENANCE_KEY));
 	}
 
 	private Schema<?> errorEnvelopeSchema() {

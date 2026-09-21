@@ -7,6 +7,8 @@ import com.tlavu.moodly.shared.application.exception.ForbiddenException;
 import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -41,8 +43,13 @@ public class CdcMaintenanceController {
 	}
 
 	@PostMapping("/reindex")
-	@Operation(summary = "Reindex daily entries", description = "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.")
+	@Operation(
+			summary = "Reindex daily entries",
+			description = "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
+			security = @SecurityRequirement(name = "maintenanceKey")
+	)
 	public ResponseEntity<ApiResponse<DailyEntryReindexService.ReindexResult>> reindex(
+			@Parameter(description = "Internal CDC maintenance key.", required = true)
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
@@ -52,7 +59,11 @@ public class CdcMaintenanceController {
 	}
 
 	@PostMapping("/dead-letters/{id}/replay")
-	@Operation(summary = "Replay a CDC dead letter", description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.")
+	@Operation(
+			summary = "Replay a CDC dead letter",
+			description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
+			security = @SecurityRequirement(name = "maintenanceKey")
+	)
 	@io.swagger.v3.oas.annotations.responses.ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "204",
@@ -65,6 +76,7 @@ public class CdcMaintenanceController {
 	})
 	public ResponseEntity<Void> replay(
 			@org.springframework.web.bind.annotation.PathVariable String id,
+			@Parameter(description = "Internal CDC maintenance key.", required = true)
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
