@@ -18,13 +18,20 @@ import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
+import com.tlavu.moodly.shared.time.MoodlyTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -33,13 +40,15 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(MongoTestConfiguration.class)
+@Import({MongoTestConfiguration.class, ApiIntegrationTest.FixedClockConfiguration.class})
 class ApiIntegrationTest {
 
 	private static final String USER_ID = "__test_phase1_api_user__";
 
 	@Autowired
 	private MockMvc mockMvc;
+	@Autowired
+	private Clock clock;
 	@Autowired
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
@@ -63,7 +72,7 @@ class ApiIntegrationTest {
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
 		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.date").value(LocalDate.now().toString()))
+				.andExpect(jsonPath("$.data.date").value(MoodlyTime.today(clock).toString()))
 				.andExpect(jsonPath("$.data.checkedIn").value(false))
 				.andExpect(jsonPath("$.data.entry").doesNotExist());
 
@@ -111,7 +120,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.entry.habits.length()").value(2));
 
 		var entryDate = dailyEntryRepository
-				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, LocalDate.now())
+				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, MoodlyTime.today(clock))
 				.getFirst()
 				.getDate();
 
@@ -366,7 +375,7 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(0));
 		mockMvc.perform(get("/entries").with(jwt().jwt(token -> token.subject(userB)))
-					.param("from", LocalDate.now().toString()).param("to", LocalDate.now().toString()))
+					.param("from", MoodlyTime.today(clock).toString()).param("to", MoodlyTime.today(clock).toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.items.length()").value(0));
 		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
@@ -425,7 +434,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void rejectsInvalidEntryDateRanges() throws Exception {
-		var today = LocalDate.now();
+		var today = MoodlyTime.today(clock);
 
 		mockMvc.perform(get("/entries")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -451,6 +460,15 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
 				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period: month. Supported values: week."));
+	}
+
+	@TestConfiguration(proxyBeanMethods = false)
+	static class FixedClockConfiguration {
+		@Bean
+		@Primary
+		Clock fixedMoodlyClock() {
+			return Clock.fixed(Instant.parse("2026-09-21T10:00:00Z"), ZoneOffset.UTC);
+		}
 	}
 
 }
