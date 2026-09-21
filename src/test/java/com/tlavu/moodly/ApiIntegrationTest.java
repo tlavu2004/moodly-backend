@@ -61,6 +61,12 @@ class ApiIntegrationTest {
 
 	@Test
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.date").value(LocalDate.now().toString()))
+				.andExpect(jsonPath("$.data.checkedIn").value(false))
+				.andExpect(jsonPath("$.data.entry").doesNotExist());
+
 		var createHabitResponse = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
@@ -97,6 +103,12 @@ class ApiIntegrationTest {
 					.content("{\"score\":4,\"tags\":[\"calm\"],\"note\":\"Good day\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.mood.score").value(4));
+
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.checkedIn").value(true))
+				.andExpect(jsonPath("$.data.entry.mood.score").value(4))
+				.andExpect(jsonPath("$.data.entry.habits.length()").value(2));
 
 		var entryDate = dailyEntryRepository
 				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, LocalDate.now())
