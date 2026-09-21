@@ -29,6 +29,8 @@ import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
 @RestControllerAdvice
 @SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
+	private static final int MAX_LOGGED_CAUSE_DEPTH = 4;
+	private static final int MAX_LOGGED_FRAMES_PER_CAUSE = 12;
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiResponse<Void>> handleValidation(
@@ -209,9 +211,10 @@ public class GlobalExceptionHandler {
 	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
 		if (status.is5xxServerError()) {
 			log.error(
-					"Unexpected request failure at {} ({})",
+					"Unexpected request failure at {} ({})\n{}",
 					request.getRequestURI(),
-					exception.getClass().getSimpleName()
+					exception.getClass().getSimpleName(),
+					sanitizedDiagnosticStack(exception)
 			);
 		} else {
 			log.warn(
@@ -220,6 +223,28 @@ public class GlobalExceptionHandler {
 					exception.getClass().getSimpleName()
 			);
 		}
+	}
+
+	private String sanitizedDiagnosticStack(Throwable exception) {
+		var diagnostic = new StringBuilder();
+		var current = exception;
+		int depth = 0;
+		while (current != null && depth < MAX_LOGGED_CAUSE_DEPTH) {
+			if (depth > 0) diagnostic.append("Caused by: ");
+			diagnostic.append(current.getClass().getName()).append('\n');
+			var frames = current.getStackTrace();
+			int frameCount = Math.min(frames.length, MAX_LOGGED_FRAMES_PER_CAUSE);
+			for (int index = 0; index < frameCount; index++) {
+				diagnostic.append("\tat ").append(frames[index]).append('\n');
+			}
+			if (frames.length > frameCount) {
+				diagnostic.append("\t... ").append(frames.length - frameCount).append(" more\n");
+			}
+			current = current.getCause();
+			depth++;
+		}
+		if (current != null) diagnostic.append("Caused by: ... additional causes omitted\n");
+		return diagnostic.toString().stripTrailing();
 	}
 
 	private String requestId() {
