@@ -31,18 +31,19 @@ public class StatsAggregationRepository {
 		this.dailyEntriesCollection = dailyEntriesCollection;
 	}
 
-	public List<MoodTrendResponse> findWeeklyMoodTrend(String userId) {
-		Document weekStart = new Document("$dateTrunc", new Document("date", "$date")
-				.append("unit", "week")
-				.append("startOfWeek", "monday")
+	public List<MoodTrendResponse> findMoodTrend(String userId, LocalDate from, LocalDate to) {
+		Document dayStart = new Document("$dateTrunc", new Document("date", "$date")
+				.append("unit", "day")
 				.append("timezone", HO_CHI_MINH_ZONE.getId()));
 
-		Document group = new Document("$group", new Document("_id", weekStart)
+		Document group = new Document("$group", new Document("_id", dayStart)
 				.append("averageScore", new Document("$avg", "$mood.score"))
 				.append("entryCount", new Document("$sum", 1)));
 
 		Aggregation aggregation = Aggregation.newAggregation(
-				Aggregation.match(Criteria.where("userId").is(userId).and("mood.score").exists(true)),
+				Aggregation.match(Criteria.where("userId").is(userId)
+						.and("date").gte(from).lte(to)
+						.and("mood.score").exists(true)),
 				Aggregation.stage(group.toJson()),
 				Aggregation.sort(Sort.Direction.ASC, "_id")
 		);

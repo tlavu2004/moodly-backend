@@ -4,8 +4,10 @@ import com.tlavu.moodly.modules.stats.application.StatsService;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import java.time.LocalDate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,14 +27,14 @@ public class StatsController {
 	}
 
 	@GetMapping("/mood-trend")
-	@Operation(summary = "Get weekly mood trend", description = "Returns the authenticated user's mood trend for the current week. Only `period=week` is currently supported.")
+	@Operation(summary = "Get current-week mood trend", description = "Returns daily mood buckets for the current Monday-through-Sunday week in the Asia/Ho_Chi_Minh timezone. Only `period=week` is supported.")
 	public ApiResponse<List<MoodTrendResponse>> moodTrend(
+			@Parameter(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = MoodTrendPeriod.class))
 			@RequestParam(defaultValue = "week") String period
 	) {
-		if (!"week".equals(period)) {
-			throw new IllegalArgumentException("Only period=week is supported.");
-		}
-		return ApiResponse.success(statsService.findWeeklyMoodTrend(currentUser.id()));
+		var requestedPeriod = MoodTrendPeriod.fromValue(period);
+		var today = LocalDate.now(MoodTrendPeriod.TIME_ZONE);
+		return ApiResponse.success(statsService.findMoodTrend(currentUser.id(), requestedPeriod, today));
 	}
 
 	@GetMapping("/most-missed-habits")

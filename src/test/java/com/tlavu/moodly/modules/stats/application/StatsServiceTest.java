@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.entries.application.EntryReadService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.stats.api.MoodTrendResponse;
+import com.tlavu.moodly.modules.stats.api.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.api.MostMissedHabitResponse;
 import com.tlavu.moodly.modules.stats.infrastructure.StatsAggregationRepository;
 import java.time.LocalDate;
@@ -31,10 +32,18 @@ class StatsServiceTest {
 	void delegatesAggregateQueries() {
 		var trend = List.of(new MoodTrendResponse(LocalDate.of(2026, 8, 3), 4.0, 2));
 		var missed = List.of(new MostMissedHabitResponse("reading", 3));
-		when(statsAggregationRepository.findWeeklyMoodTrend("user-1")).thenReturn(trend);
+		when(statsAggregationRepository.findMoodTrend(
+				"user-1",
+				LocalDate.of(2026, 8, 3),
+				LocalDate.of(2026, 8, 9)
+		)).thenReturn(trend);
 		when(statsAggregationRepository.findMostMissedHabits("user-1")).thenReturn(missed);
 
-		assertEquals(trend, statsService.findWeeklyMoodTrend("user-1"));
+		assertEquals(trend, statsService.findMoodTrend(
+				"user-1",
+				MoodTrendPeriod.WEEK,
+				LocalDate.of(2026, 8, 5)
+		));
 		assertEquals(missed, statsService.findMostMissedHabits("user-1"));
 	}
 

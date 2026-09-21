@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.entries.application.EntryReadService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.stats.api.HabitStreakResponse;
 import com.tlavu.moodly.modules.stats.api.MoodTrendResponse;
+import com.tlavu.moodly.modules.stats.api.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.api.MostMissedHabitResponse;
 import com.tlavu.moodly.modules.stats.infrastructure.StatsAggregationRepository;
 import java.time.LocalDate;
@@ -24,8 +25,12 @@ public class StatsService {
 		this.statsAggregationRepository = statsAggregationRepository;
 	}
 
-	public List<MoodTrendResponse> findWeeklyMoodTrend(String userId) {
-		return statsAggregationRepository.findWeeklyMoodTrend(userId);
+	public List<MoodTrendResponse> findMoodTrend(String userId, MoodTrendPeriod period, LocalDate today) {
+		return statsAggregationRepository.findMoodTrend(
+				userId,
+				period.startDate(today),
+				period.endDate(today)
+		);
 	}
 
 	public List<MostMissedHabitResponse> findMostMissedHabits(String userId) {
