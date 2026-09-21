@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -98,6 +99,29 @@ class EntrySearchServiceTest {
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
 		assertThat(request).contains("2026-08-31", "\"lte\"").doesNotContain("\"gte\"");
+	}
+
+	@Test
+	void calculatesTheLargestSupportedOffsetWithoutOverflow() throws Exception {
+		stubEmptyResponse();
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		service.search("user-1", "tired", null, null, 99, 100);
+
+		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
+		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
+		assertThat(request.from()).isEqualTo(9_900);
+		assertThat(request.size()).isEqualTo(100);
+	}
+
+	@Test
+	void rejectsAnOverflowingOrUnsupportedOffsetBeforeCallingElasticsearch() {
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		assertThatThrownBy(() -> service.search("user-1", "tired", null, null, Integer.MAX_VALUE, 100))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("result window");
+		verifyNoInteractions(elasticsearchClient, indexManager);
 	}
 
 	private void stubEmptyResponse() throws Exception {

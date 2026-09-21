@@ -117,6 +117,17 @@ class EntrySearchControllerTest {
 	}
 
 	@Test
+	void rejectsPaginationThatExceedsTheSearchResultWindowWithoutCallingElasticsearch() throws Exception {
+		mockMvc.perform(get("/entries/search")
+					.param("q", "tired")
+					.param("page", Integer.toString(Integer.MAX_VALUE))
+					.param("size", "100"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		verifyNoInteractions(entrySearchService);
+	}
+
+	@Test
 	void rejectsQueriesLongerThanTwoHundredCharacters() throws Exception {
 		mockMvc.perform(get("/entries/search").param("q", "x".repeat(201)))
 				.andExpect(status().isBadRequest())

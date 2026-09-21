@@ -36,8 +36,7 @@ public class EntrySearchController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size
 	) {
-		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
-		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");
+		EntrySearchService.validatedOffset(page, size);
 		if (q.isBlank()) {
 			throw new IllegalArgumentException("The 'q' parameter must not be blank.");
 		}
