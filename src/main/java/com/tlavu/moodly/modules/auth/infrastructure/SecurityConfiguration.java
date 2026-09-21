@@ -31,6 +31,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.ObjectMapper;
+import org.slf4j.MDC;
+import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -66,7 +68,8 @@ public class SecurityConfiguration {
 		var configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(allowedOrigins.stream().filter(origin -> !origin.isBlank()).toList());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", RequestIdFilter.HEADER));
+		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
 		var source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
 		return source;
@@ -101,7 +104,8 @@ public class SecurityConfiguration {
 		response.setStatus(status.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(new ApiError(
-				status.value(), errorCode.getCode(), errorCode.getDefaultMessage(), path, List.of()
+				status.value(), errorCode.getCode(), errorCode.getDefaultMessage(), path, List.of(),
+				java.util.Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable")
 		)));
 	}
 }

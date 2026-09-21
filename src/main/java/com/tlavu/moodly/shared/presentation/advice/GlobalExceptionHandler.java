@@ -22,6 +22,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.MDC;
+import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
 
 @Slf4j
 @RestControllerAdvice
@@ -94,7 +96,7 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AvatarException.class)
 	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
 		logByStatus(HttpStatus.BAD_REQUEST, request, exception);
-		var error = new ApiError(400, exception.getCode().getCode(), exception.getMessage(), request.getRequestURI(), List.of());
+		var error = new ApiError(400, exception.getCode().getCode(), exception.getMessage(), request.getRequestURI(), List.of(), requestId());
 		return ResponseEntity.badRequest().body(ApiResponse.error(error));
 	}
 
@@ -200,7 +202,7 @@ public class GlobalExceptionHandler {
 			Exception exception
 	) {
 		logByStatus(status, request, exception);
-		var error = new ApiError(status.value(), errorCode.getCode(), message, request.getRequestURI(), errors);
+		var error = new ApiError(status.value(), errorCode.getCode(), message, request.getRequestURI(), errors, requestId());
 		return ResponseEntity.status(status).body(ApiResponse.error(error));
 	}
 
@@ -218,6 +220,10 @@ public class GlobalExceptionHandler {
 					exception.getClass().getSimpleName()
 			);
 		}
+	}
+
+	private String requestId() {
+		return java.util.Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable");
 	}
 
 	private String safeMessage(Throwable exception) {

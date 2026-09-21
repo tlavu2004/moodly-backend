@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +17,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
-	private final HttpClient httpClient = HttpClient.newHttpClient();
+	private final HttpClient httpClient;
+	private final Duration requestTimeout;
 	private final ObjectMapper objectMapper;
 	private final String cloudName;
 	private final String authorization;
@@ -26,17 +28,21 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 	public CloudinaryHttpAssetClient(ObjectMapper objectMapper,
 			@Value("${moodly.cloudinary.cloud-name}") String cloudName,
 			@Value("${moodly.cloudinary.api-key}") String apiKey,
-			@Value("${moodly.cloudinary.api-secret}") String apiSecret) {
+			@Value("${moodly.cloudinary.api-secret}") String apiSecret,
+			@Value("${moodly.cloudinary.connect-timeout:2s}") Duration connectTimeout,
+			@Value("${moodly.cloudinary.request-timeout:5s}") Duration requestTimeout) {
 		this.objectMapper = objectMapper;
 		this.cloudName = cloudName;
 		this.apiKey = apiKey; this.apiSecret = apiSecret;
+		this.httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
+		this.requestTimeout = requestTimeout;
 		this.authorization = "Basic " + Base64.getEncoder().encodeToString((apiKey + ":" + apiSecret).getBytes(StandardCharsets.UTF_8));
 	}
 
 	@Override
 	public ConfirmedAsset findImage(String publicId) {
 		var request = HttpRequest.newBuilder(URI.create("https://api.cloudinary.com/v1_1/" + cloudName + "/resources/image/upload/" + publicId))
-				.header("Authorization", authorization).GET().build();
+				.timeout(requestTimeout).header("Authorization", authorization).GET().build();
 		try {
 			var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 			if (response.statusCode() != 200) throw new IllegalArgumentException("Cloudinary could not confirm the uploaded avatar.");
@@ -63,7 +69,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 		var signature = sha1("public_id=" + publicId + "&timestamp=" + timestamp + apiSecret);
 		var body = "public_id=" + encode(publicId) + "&timestamp=" + timestamp + "&api_key=" + encode(apiKey) + "&signature=" + encode(signature);
 		var request = HttpRequest.newBuilder(URI.create("https://api.cloudinary.com/v1_1/" + cloudName + "/image/destroy"))
-				.header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+				.timeout(requestTimeout).header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(body)).build();
 		try { var response = httpClient.send(request, HttpResponse.BodyHandlers.discarding()); if (response.statusCode() >= 300) throw new IllegalStateException("Cloudinary deletion failed."); }
 		catch (InterruptedException exception) { Thread.currentThread().interrupt(); throw new IllegalStateException("Cloudinary deletion was interrupted.", exception); }
 		catch (Exception exception) { throw new IllegalStateException("Cloudinary deletion failed.", exception); }

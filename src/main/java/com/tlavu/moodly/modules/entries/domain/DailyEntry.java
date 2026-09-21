@@ -8,11 +8,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Document(collection = "#{@environment.getProperty('moodly.entries.collection-name')}")
-@CompoundIndex(name = "user_date_unique", def = "{ 'userId': 1, 'date': 1 }", unique = true)
+@CompoundIndexes({
+		@CompoundIndex(name = "user_date_unique", def = "{ 'userId': 1, 'date': 1 }", unique = true),
+		@CompoundIndex(name = "user_habit_done_idx", def = "{ 'userId': 1, 'habits.done': 1, 'habits.habitId': 1 }")
+})
 @Getter
 @Setter
 public class DailyEntry {

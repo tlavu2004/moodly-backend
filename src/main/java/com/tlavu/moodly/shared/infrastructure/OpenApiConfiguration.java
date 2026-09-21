@@ -56,7 +56,7 @@ public class OpenApiConfiguration {
 			components.addExamples("EmptyEnvelope", new Example().summary("Successful structured empty response")
 					.value(Map.of("success", true, "data", Map.of("items", List.of()), "timestamp", "2026-09-12T10:00:00Z")));
 			components.addExamples("ErrorEnvelope", new Example().summary("Error response")
-					.value(Map.of("success", false, "error", Map.of("status", 400, "code", "INVALID_REQUEST", "message", "The request is invalid.", "path", "/example", "errors", List.of()), "timestamp", "2026-09-12T10:00:00Z")));
+					.value(Map.of("success", false, "error", Map.of("status", 400, "code", "INVALID_REQUEST", "message", "The request is invalid.", "path", "/example", "errors", List.of(), "requestId", "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"), "timestamp", "2026-09-12T10:00:00Z")));
 			components.addResponses("BadRequest", errorResponse("The request is invalid.", 400, "VALIDATION_FAILED", "One or more fields are invalid."));
 			components.addResponses("Unauthorized", errorResponse("Authentication is required or the access token is invalid.", 401, "UNAUTHORIZED", "Authentication is required."));
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
@@ -96,7 +96,7 @@ public class OpenApiConfiguration {
 
 	private ApiResponse errorResponse(String description, int status, String code, String message) {
 		var example = new Example().value("""
-				{"success":false,"data":null,"error":{"status":%d,"code":"%s","message":"%s","path":"/example","errors":[]},"timestamp":"2026-09-12T10:00:00Z"}
+				{"success":false,"data":null,"error":{"status":%d,"code":"%s","message":"%s","path":"/example","errors":[],"requestId":"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"},"timestamp":"2026-09-12T10:00:00Z"}
 				""".formatted(status, code, message));
 		return new ApiResponse().description(description).content(new Content().addMediaType("application/json",
 				new MediaType().schema(new Schema<>().$ref("#/components/schemas/ApiResponseApiError"))

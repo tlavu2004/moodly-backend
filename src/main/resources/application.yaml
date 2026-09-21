@@ -11,6 +11,10 @@ spring:
 
 moodly:
 
+  cloudinary:
+    connect-timeout: ${CLOUDINARY_CONNECT_TIMEOUT:2s}
+    request-timeout: ${CLOUDINARY_REQUEST_TIMEOUT:5s}
+
   entries:
     collection-name: ${MOODLY_ENTRIES_COLLECTION_NAME}
 
@@ -31,6 +35,10 @@ moodly:
       initialization-enabled: ${MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED}
 
 management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   endpoint:
     health:
       show-components: when_authorized
