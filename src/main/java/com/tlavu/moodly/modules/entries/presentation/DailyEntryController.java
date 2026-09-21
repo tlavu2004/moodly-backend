@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.entries.application.DailyEntryService;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,16 +50,24 @@ public class DailyEntryController {
 
 	@GetMapping
 	@Operation(summary = "List entries by date range", description = "Returns the authenticated user's daily entries from `from` through `to`, inclusive. Future dates are not allowed.")
-	public ApiResponse<List<DailyEntry>> findBetween(
+	public ApiResponse<PageResponse<DailyEntry>> findBetween(
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-				@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size
 	) {
+		validatePage(page, size);
 		if (from.isAfter(to)) {
 			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
 		}
 		if (from.isAfter(LocalDate.now()) || to.isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Entry dates must not be in the future.");
 		}
-		return ApiResponse.success(dailyEntryService.findBetween(currentUser.id(), from, to));
+		return ApiResponse.success(PageResponse.from(dailyEntryService.findBetween(currentUser.id(), from, to, page, size)));
+	}
+
+	private void validatePage(int page, int size) {
+		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
+		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");
 	}
 }

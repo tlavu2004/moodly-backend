@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.presentation;
 import com.tlavu.moodly.modules.search.application.EntrySearchService;
 import com.tlavu.moodly.modules.auth.application.CurrentUser;
 import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -28,17 +29,21 @@ public class EntrySearchController {
 
 	@GetMapping
 	@Operation(summary = "Search daily entries", description = "Searches the authenticated user's entries by text, optionally limited to an inclusive date range.")
-	public ApiResponse<List<EntrySearchService.EntrySearchResult>> search(
+	public ApiResponse<PageResponse<EntrySearchService.EntrySearchResult>> search(
 			@RequestParam String q,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size
 	) {
+		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
+		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");
 		if (q.isBlank()) {
 			throw new IllegalArgumentException("The 'q' parameter must not be blank.");
 		}
 		if (from != null && to != null && from.isAfter(to)) {
 			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
 		}
-		return ApiResponse.success(entrySearchService.search(currentUser.id(), q.trim(), from, to));
+		return ApiResponse.success(entrySearchService.search(currentUser.id(), q.trim(), from, to, page, size));
 	}
 }
