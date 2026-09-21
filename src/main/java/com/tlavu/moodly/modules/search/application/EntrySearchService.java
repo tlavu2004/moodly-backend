@@ -119,6 +119,7 @@ public class EntrySearchService {
 		return new HighlightFragment(text.toString(), List.copyOf(ranges));
 	}
 
+	@Schema(requiredProperties = {"entryId", "date", "highlights"})
 	public record EntrySearchResult(
 			String entryId,
 			LocalDate date,
@@ -126,6 +127,8 @@ public class EntrySearchService {
 			Map<String, List<HighlightFragment>> highlights
 	) {
 	}
+	@Schema(requiredProperties = {"text", "ranges"})
 	public record HighlightFragment(String text, List<HighlightRange> ranges) {}
+	@Schema(requiredProperties = {"start", "end"})
 	public record HighlightRange(int start, int end) {}
 }

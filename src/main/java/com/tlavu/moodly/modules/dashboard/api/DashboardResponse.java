@@ -3,9 +3,11 @@ package com.tlavu.moodly.modules.dashboard.api;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.habits.domain.Habit;
 import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(requiredProperties = {"activeHabits", "completedHabitCount", "totalHabitCount", "completionRatio", "weeklyMood", "bestCurrentStreak"})
 public record DashboardResponse(
-		DailyEntry todayEntry,
+		@Schema(nullable = true) DailyEntry todayEntry,
 		List<Habit> activeHabits,
 		int completedHabitCount,
 		int totalHabitCount,
@@ -14,7 +16,8 @@ public record DashboardResponse(
 		int bestCurrentStreak
 ) {
 
-	public record WeeklyMoodSummary(Double averageScore, long entryCount) {
+	@Schema(requiredProperties = {"entryCount"})
+	public record WeeklyMoodSummary(@Schema(nullable = true) Double averageScore, long entryCount) {
 	}
 
 }

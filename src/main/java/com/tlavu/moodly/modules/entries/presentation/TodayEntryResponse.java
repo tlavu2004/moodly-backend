@@ -5,8 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
 public record TodayEntryResponse(
-		LocalDate date,
-		boolean checkedIn,
+		@Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDate date,
+		@Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean checkedIn,
 		@Schema(nullable = true, description = "The complete entry, or null when the user has not checked in today.") DailyEntry entry
 ) {
 	public static TodayEntryResponse empty(LocalDate date) {

@@ -17,6 +17,8 @@ import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class OpenApiConfiguration {
@@ -49,6 +51,12 @@ public class OpenApiConfiguration {
 		return openApi -> {
 			var components = openApi.getComponents();
 			components.addSchemas("ApiResponseApiError", errorEnvelopeSchema());
+			components.addExamples("SuccessEnvelope", new Example().summary("Successful response")
+					.value(Map.of("success", true, "data", Map.of("id", "example-id"), "timestamp", "2026-09-12T10:00:00Z")));
+			components.addExamples("EmptyEnvelope", new Example().summary("Successful structured empty response")
+					.value(Map.of("success", true, "data", Map.of("items", List.of()), "timestamp", "2026-09-12T10:00:00Z")));
+			components.addExamples("ErrorEnvelope", new Example().summary("Error response")
+					.value(Map.of("success", false, "error", Map.of("status", 400, "code", "INVALID_REQUEST", "message", "The request is invalid.", "path", "/example", "errors", List.of()), "timestamp", "2026-09-12T10:00:00Z")));
 			components.addResponses("BadRequest", errorResponse("The request is invalid.", 400, "VALIDATION_FAILED", "One or more fields are invalid."));
 			components.addResponses("Unauthorized", errorResponse("Authentication is required or the access token is invalid.", 401, "UNAUTHORIZED", "Authentication is required."));
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
@@ -77,6 +85,7 @@ public class OpenApiConfiguration {
 
 	private Schema<?> errorEnvelopeSchema() {
 		return new ObjectSchema()
+				.required(List.of("success", "error", "timestamp"))
 				.addProperty("success", new BooleanSchema().example(false))
 				.addProperty("data", new ObjectSchema().nullable(true))
 				.addProperty("error", new Schema<>().$ref("#/components/schemas/ApiError"))

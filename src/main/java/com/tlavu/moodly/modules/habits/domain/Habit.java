@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @Document(collection = "habits")
 @CompoundIndex(name = "user_active_idx", def = "{ 'userId': 1, 'active': 1 }")
@@ -12,13 +13,20 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Habit {
 
 	@Id
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private String id;
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private String userId;
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private String name;
+	@Schema(nullable = true)
 	private String icon;
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private TargetFrequency targetFrequency;
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private boolean active;
 	@Version
+	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private Long version;
 
 	public Habit() {
