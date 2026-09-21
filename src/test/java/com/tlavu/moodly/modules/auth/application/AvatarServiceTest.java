@@ -53,6 +53,7 @@ class AvatarServiceTest {
 
 		assertThat(payload.publicId()).startsWith(NAMESPACE);
 		assertThat(payload.uploadUrl()).isEqualTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload");
+		assertThat(payload.expiresAt()).isAfter(Instant.now().plusSeconds(3500));
 		assertThat(payload.signature()).isEqualTo(sha1("public_id=" + payload.publicId()
 				+ "&timestamp=" + payload.timestamp() + "&upload_preset=test-presettest-secret"));
 		verify(userProfileService).synchronizeCurrent();
@@ -78,9 +79,9 @@ class AvatarServiceTest {
 	@Test
 	void rejectsUnsupportedOrOversizedAvatarBeforeCreatingAPendingUpload() {
 		assertThatThrownBy(() -> service.createSignature("image/gif", 1024))
-				.isInstanceOf(IllegalArgumentException.class);
+				.isInstanceOf(AvatarException.class);
 		assertThatThrownBy(() -> service.createSignature("image/png", 5L * 1024 * 1024 + 1))
-				.isInstanceOf(IllegalArgumentException.class);
+				.isInstanceOf(AvatarException.class);
 
 		verify(userProfileService, never()).synchronizeCurrent();
 		verify(pendingUploads, never()).save(any());
@@ -113,8 +114,8 @@ class AvatarServiceTest {
 	void rejectsAnotherUsersAvatarBeforeCloudinaryLookup() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		assertThatThrownBy(() -> service.confirm("moodly/test/users/auth0_other/avatar/asset", 1))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("does not belong");
+				.isInstanceOf(AvatarException.class)
+				.hasMessageContaining("not found");
 
 		verify(cloudinary, never()).findImage(any());
 		verify(profiles, never()).save(any());
@@ -145,7 +146,7 @@ class AvatarServiceTest {
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().minusSeconds(1))));
 
 		assertThatThrownBy(() -> service.confirm(publicId, 1))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(AvatarException.class)
 				.hasMessageContaining("unknown or has expired");
 		verify(cloudinary, never()).findImage(any());
 		verify(profiles, never()).save(any());
@@ -156,7 +157,7 @@ class AvatarServiceTest {
 		var unknownId = NAMESPACE + "unknown";
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(pendingUploads.findByPublicIdAndAuth0Subject(unknownId, SUBJECT)).thenReturn(Optional.empty());
-		assertThatThrownBy(() -> service.confirm(unknownId, 1)).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> service.confirm(unknownId, 1)).isInstanceOf(AvatarException.class);
 
 		var mismatchedId = NAMESPACE + "mismatched";
 		when(pendingUploads.findByPublicIdAndAuth0Subject(mismatchedId, SUBJECT))
@@ -192,6 +193,20 @@ class AvatarServiceTest {
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.empty());
 
 		assertThat(service.current()).isEqualTo(new AvatarService.Avatar(null, null, null, null));
+	}
+
+	@Test
+	void deletesTheCurrentAvatarAfterClearingTheProfile() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		profile.replaceAvatar(NAMESPACE + "old-avatar", 3, "image/png", 100, Instant.now());
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
+
+		assertThat(service.delete()).isEqualTo(new AvatarService.Avatar(null, null, null, null));
+		assertThat(profile.getAvatarPublicId()).isNull();
+		InOrder ordered = inOrder(profiles, cloudinary);
+		ordered.verify(profiles).save(profile);
+		ordered.verify(cloudinary).deleteImage(NAMESPACE + "old-avatar");
 	}
 
 	private static String sha1(String value) throws Exception {

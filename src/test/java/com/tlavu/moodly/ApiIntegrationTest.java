@@ -266,6 +266,8 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/me/avatar"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -282,6 +284,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.cloudName").value("test-cloud"))
 				.andExpect(jsonPath("$.data.apiKey").value("test-api-key"))
 				.andExpect(jsonPath("$.data.uploadPreset").value("test-upload-preset"))
+				.andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
 				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
 				.andReturn().getResponse().getContentAsString();
 		var publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
@@ -289,7 +292,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(post("/me/avatar/confirm").with(otherToken)
 					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("AVATAR_UPLOAD_NOT_FOUND"));
 		verify(cloudinary, never()).findImage(publicId);
 
 		org.mockito.Mockito.when(cloudinary.findImage(publicId))
@@ -313,7 +316,7 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"contentType\":\"image/gif\",\"sizeBytes\":1024}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("AVATAR_CONTENT_TYPE_UNSUPPORTED"));
 	}
 
 	@Test
