@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +30,12 @@ public class AvatarController {
 	@GetMapping
 	@Operation(summary = "Get the current avatar", description = "Returns the authenticated user's current avatar metadata.")
 	public ApiResponse<AvatarService.Avatar> current() { return ApiResponse.success(avatarService.current()); }
-	public record UploadRequest(@NotBlank String contentType, @Positive long sizeBytes) {}
+	@DeleteMapping
+	@Operation(summary = "Delete the current avatar", description = "Resets the avatar to the default and deletes the previous Cloudinary asset.")
+	public ApiResponse<AvatarService.Avatar> delete() { return ApiResponse.success(avatarService.delete()); }
+	public record UploadRequest(
+			@Schema(allowableValues = {"image/jpeg", "image/png", "image/webp"}) @NotBlank String contentType,
+			@Schema(description = "File size in bytes; maximum 5 MiB (5242880 bytes).", maximum = "5242880") @Positive long sizeBytes
+	) {}
 	public record ConfirmRequest(@NotBlank String publicId, @Positive long version) {}
 }

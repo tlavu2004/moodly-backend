@@ -8,6 +8,7 @@ import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
+import com.tlavu.moodly.modules.auth.application.AvatarException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;
@@ -88,6 +89,13 @@ public class GlobalExceptionHandler {
 				List.of(),
 				exception
 		);
+	}
+
+	@ExceptionHandler(AvatarException.class)
+	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
+		logByStatus(HttpStatus.BAD_REQUEST, request, exception);
+		var error = new ApiError(400, exception.getCode().name(), exception.getMessage(), request.getRequestURI(), List.of());
+		return ResponseEntity.badRequest().body(ApiResponse.error(error));
 	}
 
 	@ExceptionHandler(OptimisticLockingFailureException.class)
