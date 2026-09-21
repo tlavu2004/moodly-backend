@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.time.LocalDate;
+import java.time.Clock;
+import com.tlavu.moodly.shared.time.MoodlyTime;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,10 +22,12 @@ public class StatsController {
 
 	private final StatsService statsService;
 	private final CurrentUser currentUser;
+	private final Clock clock;
 
-	public StatsController(StatsService statsService, CurrentUser currentUser) {
+	public StatsController(StatsService statsService, CurrentUser currentUser, Clock clock) {
 		this.statsService = statsService;
 		this.currentUser = currentUser;
+		this.clock = clock;
 	}
 
 	@GetMapping("/mood-trend")
@@ -33,7 +37,7 @@ public class StatsController {
 			@RequestParam(defaultValue = "week") String period
 	) {
 		var requestedPeriod = MoodTrendPeriod.fromValue(period);
-		var today = LocalDate.now(MoodTrendPeriod.TIME_ZONE);
+		var today = MoodlyTime.today(clock);
 		return ApiResponse.success(statsService.findMoodTrend(currentUser.id(), requestedPeriod, today));
 	}
 

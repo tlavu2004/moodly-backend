@@ -32,7 +32,7 @@ public class OpenApiConfiguration {
 				.info(new Info()
 						.title("Moodly API")
 						.version("v1")
-						.description("Moodly backend API. Authenticate requests with an Auth0 access token."))
+						.description("Moodly backend API. Authenticate requests with an Auth0 access token. Calendar dates use Asia/Ho_Chi_Minh; weeks start on Monday."))
 				.addServersItem(new Server().url("http://localhost:8080").description("Local development server"))
 				.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
 				.components(new Components().addSecuritySchemes(BEARER_AUTH, new SecurityScheme()

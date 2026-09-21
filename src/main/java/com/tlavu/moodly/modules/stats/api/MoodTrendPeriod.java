@@ -5,13 +5,14 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import com.tlavu.moodly.shared.time.MoodlyTime;
 import java.time.temporal.TemporalAdjusters;
 
 public enum MoodTrendPeriod {
 
 	WEEK("week");
 
-	public static final ZoneId TIME_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+	public static final ZoneId TIME_ZONE = MoodlyTime.ZONE;
 
 	private final String value;
 
