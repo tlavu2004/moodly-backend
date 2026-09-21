@@ -171,13 +171,20 @@ class ApiIntegrationTest {
 
 	@Test
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
-		mockMvc.perform(get("/v3/api-docs"))
+		var document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
 				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
-				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists());
+				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())
+				.andReturn().getResponse().getContentAsString();
+
+		var examples = new tools.jackson.databind.ObjectMapper().readTree(document).path("components").path("examples");
+		assertThat(examples.path("SuccessEnvelope").path("value").toString())
+				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
+		assertThat(examples.path("ErrorEnvelope").path("value").toString())
+				.isEqualTo("{\"success\":false,\"error\":{\"status\":400,\"code\":\"INVALID_REQUEST\",\"message\":\"The request is invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 	}
 
 	@Test
