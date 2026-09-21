@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.habits.application;
 
 import com.tlavu.moodly.modules.habits.presentation.CreateHabitRequest;
 import com.tlavu.moodly.modules.habits.domain.Habit;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +23,7 @@ public class HabitService {
 				userId,
 				request.name(),
 				request.icon(),
-				request.targetFrequency(),
+				TargetFrequency.valueOf(request.targetFrequency()),
 				true
 		);
 		return habitRepository.save(habit);

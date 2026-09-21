@@ -15,13 +15,13 @@ public class Habit {
 	private String userId;
 	private String name;
 	private String icon;
-	private String targetFrequency;
+	private TargetFrequency targetFrequency;
 	private boolean active;
 
 	public Habit() {
 	}
 
-	public Habit(String id, String userId, String name, String icon, String targetFrequency, boolean active) {
+	public Habit(String id, String userId, String name, String icon, TargetFrequency targetFrequency, boolean active) {
 		this.id = id;
 		this.userId = userId;
 		this.name = name;

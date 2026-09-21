@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.habits.domain.Habit;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import com.tlavu.moodly.modules.habits.presentation.CreateHabitRequest;
 import java.util.List;
@@ -31,20 +32,20 @@ class HabitServiceTest {
 		when(habitRepository.save(org.mockito.ArgumentMatchers.any(Habit.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		var result = habitService.create("user-1", new CreateHabitRequest("Exercise", "🏃", "daily"));
+		var result = habitService.create("user-1", new CreateHabitRequest("Exercise", "🏃", "DAILY"));
 
 		var captor = ArgumentCaptor.forClass(Habit.class);
 		verify(habitRepository).save(captor.capture());
 		assertNotNull(result.getId());
 		assertEquals("user-1", result.getUserId());
 		assertEquals("Exercise", result.getName());
-		assertEquals("daily", result.getTargetFrequency());
+		assertEquals(TargetFrequency.DAILY, result.getTargetFrequency());
 		assertTrue(result.isActive());
 	}
 
 	@Test
 	void findsOnlyActiveHabitsForTheUser() {
-		var habits = List.of(new Habit("habit-1", "user-1", "Read", "📚", "daily", true));
+		var habits = List.of(new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true));
 		when(habitRepository.findByUserIdAndActiveTrue("user-1")).thenReturn(habits);
 
 		assertEquals(habits, habitService.findActive("user-1"));
