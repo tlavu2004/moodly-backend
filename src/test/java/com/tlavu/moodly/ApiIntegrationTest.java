@@ -170,6 +170,17 @@ class ApiIntegrationTest {
 	}
 
 	@Test
+	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
+				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
+				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
+				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists());
+	}
+
+	@Test
 	void rejectsUnsupportedTargetFrequencyWithAFieldValidationError() throws Exception {
 		mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
