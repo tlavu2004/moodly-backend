@@ -2283,11 +2283,11 @@
         "value": {
           "success": false,
           "error": {
+            "status": 400,
             "code": "INVALID_REQUEST",
+            "message": "The request is invalid.",
             "path": "/example",
             "errors": [],
-            "status": 400,
-            "message": "The request is invalid.",
             "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
           },
           "timestamp": "2026-09-12T10:00:00Z"
