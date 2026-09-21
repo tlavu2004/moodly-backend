@@ -324,9 +324,25 @@
         "tags": [
           "Habits"
         ],
-        "summary": "List active habits",
-        "description": "Returns all active habits owned by the authenticated user.",
-        "operationId": "findActive",
+        "summary": "List habits",
+        "description": "Returns habits owned by the authenticated user, filtered by lifecycle status.",
+        "operationId": "findByStatus",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Lifecycle filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -395,7 +411,201 @@
         }
       }
     },
+    "/habits/{habitId}/restore": {
+      "post": {
+        "tags": [
+          "Habits"
+        ],
+        "summary": "Restore a habit",
+        "description": "Makes an archived habit active again.",
+        "operationId": "restore",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHabit"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/habits/{habitId}/archive": {
+      "post": {
+        "tags": [
+          "Habits"
+        ],
+        "summary": "Archive a habit",
+        "description": "Deactivates the habit without changing historical entry logs.",
+        "operationId": "archive",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHabit"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/habits/{habitId}": {
+      "patch": {
+        "tags": [
+          "Habits"
+        ],
+        "summary": "Update a habit",
+        "description": "Updates the name and icon. The version prevents lost concurrent updates.",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHabitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHabit"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/entries/today": {
+      "get": {
+        "tags": [
+          "Daily entries"
+        ],
+        "summary": "Get today's entry",
+        "description": "Returns a structured empty state when the authenticated user has not checked in today.",
+        "operationId": "today",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTodayEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Daily entries"
@@ -552,6 +762,38 @@
             "$ref": "#/components/responses/InternalServerError"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Avatar"
+        ],
+        "summary": "Delete the current avatar",
+        "description": "Resets the avatar to the default and deletes the previous Cloudinary asset.",
+        "operationId": "delete",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
       }
     },
     "/habits/{habitId}/streak": {
@@ -624,6 +866,26 @@
               "type": "string",
               "format": "date"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
           }
         ],
         "responses": {
@@ -632,7 +894,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListDailyEntry"
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDailyEntry"
                 }
               }
             }
@@ -686,6 +948,26 @@
               "type": "string",
               "format": "date"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
           }
         ],
         "responses": {
@@ -694,7 +976,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListEntrySearchResult"
+                  "$ref": "#/components/schemas/ApiResponsePageResponseEntrySearchResult"
                 }
               }
             }
@@ -939,12 +1221,19 @@
         "properties": {
           "contentType": {
             "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ],
             "minLength": 1
           },
           "sizeBytes": {
             "type": "integer",
             "format": "int64",
-            "exclusiveMinimum": 0
+            "description": "File size in bytes; maximum 5 MiB (5242880 bytes).",
+            "exclusiveMinimum": 0,
+            "maximum": 5242880
           }
         },
         "required": [
@@ -987,6 +1276,10 @@
           "timestamp": {
             "type": "integer",
             "format": "int64"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "signature": {
             "type": "string"
@@ -1146,8 +1439,54 @@
           },
           "active": {
             "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
+      },
+      "HabitVersionRequest": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Version returned by the latest read",
+            "example": 0,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "UpdateHabitRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Habit name",
+            "example": "Evening walk",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "string",
+            "description": "Optional icon or emoji",
+            "example": "🚶"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Version returned by the latest read",
+            "example": 0,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ]
       },
       "UpdateHabitLogRequest": {
         "type": "object",
@@ -1295,17 +1634,14 @@
           }
         }
       },
-      "ApiResponseListDailyEntry": {
+      "ApiResponsePageResponseDailyEntry": {
         "type": "object",
         "properties": {
           "success": {
             "type": "boolean"
           },
           "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DailyEntry"
-            }
+            "$ref": "#/components/schemas/PageResponseDailyEntry"
           },
           "error": {
             "$ref": "#/components/schemas/ApiError"
@@ -1316,17 +1652,79 @@
           }
         }
       },
-      "ApiResponseListEntrySearchResult": {
+      "PageResponseDailyEntry": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyEntry"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiResponseTodayEntryResponse": {
         "type": "object",
         "properties": {
           "success": {
             "type": "boolean"
           },
           "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EntrySearchResult"
-            }
+            "$ref": "#/components/schemas/TodayEntryResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TodayEntryResponse": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "checkedIn": {
+            "type": "boolean"
+          },
+          "entry": {
+            "type": "null",
+            "$ref": "#/components/schemas/DailyEntry",
+            "description": "The complete entry, or null when the user has not checked in today."
+          }
+        }
+      },
+      "ApiResponsePageResponseEntrySearchResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseEntrySearchResult"
           },
           "error": {
             "$ref": "#/components/schemas/ApiError"
@@ -1352,9 +1750,67 @@
             "additionalProperties": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/components/schemas/HighlightFragment"
               }
+            },
+            "description": "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets."
+          }
+        }
+      },
+      "HighlightFragment": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HighlightRange"
             }
+          }
+        }
+      },
+      "HighlightRange": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "end": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PageResponseEntrySearchResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntrySearchResult"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasNext": {
+            "type": "boolean"
           }
         }
       },
