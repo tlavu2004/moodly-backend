@@ -1,6 +1,8 @@
 package com.tlavu.moodly.modules.stats.api;
 
 import java.time.LocalDate;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-public record MoodTrendResponse(LocalDate weekStart, double averageScore, long entryCount) {
+@Schema(requiredProperties = {"date", "averageScore", "entryCount"})
+public record MoodTrendResponse(LocalDate date, double averageScore, long entryCount) {
 }

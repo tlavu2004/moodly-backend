@@ -17,6 +17,9 @@ import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class OpenApiConfiguration {
@@ -30,7 +33,7 @@ public class OpenApiConfiguration {
 				.info(new Info()
 						.title("Moodly API")
 						.version("v1")
-						.description("Moodly backend API. Authenticate requests with an Auth0 access token."))
+						.description("Moodly backend API. Authenticate requests with an Auth0 access token. Calendar dates use Asia/Ho_Chi_Minh; weeks start on Monday."))
 				.addServersItem(new Server().url("http://localhost:8080").description("Local development server"))
 				.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
 				.components(new Components().addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
@@ -49,11 +52,21 @@ public class OpenApiConfiguration {
 		return openApi -> {
 			var components = openApi.getComponents();
 			components.addSchemas("ApiResponseApiError", errorEnvelopeSchema());
+			components.addExamples("SuccessEnvelope", new Example().summary("Successful response")
+					.value(orderedMap("success", true, "data", orderedMap("id", "example-id"), "timestamp", "2026-09-12T10:00:00Z")));
+			components.addExamples("EmptyEnvelope", new Example().summary("Successful structured empty response")
+					.value(orderedMap("success", true, "data", orderedMap("items", List.of()), "timestamp", "2026-09-12T10:00:00Z")));
+			components.addExamples("ErrorEnvelope", new Example().summary("Error response")
+					.value(orderedMap("success", false, "error", orderedMap("status", 400, "code", "INVALID_REQUEST",
+							"message", "The request is invalid.", "path", "/example", "errors", List.of(),
+							"requestId", "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"), "timestamp", "2026-09-12T10:00:00Z")));
 			components.addResponses("BadRequest", errorResponse("The request is invalid.", 400, "VALIDATION_FAILED", "One or more fields are invalid."));
 			components.addResponses("Unauthorized", errorResponse("Authentication is required or the access token is invalid.", 401, "UNAUTHORIZED", "Authentication is required."));
 			components.addResponses("Forbidden", errorResponse("The authenticated user is not allowed to perform this operation.", 403, "FORBIDDEN", "Access is denied."));
 			components.addResponses("MaintenanceKeyRequired", errorResponse("A valid X-Maintenance-Key header is required.", 403, "FORBIDDEN", "You are not allowed to perform this operation."));
 			components.addResponses("NotFound", errorResponse("The requested resource was not found.", 404, "NOT_FOUND", "The requested resource was not found."));
+			components.addResponses("Conflict", errorResponse("The resource conflicts with its current state.", 409, "CONFLICT", "Refresh the resource and retry."));
+			components.addResponses("AvatarUploadNotFound", errorResponse("The avatar upload is unknown, expired, or belongs to another user.", 400, "AVATAR_UPLOAD_NOT_FOUND", "The avatar upload was not found or has expired."));
 			components.addResponses("InternalServerError", errorResponse("An unexpected server error occurred.", 500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."));
 
 			openApi.getPaths().values().forEach(pathItem -> pathItem.readOperations().forEach(operation -> {
@@ -77,6 +90,7 @@ public class OpenApiConfiguration {
 
 	private Schema<?> errorEnvelopeSchema() {
 		return new ObjectSchema()
+				.required(List.of("success", "error", "timestamp"))
 				.addProperty("success", new BooleanSchema().example(false))
 				.addProperty("data", new ObjectSchema().nullable(true))
 				.addProperty("error", new Schema<>().$ref("#/components/schemas/ApiError"))
@@ -85,7 +99,7 @@ public class OpenApiConfiguration {
 
 	private ApiResponse errorResponse(String description, int status, String code, String message) {
 		var example = new Example().value("""
-				{"success":false,"data":null,"error":{"status":%d,"code":"%s","message":"%s","path":"/example","errors":[]},"timestamp":"2026-09-12T10:00:00Z"}
+				{"success":false,"data":null,"error":{"status":%d,"code":"%s","message":"%s","path":"/example","errors":[],"requestId":"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"},"timestamp":"2026-09-12T10:00:00Z"}
 				""".formatted(status, code, message));
 		return new ApiResponse().description(description).content(new Content().addMediaType("application/json",
 				new MediaType().schema(new Schema<>().$ref("#/components/schemas/ApiResponseApiError"))
@@ -94,5 +108,13 @@ public class OpenApiConfiguration {
 
 	private ApiResponse reference(String name) {
 		return new ApiResponse().$ref("#/components/responses/" + name);
+	}
+
+	private Map<String, Object> orderedMap(Object... keyValues) {
+		var values = new LinkedHashMap<String, Object>();
+		for (int index = 0; index < keyValues.length; index += 2) {
+			values.put((String) keyValues[index], keyValues[index + 1]);
+		}
+		return values;
 	}
 }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
+import com.tlavu.moodly.modules.stats.api.MoodTrendPeriod;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.LocalDate;
 import java.util.List;
@@ -56,10 +57,15 @@ class StatsServiceIntegrationTest {
 
 	@Test
 	void groupsMoodByWeekAndFindsMostMissedHabit() {
-		var trend = statsService.findWeeklyMoodTrend(TEST_USER_ID);
+		var trend = statsService.findMoodTrend(
+				TEST_USER_ID,
+				MoodTrendPeriod.WEEK,
+				LocalDate.of(2026, 8, 3)
+		);
 		var missedHabits = statsService.findMostMissedHabits(TEST_USER_ID);
 
-		assertEquals(2, trend.size());
+		assertEquals(1, trend.size());
+		assertEquals(LocalDate.of(2026, 8, 3), trend.getFirst().date());
 		assertEquals("reading", missedHabits.getFirst().habitId());
 		assertEquals(2, missedHabits.getFirst().missedCount());
 	}

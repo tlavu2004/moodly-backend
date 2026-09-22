@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
@@ -17,13 +18,20 @@ import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
+import com.tlavu.moodly.shared.time.MoodlyTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -32,13 +40,15 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(MongoTestConfiguration.class)
+@Import({MongoTestConfiguration.class, ApiIntegrationTest.FixedClockConfiguration.class})
 class ApiIntegrationTest {
 
 	private static final String USER_ID = "__test_phase1_api_user__";
 
 	@Autowired
 	private MockMvc mockMvc;
+	@Autowired
+	private Clock clock;
 	@Autowired
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
@@ -60,13 +70,22 @@ class ApiIntegrationTest {
 
 	@Test
 	void supportsThePhaseOneHappyPathWithConsistentResponseEnvelope() throws Exception {
-		mockMvc.perform(post("/habits")
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.date").value(MoodlyTime.today(clock).toString()))
+				.andExpect(jsonPath("$.data.checkedIn").value(false))
+				.andExpect(jsonPath("$.data.entry").doesNotExist());
+
+		var createHabitResponse = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"daily\"}"))
+					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.name").value("Exercise"));
+				.andExpect(jsonPath("$.data.name").value("Exercise"))
+				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"))
+				.andReturn().getResponse().getContentAsString();
+		var habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -76,7 +95,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(patch("/entries/today")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"habitId\":\"exercise\",\"done\":true,\"note\":\"Completed\"}"))
+					.content("{\"habitId\":\"" + habitId + "\",\"done\":true,\"note\":\"Completed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
@@ -94,8 +113,14 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.mood.score").value(4));
 
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.checkedIn").value(true))
+				.andExpect(jsonPath("$.data.entry.mood.score").value(4))
+				.andExpect(jsonPath("$.data.entry.habits.length()").value(2));
+
 		var entryDate = dailyEntryRepository
-				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, LocalDate.now())
+				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, MoodlyTime.today(clock))
 				.getFirst()
 				.getDate();
 
@@ -105,11 +130,15 @@ class ApiIntegrationTest {
 					.param("to", entryDate.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.length()").value(1));
+				.andExpect(jsonPath("$.data.items.length()").value(1))
+				.andExpect(jsonPath("$.data.page").value(0))
+				.andExpect(jsonPath("$.data.totalElements").value(1))
+				.andExpect(jsonPath("$.data.hasNext").value(false));
 
 		mockMvc.perform(get("/stats/mood-trend")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data[0].date").value(entryDate.toString()))
 				.andExpect(jsonPath("$.data[0].averageScore").value(4.0));
 
 		mockMvc.perform(get("/stats/most-missed-habits")
@@ -118,7 +147,20 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
 				.andExpect(jsonPath("$.data[0].missedCount").value(1));
 
-		mockMvc.perform(get("/habits/exercise/streak")
+		mockMvc.perform(get("/dashboard")
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(jsonPath("$.data.todayEntry.date").value(entryDate.toString()))
+				.andExpect(jsonPath("$.data.activeHabits.length()").value(1))
+				.andExpect(jsonPath("$.data.completedHabitCount").value(1))
+				.andExpect(jsonPath("$.data.totalHabitCount").value(1))
+				.andExpect(jsonPath("$.data.completionRatio").value(1.0))
+				.andExpect(jsonPath("$.data.weeklyMood.averageScore").value(4.0))
+				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(1))
+				.andExpect(jsonPath("$.data.bestCurrentStreak").value(1));
+
+		mockMvc.perform(get("/habits/{habitId}/streak", habitId)
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.currentStreak").value(1));
@@ -137,11 +179,88 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void rejectsARequestWithoutAnAccessToken() throws Exception {
-		mockMvc.perform(get("/habits"))
-				.andExpect(status().isUnauthorized())
+	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
+		var document = mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
+				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
+				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
+				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())
+				.andReturn().getResponse().getContentAsString();
+
+		var examples = new tools.jackson.databind.ObjectMapper().readTree(document).path("components").path("examples");
+		assertThat(examples.path("SuccessEnvelope").path("value").toString())
+				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
+		assertThat(examples.path("ErrorEnvelope").path("value").toString())
+				.isEqualTo("{\"success\":false,\"error\":{\"status\":400,\"code\":\"INVALID_REQUEST\",\"message\":\"The request is invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
+	}
+
+	@Test
+	void rejectsUnsupportedTargetFrequencyWithAFieldValidationError() throws Exception {
+		mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Exercise\",\"targetFrequency\":\"WEEKLY\"}"))
+				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.error.errors.length()").value(1))
+				.andExpect(jsonPath("$.error.errors[0].field").value("targetFrequency"))
+				.andExpect(jsonPath("$.error.errors[0].message").value("must be DAILY"));
+	}
+
+	@Test
+	void supportsHabitUpdateArchiveRestoreAndStatusFiltering() throws Exception {
+		var response = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		var data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
+		var habitId = data.path("id").asString();
+		var version = data.path("version").asLong();
+
+		response = mockMvc.perform(patch("/habits/{habitId}", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Read daily\",\"icon\":\"books\",\"version\":" + version + "}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.name").value("Read daily"))
+				.andReturn().getResponse().getContentAsString();
+		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
+
+		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + version + "}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.active").value(false))
+				.andReturn().getResponse().getContentAsString();
+		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
+
+		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
+		mockMvc.perform(get("/habits").param("status", "archived")
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(habitId));
+
+		mockMvc.perform(post("/habits/{habitId}/restore", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + version + "}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.active").value(true));
+	}
+
+	@Test
+	void rejectsARequestWithoutAnAccessToken() throws Exception {
+		mockMvc.perform(get("/habits").header("X-Request-ID", "unauthorized-test"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("X-Request-ID", "unauthorized-test"))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.error.requestId").value("unauthorized-test"));
 		mockMvc.perform(get("/entries"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/entries/search").param("q", "mood"))
@@ -149,6 +268,8 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/stats/mood-trend"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/stats/most-missed-habits"))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(put("/auth/profile"))
 				.andExpect(status().isUnauthorized());
@@ -186,6 +307,8 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/me/avatar"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -202,6 +325,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.cloudName").value("test-cloud"))
 				.andExpect(jsonPath("$.data.apiKey").value("test-api-key"))
 				.andExpect(jsonPath("$.data.uploadPreset").value("test-upload-preset"))
+				.andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
 				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
 				.andReturn().getResponse().getContentAsString();
 		var publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
@@ -209,7 +333,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(post("/me/avatar/confirm").with(otherToken)
 					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("AVATAR_UPLOAD_NOT_FOUND"));
 		verify(cloudinary, never()).findImage(publicId);
 
 		org.mockito.Mockito.when(cloudinary.findImage(publicId))
@@ -233,7 +357,7 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"contentType\":\"image/gif\",\"sizeBytes\":1024}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("AVATAR_CONTENT_TYPE_UNSUPPORTED"));
 	}
 
 	@Test
@@ -241,7 +365,7 @@ class ApiIntegrationTest {
 		var userA = "auth0|mongo-owner";
 		var userB = "auth0|mongo-other";
 		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
-					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"daily\"}"))
+					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated());
 		mockMvc.perform(patch("/entries/today").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"private-a\",\"done\":true}"))
@@ -251,9 +375,15 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(0));
 		mockMvc.perform(get("/entries").with(jwt().jwt(token -> token.subject(userB)))
-					.param("from", LocalDate.now().toString()).param("to", LocalDate.now().toString()))
+					.param("from", MoodlyTime.today(clock).toString()).param("to", MoodlyTime.today(clock).toString()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.length()").value(0));
+				.andExpect(jsonPath("$.data.items.length()").value(0));
+		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.todayEntry").doesNotExist())
+				.andExpect(jsonPath("$.data.activeHabits.length()").value(0))
+				.andExpect(jsonPath("$.data.totalHabitCount").value(0))
+				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
 	}
 
 	@Test
@@ -304,7 +434,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void rejectsInvalidEntryDateRanges() throws Exception {
-		var today = LocalDate.now();
+		var today = MoodlyTime.today(clock);
 
 		mockMvc.perform(get("/entries")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -328,7 +458,17 @@ class ApiIntegrationTest {
 					.param("period", "month"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period: month. Supported values: week."));
+	}
+
+	@TestConfiguration(proxyBeanMethods = false)
+	static class FixedClockConfiguration {
+		@Bean
+		@Primary
+		Clock fixedMoodlyClock() {
+			return Clock.fixed(Instant.parse("2026-09-21T10:00:00Z"), ZoneOffset.UTC);
+		}
 	}
 
 }

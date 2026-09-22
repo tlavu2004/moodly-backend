@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,5 +18,9 @@ public class EntryReadService {
 
 	public List<DailyEntry> findOnOrBefore(String userId, LocalDate date) {
 		return dailyEntryRepository.findByUserIdAndDateLessThanEqualOrderByDateDesc(userId, date);
+	}
+
+	public Optional<DailyEntry> findByDate(String userId, LocalDate date) {
+		return dailyEntryRepository.findByUserIdAndDate(userId, date);
 	}
 }

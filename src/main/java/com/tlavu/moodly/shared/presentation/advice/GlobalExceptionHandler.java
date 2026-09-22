@@ -8,11 +8,13 @@ import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
+import com.tlavu.moodly.modules.auth.application.AvatarException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -20,11 +22,15 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.MDC;
+import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
 
 @Slf4j
 @RestControllerAdvice
 @SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
+	private static final int MAX_LOGGED_CAUSE_DEPTH = 4;
+	private static final int MAX_LOGGED_FRAMES_PER_CAUSE = 12;
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiResponse<Void>> handleValidation(
@@ -83,6 +89,28 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(
 				HttpStatus.CONFLICT,
 				GlobalErrorCode.DUPLICATE_RESOURCE,
+				request,
+				List.of(),
+				exception
+		);
+	}
+
+	@ExceptionHandler(AvatarException.class)
+	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
+		logByStatus(HttpStatus.BAD_REQUEST, request, exception);
+		var error = new ApiError(400, exception.getCode().getCode(), exception.getMessage(), request.getRequestURI(), List.of(), requestId());
+		return ResponseEntity.badRequest().body(ApiResponse.error(error));
+	}
+
+	@ExceptionHandler(OptimisticLockingFailureException.class)
+	ResponseEntity<ApiResponse<Void>> handleOptimisticLock(
+			OptimisticLockingFailureException exception,
+			HttpServletRequest request
+	) {
+		return buildErrorResponse(
+				HttpStatus.CONFLICT,
+				GlobalErrorCode.CONFLICT,
+				"Resource was changed by another request. Refresh and retry.",
 				request,
 				List.of(),
 				exception
@@ -176,26 +204,51 @@ public class GlobalExceptionHandler {
 			Exception exception
 	) {
 		logByStatus(status, request, exception);
-		var error = new ApiError(status.value(), errorCode.getCode(), message, request.getRequestURI(), errors);
+		var error = new ApiError(status.value(), errorCode.getCode(), message, request.getRequestURI(), errors, requestId());
 		return ResponseEntity.status(status).body(ApiResponse.error(error));
 	}
 
 	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
-		var message = safeMessage(exception);
 		if (status.is5xxServerError()) {
 			log.error(
-					"Request failed at {}: {}",
+					"Unexpected request failure at {} ({})\n{}",
 					request.getRequestURI(),
-					message,
-					exception
+					exception.getClass().getSimpleName(),
+					sanitizedDiagnosticStack(exception)
 			);
 		} else {
 			log.warn(
-					"Request failed at {}: {}",
+					"Request rejected at {} ({})",
 					request.getRequestURI(),
-					message
+					exception.getClass().getSimpleName()
 			);
 		}
+	}
+
+	private String sanitizedDiagnosticStack(Throwable exception) {
+		var diagnostic = new StringBuilder();
+		var current = exception;
+		int depth = 0;
+		while (current != null && depth < MAX_LOGGED_CAUSE_DEPTH) {
+			if (depth > 0) diagnostic.append("Caused by: ");
+			diagnostic.append(current.getClass().getName()).append('\n');
+			var frames = current.getStackTrace();
+			int frameCount = Math.min(frames.length, MAX_LOGGED_FRAMES_PER_CAUSE);
+			for (int index = 0; index < frameCount; index++) {
+				diagnostic.append("\tat ").append(frames[index]).append('\n');
+			}
+			if (frames.length > frameCount) {
+				diagnostic.append("\t... ").append(frames.length - frameCount).append(" more\n");
+			}
+			current = current.getCause();
+			depth++;
+		}
+		if (current != null) diagnostic.append("Caused by: ... additional causes omitted\n");
+		return diagnostic.toString().stripTrailing();
+	}
+
+	private String requestId() {
+		return Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable");
 	}
 
 	private String safeMessage(Throwable exception) {

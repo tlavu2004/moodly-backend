@@ -7,7 +7,11 @@ import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class DailyEntryService {
@@ -41,6 +45,19 @@ public class DailyEntryService {
 
 	public List<DailyEntry> findBetween(String userId, LocalDate from, LocalDate to) {
 		return dailyEntryRepository.findByUserIdAndDateRange(userId, from, to);
+	}
+
+	public Page<DailyEntry> findBetween(String userId, LocalDate from, LocalDate to, int page, int size) {
+		return dailyEntryRepository.findPageByUserIdAndDateRange(
+				userId,
+				from,
+				to,
+				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"))
+		);
+	}
+
+	public Optional<DailyEntry> findByDate(String userId, LocalDate date) {
+		return dailyEntryRepository.findByUserIdAndDate(userId, date);
 	}
 
 	private DailyEntry getOrCreate(String userId, LocalDate date) {

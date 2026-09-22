@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -46,19 +47,22 @@ class EntrySearchServiceTest {
 		when(hits.hits()).thenReturn(List.of(hit));
 		when(hit.id()).thenReturn("entry-1");
 		when(hit.source()).thenReturn(new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, List.of()));
-		when(hit.highlight()).thenReturn(null);
+		when(hit.highlight()).thenReturn(java.util.Map.of("mood.note", List.of("I felt <em>tired</em>.")));
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
 		var result = service.search("user-1", "tired", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31));
 
 		assertThat(result).singleElement().satisfies(searchResult -> {
 			assertThat(searchResult.entryId()).isEqualTo("entry-1");
-			assertThat(searchResult.highlights()).isEmpty();
+			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
+				assertThat(fragment.text()).isEqualTo("I felt tired.");
+				assertThat(fragment.ranges()).containsExactly(new EntrySearchService.HighlightRange(7, 12));
+			});
 		});
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var builtRequest = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
 		assertThat(builtRequest.index()).containsExactly("entries-test");
-		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired");
+		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired", "_score", "date");
 	}
 
 	@Test
@@ -95,6 +99,29 @@ class EntrySearchServiceTest {
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
 		assertThat(request).contains("2026-08-31", "\"lte\"").doesNotContain("\"gte\"");
+	}
+
+	@Test
+	void calculatesTheLargestSupportedOffsetWithoutOverflow() throws Exception {
+		stubEmptyResponse();
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		service.search("user-1", "tired", null, null, 99, 100);
+
+		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
+		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
+		assertThat(request.from()).isEqualTo(9_900);
+		assertThat(request.size()).isEqualTo(100);
+	}
+
+	@Test
+	void rejectsAnOverflowingOrUnsupportedOffsetBeforeCallingElasticsearch() {
+		var service = new EntrySearchService(elasticsearchClient, indexManager);
+
+		assertThatThrownBy(() -> service.search("user-1", "tired", null, null, Integer.MAX_VALUE, 100))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("result window");
+		verifyNoInteractions(elasticsearchClient, indexManager);
 	}
 
 	private void stubEmptyResponse() throws Exception {

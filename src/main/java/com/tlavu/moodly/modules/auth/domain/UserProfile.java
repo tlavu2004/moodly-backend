@@ -45,4 +45,12 @@ public class UserProfile {
 		this.avatarSizeBytes = sizeBytes;
 		this.updatedAt = now;
 	}
+
+	public void clearAvatar(Instant now) {
+		this.avatarPublicId = null;
+		this.avatarVersion = null;
+		this.avatarContentType = null;
+		this.avatarSizeBytes = null;
+		this.updatedAt = now;
+	}
 }
