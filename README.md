@@ -6,6 +6,23 @@ Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoD
 
 Requirements: Java 25, Maven, and Docker Desktop.
 
+### Auth0 startup network failures
+
+JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even
+when the local Docker services are healthy. The backend uses 10-second connect
+and read timeouts, with at most three attempts and a 500 ms delay for connection
+refusals/timeouts. Persistent failures still stop startup; issuer, audience,
+signature and expiry validation remain mandatory. HTTP errors and TLS certificate
+errors are not retried.
+
+Optional Spring properties: `moodly.auth0.http.connect-timeout`,
+`moodly.auth0.http.read-timeout`, `moodly.auth0.http.max-attempts` (1–5), and
+`moodly.auth0.http.retry-delay`. Their environment equivalents are
+`MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`, `MOODLY_AUTH0_HTTP_READ_TIMEOUT`,
+`MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`, and `MOODLY_AUTH0_HTTP_RETRY_DELAY`.
+No new secret is required. If all attempts fail, check network/proxy/firewall
+access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
+
 Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
 ### Auth0 and Cloudinary local services

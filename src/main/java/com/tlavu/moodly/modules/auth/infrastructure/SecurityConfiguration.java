@@ -79,9 +79,14 @@ public class SecurityConfiguration {
 	@ConditionalOnProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri")
 	JwtDecoder jwtDecoder(
 			@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
-			@Value("${moodly.auth0.audience}") String audience
+			@Value("${moodly.auth0.audience}") String audience,
+			@Value("${moodly.auth0.http.connect-timeout:10s}") java.time.Duration connectTimeout,
+			@Value("${moodly.auth0.http.read-timeout:10s}") java.time.Duration readTimeout,
+			@Value("${moodly.auth0.http.max-attempts:3}") int maxAttempts,
+			@Value("${moodly.auth0.http.retry-delay:500ms}") java.time.Duration retryDelay
 	) {
-		var decoder = NimbusJwtDecoder.withIssuerLocation(issuer).build();
+		var decoder = NimbusJwtDecoder.withIssuerLocation(issuer)
+				.restOperations(Auth0HttpClient.create(connectTimeout, readTimeout, maxAttempts, retryDelay)).build();
 		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
 				JwtValidators.createDefaultWithIssuer(issuer), audienceValidator(audience)
 		));
