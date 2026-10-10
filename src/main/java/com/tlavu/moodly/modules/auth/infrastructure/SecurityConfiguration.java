@@ -47,7 +47,7 @@ public class SecurityConfiguration {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers(
-								"/actuator/health", "/internal/cdc/**",
+								"/actuator/health", "/internal/cdc/**", "/internal/e2e/**",
 								"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
 						).permitAll()
 						.anyRequest().authenticated())

@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.cdc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -21,6 +22,10 @@ import com.tlavu.moodly.modules.search.application.EntrySearchService;
 import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.domain.DailyEntry;
 import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.domain.Habit;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
+import com.tlavu.moodly.modules.e2e.application.E2eUserResetService;
 import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -49,6 +54,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 		"moodly.cdc.retry.initial-backoff-ms=1",
 		"moodly.cdc.reindex.batch-size=2",
 		"moodly.search.index.name=daily_entries_search_cdc_test",
+		"moodly.e2e.reset.enabled=true",
+		"moodly.e2e.reset.token=test-e2e-reset-token",
 		"moodly.search.index.initialization-enabled=true"
 })
 @AutoConfigureMockMvc
@@ -64,6 +71,8 @@ class CdcSearchInfrastructureIntegrationTest {
 	private CdcSearchTestSupport cdcSearchTestSupport;
 	@Autowired
 	private DailyEntryRepository dailyEntryRepository;
+	@Autowired
+	private HabitRepository habitRepository;
 	@Autowired
 	private CdcDeadLetterRepository deadLetterRepository;
 	@Autowired
@@ -91,6 +100,47 @@ class CdcSearchInfrastructureIntegrationTest {
 	void cleanUp() throws Exception {
 		listener.stop();
 		cdcSearchTestSupport.clearState();
+	}
+
+	@Test
+	void resetEndpointRequiresItsTokenAndLeavesOtherUsersDataUntouched() throws Exception {
+		var target = E2eUserResetService.DEFAULT_USER_ID;
+		var other = "synthetic|another-e2e-account";
+		var targetHabit = habitRepository.save(new Habit("before-reset-target", target, "Old target habit", null, TargetFrequency.DAILY, true));
+		var otherHabit = habitRepository.save(new Habit("other-user-habit", other, "Other user habit", null, TargetFrequency.DAILY, true));
+		var targetEntry = cdcSearchTestSupport.save(entry(target, "old target marker", List.of(), "old note", 2));
+		var otherEntry = cdcSearchTestSupport.save(entry(other, "other user marker", List.of(), "private note", 3));
+		cdcSearchTestSupport.awaitIndexed(targetEntry.getId());
+		cdcSearchTestSupport.awaitIndexed(otherEntry.getId());
+
+		mockMvc.perform(post("/internal/e2e/reset"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "wrong"))
+				.andExpect(status().isForbidden());
+		assertThat(habitRepository.findById(targetHabit.getId())).isPresent();
+		assertThat(dailyEntryRepository.findById(targetEntry.getId())).isPresent();
+
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.userId").value(target))
+				.andExpect(jsonPath("$.data.habits").value(2))
+				.andExpect(jsonPath("$.data.entries").value(3))
+				.andExpect(jsonPath("$.data.searchIndexing").value("verified"));
+		assertThat(habitRepository.findById(otherHabit.getId())).isPresent();
+		assertThat(dailyEntryRepository.findById(otherEntry.getId())).isPresent();
+		assertThat(document(otherEntry.getId()).userId()).isEqualTo(other);
+		assertThat(dailyEntryRepository.findByUserId(target)).hasSize(3);
+		assertThat(habitRepository.findByUserId(target)).hasSize(2);
+
+		var baselineEntryIds = dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList();
+		var baselineHabitIds = habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList();
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.habits").value(2))
+				.andExpect(jsonPath("$.data.entries").value(3));
+		assertThat(dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList()).isEqualTo(baselineEntryIds);
+		assertThat(habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList()).isEqualTo(baselineHabitIds);
+		assertThat(dailyEntryRepository.findById(otherEntry.getId())).isPresent();
 	}
 
 	@Test

@@ -5,6 +5,11 @@ spring:
     uris: http://localhost:9200
 
 moodly:
+  e2e:
+    reset:
+      enabled: true
+      token: test-e2e-reset-token
+      user-id: synthetic|moodly-playwright-e2e
   cloudinary:
     cloud-name: test-cloud
     api-key: test-api-key

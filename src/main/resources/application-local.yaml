@@ -8,6 +8,11 @@ spring:
           issuer-uri: ${AUTH0_ISSUER_URI}
 
 moodly:
+  e2e:
+    reset:
+      enabled: ${MOODLY_E2E_RESET_ENABLED:false}
+      token: ${MOODLY_E2E_RESET_TOKEN:}
+      user-id: ${MOODLY_E2E_USER_ID:synthetic|moodly-playwright-e2e}
   auth0:
     audience: ${AUTH0_AUDIENCE}
   cloudinary:

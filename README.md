@@ -82,6 +82,19 @@ Before starting the Phase 3 backend, configure the hosted development services a
 4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
 5. After Auth0 authenticates the SPA, call `PUT /auth/profile` once to idempotently bootstrap the application-owned profile. Other protected endpoints resolve ownership from the verified JWT and never create users as a hidden side effect.
 
+### Reset the local Playwright account
+
+The E2E reset endpoint is disabled by default and is not registered with the `prod` or `production` profile. To enable it for local Playwright runs, set `MOODLY_E2E_RESET_ENABLED=true`, choose a long random `MOODLY_E2E_RESET_TOKEN`, and set `MOODLY_E2E_USER_ID` to the Auth0 `sub` of the dedicated synthetic E2E account in `.env.local`. The account subject is read only from server configuration; the request cannot select a user. Keep the reset token in `.env.local` and out of frontend source and Git.
+
+Start the local backend, then call the endpoint twice to verify repeatability:
+
+```powershell
+curl.exe -sS -X POST http://localhost:8080/internal/e2e/reset -H "X-E2E-Reset-Token: $env:MOODLY_E2E_RESET_TOKEN"
+curl.exe -sS -X POST http://localhost:8080/internal/e2e/reset -H "X-E2E-Reset-Token: $env:MOODLY_E2E_RESET_TOKEN"
+```
+
+Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
+
 ## Test
 
 `mvn test` starts an isolated `mongo:8.3.7` replica set with Testcontainers; it does not use the local Docker Compose database. Docker Desktop must be running.
