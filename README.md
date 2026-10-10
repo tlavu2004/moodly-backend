@@ -89,8 +89,13 @@ The E2E reset endpoint is disabled by default and is not registered with the `pr
 Start the local backend, then call the endpoint twice to verify repeatability:
 
 ```powershell
-curl.exe -sS -X POST http://localhost:8080/internal/e2e/reset -H "X-E2E-Reset-Token: $env:MOODLY_E2E_RESET_TOKEN"
-curl.exe -sS -X POST http://localhost:8080/internal/e2e/reset -H "X-E2E-Reset-Token: $env:MOODLY_E2E_RESET_TOKEN"
+$tokenLine = Get-Content .env.local | Where-Object { $_ -like 'MOODLY_E2E_RESET_TOKEN=*' } | Select-Object -First 1
+$resetToken = $tokenLine.Substring('MOODLY_E2E_RESET_TOKEN='.Length).Trim().Trim('"').Trim("'")
+$headers = @{ 'X-E2E-Reset-Token' = $resetToken }
+1..2 | ForEach-Object {
+  Invoke-RestMethod -Method Post -Uri http://localhost:8080/internal/e2e/reset -Headers $headers |
+    ConvertTo-Json -Depth 5 -Compress
+}
 ```
 
 Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
