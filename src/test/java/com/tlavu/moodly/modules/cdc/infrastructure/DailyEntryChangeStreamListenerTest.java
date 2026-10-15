@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import org.bson.BsonDocument;
 import org.bson.BsonObjectId;
+import org.bson.BsonString;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -102,6 +103,20 @@ class DailyEntryChangeStreamListenerTest {
 		invoke("onMessage", Message.class, message);
 
 		verify(deliveryService).deliverDelete(token.toString(), "64b7abdecf2160b649ab6085");
+		verify(resumeTokenRepository).save(any(CdcResumeToken.class));
+	}
+
+	@Test
+	void routesDeleteForStringEntryId() throws Exception {
+		var token = BsonDocument.parse("{_data: 'token'}");
+		when(message.getRaw()).thenReturn(raw);
+		when(raw.getResumeToken()).thenReturn(token);
+		when(raw.getOperationType()).thenReturn(OperationType.DELETE);
+		when(raw.getDocumentKey()).thenReturn(new BsonDocument("_id", new BsonString("e2e-entry-2026-09-08")));
+
+		invoke("onMessage", Message.class, message);
+
+		verify(deliveryService).deliverDelete(token.toString(), "e2e-entry-2026-09-08");
 		verify(resumeTokenRepository).save(any(CdcResumeToken.class));
 	}
 

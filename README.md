@@ -6,6 +6,23 @@ Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoD
 
 Requirements: Java 25, Maven, and Docker Desktop.
 
+### Auth0 startup network failures
+
+JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even
+when the local Docker services are healthy. The backend uses 10-second connect
+and read timeouts, with at most three attempts and a 500 ms delay for connection
+refusals/timeouts. Persistent failures still stop startup; issuer, audience,
+signature and expiry validation remain mandatory. HTTP errors and TLS certificate
+errors are not retried.
+
+Optional Spring properties: `moodly.auth0.http.connect-timeout`,
+`moodly.auth0.http.read-timeout`, `moodly.auth0.http.max-attempts` (1–5), and
+`moodly.auth0.http.retry-delay`. Their environment equivalents are
+`MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`, `MOODLY_AUTH0_HTTP_READ_TIMEOUT`,
+`MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`, and `MOODLY_AUTH0_HTTP_RETRY_DELAY`.
+No new secret is required. If all attempts fail, check network/proxy/firewall
+access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
+
 Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
 ### Auth0 and Cloudinary local services
@@ -99,6 +116,31 @@ $headers = @{ 'X-E2E-Reset-Token' = $resetToken }
 ```
 
 Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
+
+### Mutation replay contract
+
+`POST /habits` creates a new UUID for every accepted request and does not accept
+an idempotency key. A client must not automatically replay it after a timeout or
+lost response; it should read the habit list before a user chooses to submit it
+again. `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest
+habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current
+habit before deciding on another change.
+
+`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state.
+Repeating the same body leaves the same visible mood or habit-log state, but
+updates metadata and can emit another CDC event. These entry writes have no
+version check against concurrent changes. Avatar upload signature/confirmation
+also has no general replay guarantee; each signature allocates a new public ID
+and confirmation consumes its pending upload.
+
+### Habit streak query cost
+
+`GET /habits/{habitId}/streak` reads the authenticated user's entries on or
+before today for each requested habit. The frontend currently calls it once
+per active habit, in parallel. This repeated history read is accepted for
+small habit lists; a future summary endpoint should calculate all streaks
+from one history read if staging latency or habit counts exceed the frontend
+README's temporary threshold.
 
 ## Test
 

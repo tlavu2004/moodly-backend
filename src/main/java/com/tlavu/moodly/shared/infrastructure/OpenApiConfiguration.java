@@ -80,7 +80,17 @@ public class OpenApiConfiguration {
 				}
 				responses.addApiResponse("500", reference("InternalServerError"));
 			}));
+			var updateHabit = openApi.getPaths().get("/habits/{habitId}");
+			if (updateHabit != null && updateHabit.getPatch() != null) addConflictResponse(updateHabit.getPatch());
+			var archiveHabit = openApi.getPaths().get("/habits/{habitId}/archive");
+			if (archiveHabit != null && archiveHabit.getPost() != null) addConflictResponse(archiveHabit.getPost());
+			var restoreHabit = openApi.getPaths().get("/habits/{habitId}/restore");
+			if (restoreHabit != null && restoreHabit.getPost() != null) addConflictResponse(restoreHabit.getPost());
 		};
+	}
+
+	private void addConflictResponse(io.swagger.v3.oas.models.Operation operation) {
+		operation.getResponses().addApiResponse("409", reference("Conflict"));
 	}
 
 	private boolean usesMaintenanceKey(io.swagger.v3.oas.models.Operation operation) {

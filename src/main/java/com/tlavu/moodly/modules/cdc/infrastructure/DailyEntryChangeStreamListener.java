@@ -119,8 +119,12 @@ public class DailyEntryChangeStreamListener {
 			var operationType = raw.getOperationType();
 			if (operationType == com.mongodb.client.model.changestream.OperationType.DELETE) {
 				var documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
-				var entryId = Objects.requireNonNull(documentKey.getObjectId("_id"), "Delete event has no entry ID")
-						.getValue().toHexString();
+				var id = Objects.requireNonNull(documentKey.get("_id"), "Delete event has no entry ID");
+				var entryId = switch (id.getBsonType()) {
+					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
+					case STRING -> id.asString().getValue();
+					default -> throw new IllegalStateException("Delete event has an unsupported entry ID type: " + id.getBsonType());
+				};
 				deliveryService.deliverDelete(eventId, entryId);
 			} else if (operationType == com.mongodb.client.model.changestream.OperationType.INSERT
 					|| operationType == com.mongodb.client.model.changestream.OperationType.UPDATE

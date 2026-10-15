@@ -20,7 +20,23 @@ application_pid=$!
 for _ in {1..45}; do
   if curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
-    python3 -m json.tool --indent 2 --no-ensure-ascii <"$response_path" >"$output_path"
+    python3 - "$response_path" "$output_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    document = json.load(source)
+
+# SpringDoc can emit response codes in a different order between runs.
+for path in document.get("paths", {}).values():
+    for operation in path.values():
+        if isinstance(operation, dict) and isinstance(operation.get("responses"), dict):
+            operation["responses"] = dict(sorted(operation["responses"].items()))
+
+with open(sys.argv[2], "w", encoding="utf-8") as output:
+    json.dump(document, output, indent=2, ensure_ascii=False)
+    output.write("\n")
+PY
     exit 0
   fi
   if ! kill -0 "$application_pid" 2>/dev/null; then
