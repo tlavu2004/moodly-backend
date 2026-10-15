@@ -133,6 +133,15 @@ version check against concurrent changes. Avatar upload signature/confirmation
 also has no general replay guarantee; each signature allocates a new public ID
 and confirmation consumes its pending upload.
 
+### Habit streak query cost
+
+`GET /habits/{habitId}/streak` reads the authenticated user's entries on or
+before today for each requested habit. The frontend currently calls it once
+per active habit, in parallel. This repeated history read is accepted for
+small habit lists; a future summary endpoint should calculate all streaks
+from one history read if staging latency or habit counts exceed the frontend
+README's temporary threshold.
+
 ## Test
 
 `mvn test` starts an isolated `mongo:8.3.7` replica set with Testcontainers; it does not use the local Docker Compose database. Docker Desktop must be running.
