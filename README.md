@@ -117,6 +117,22 @@ $headers = @{ 'X-E2E-Reset-Token' = $resetToken }
 
 Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
 
+### Mutation replay contract
+
+`POST /habits` creates a new UUID for every accepted request and does not accept
+an idempotency key. A client must not automatically replay it after a timeout or
+lost response; it should read the habit list before a user chooses to submit it
+again. `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest
+habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current
+habit before deciding on another change.
+
+`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state.
+Repeating the same body leaves the same visible mood or habit-log state, but
+updates metadata and can emit another CDC event. These entry writes have no
+version check against concurrent changes. Avatar upload signature/confirmation
+also has no general replay guarantee; each signature allocates a new public ID
+and confirmation consumes its pending upload.
+
 ## Test
 
 `mvn test` starts an isolated `mongo:8.3.7` replica set with Testcontainers; it does not use the local Docker Compose database. Docker Desktop must be running.

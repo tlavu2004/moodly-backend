@@ -189,7 +189,17 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())
 				.andReturn().getResponse().getContentAsString();
 
-		var examples = new tools.jackson.databind.ObjectMapper().readTree(document).path("components").path("examples");
+		var openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
+		var examples = openApi.path("components").path("examples");
+		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
+				.isEqualTo("#/components/responses/Conflict");
+		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
+		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("409").path("$ref").asString())
+				.isEqualTo("#/components/responses/Conflict");
+		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("200").isMissingNode()).isFalse();
+		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("409").path("$ref").asString())
+				.isEqualTo("#/components/responses/Conflict");
+		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(examples.path("SuccessEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())
@@ -230,6 +240,12 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.name").value("Read daily"))
 				.andReturn().getResponse().getContentAsString();
 		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
+		mockMvc.perform(patch("/habits/{habitId}", habitId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Stale update\",\"icon\":\"books\",\"version\":" + (version - 1) + "}"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
 
 		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
