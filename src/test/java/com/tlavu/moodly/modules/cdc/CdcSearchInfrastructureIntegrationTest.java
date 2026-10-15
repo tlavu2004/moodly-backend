@@ -117,6 +117,8 @@ class CdcSearchInfrastructureIntegrationTest {
 				.andExpect(status().isForbidden());
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "wrong"))
 				.andExpect(status().isForbidden());
+		mockMvc.perform(post("/internal/e2e/reset").header("Authorization", "Bearer wrong"))
+				.andExpect(status().isUnauthorized());
 		assertThat(habitRepository.findById(targetHabit.getId())).isPresent();
 		assertThat(dailyEntryRepository.findById(targetEntry.getId())).isPresent();
 
@@ -141,6 +143,11 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList()).isEqualTo(baselineEntryIds);
 		assertThat(habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList()).isEqualTo(baselineHabitIds);
 		assertThat(dailyEntryRepository.findById(otherEntry.getId())).isPresent();
+
+		var postReset = entry(other, "cdc after reset", List.of(), "walk", 4);
+		postReset.setDate(otherEntry.getDate().plusDays(1));
+		postReset = cdcSearchTestSupport.save(postReset);
+		cdcSearchTestSupport.awaitIndexed(postReset.getId());
 	}
 
 	@Test
