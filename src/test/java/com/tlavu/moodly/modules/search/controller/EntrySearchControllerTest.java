@@ -9,9 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.tlavu.moodly.modules.search.service.EntrySearchService;
 import com.tlavu.moodly.modules.auth.service.CurrentUser;
-import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.presentation.advice.GlobalExceptionHandler;
-import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
+import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
+import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;

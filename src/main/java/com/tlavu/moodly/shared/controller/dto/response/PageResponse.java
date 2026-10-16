@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.presentation.dto.response;
+package com.tlavu.moodly.shared.controller.dto.response;
 
 import java.util.List;
 import org.springframework.data.domain.Page;

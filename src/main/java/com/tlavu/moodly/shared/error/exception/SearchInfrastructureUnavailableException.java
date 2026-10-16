@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.application.exception;
+package com.tlavu.moodly.shared.error.exception;
 
 /** Raised when Elasticsearch cannot serve a search or index maintenance operation. */
 public class SearchInfrastructureUnavailableException extends RuntimeException {

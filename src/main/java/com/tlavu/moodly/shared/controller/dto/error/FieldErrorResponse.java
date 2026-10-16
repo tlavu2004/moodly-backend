@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.presentation.dto.error;
+package com.tlavu.moodly.shared.controller.dto.error;
 
 public record FieldErrorResponse(
         String field,

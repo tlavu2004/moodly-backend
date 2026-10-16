@@ -6,7 +6,7 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Service;
-import com.tlavu.moodly.shared.presentation.dto.response.PageResponse;
+import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 
 @Service
 public class EntrySearchService {

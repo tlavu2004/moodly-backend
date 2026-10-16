@@ -1,4 +1,6 @@
-package com.tlavu.moodly.shared.time;
+package com.tlavu.moodly.shared.config;
+
+import com.tlavu.moodly.shared.time.MoodlyTime;
 
 import java.time.Clock;
 import org.springframework.context.annotation.Bean;

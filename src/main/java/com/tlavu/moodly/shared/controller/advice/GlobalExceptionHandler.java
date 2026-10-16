@@ -1,13 +1,13 @@
-package com.tlavu.moodly.shared.presentation.advice;
+package com.tlavu.moodly.shared.controller.advice;
 
-import com.tlavu.moodly.shared.presentation.dto.error.ApiError;
-import com.tlavu.moodly.shared.presentation.dto.error.FieldErrorResponse;
-import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
-import com.tlavu.moodly.shared.application.exception.ForbiddenException;
-import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
-import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
-import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.controller.dto.error.ApiError;
+import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.exception.ForbiddenException;
+import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
+import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.modules.auth.service.AvatarException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -23,7 +23,7 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.slf4j.MDC;
-import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 
 @Slf4j
 @RestControllerAdvice

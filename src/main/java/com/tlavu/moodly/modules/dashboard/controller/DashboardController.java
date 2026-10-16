@@ -3,7 +3,7 @@ package com.tlavu.moodly.modules.dashboard.controller;
 import com.tlavu.moodly.modules.auth.service.CurrentUser;
 import com.tlavu.moodly.modules.dashboard.service.DashboardService;
 import com.tlavu.moodly.shared.time.MoodlyTime;
-import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;

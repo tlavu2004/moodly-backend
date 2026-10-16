@@ -7,7 +7,7 @@ import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import java.util.List;
 import java.util.UUID;
-import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
+import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service

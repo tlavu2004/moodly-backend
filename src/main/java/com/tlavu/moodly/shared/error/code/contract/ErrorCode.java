@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.application.exception.code.contract;
+package com.tlavu.moodly.shared.error.code.contract;
 
 public interface ErrorCode {
 

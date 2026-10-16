@@ -2,9 +2,9 @@ package com.tlavu.moodly.modules.auth.config;
 
 import com.tlavu.moodly.modules.auth.config.Auth0HttpClient;
 
-import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
-import com.tlavu.moodly.shared.presentation.dto.error.ApiError;
-import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.controller.dto.error.ApiError;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
@@ -34,7 +34,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.MDC;
-import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 
 @Configuration
 @EnableWebSecurity

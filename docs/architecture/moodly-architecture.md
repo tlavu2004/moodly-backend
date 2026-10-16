@@ -8,6 +8,11 @@ where needed. Modules may also have focused packages such as `config`, `integrat
 `controller`; use-case orchestration lives in `service`; MongoDB documents and
 business value types live in `model`; persistence access lives in `repository`.
 
+The cross-cutting `shared` package uses `controller` for HTTP advice and DTOs,
+`config` for Spring configuration, `filter` for request filtering, `error/code`
+for error contracts and codes, `error/exception` for shared exceptions, and
+`time` for business-time utilities.
+
 ## Module ownership
 
 - `modules.auth` owns users, password hashing, JWT issuance/verification, and Spring Security integration.

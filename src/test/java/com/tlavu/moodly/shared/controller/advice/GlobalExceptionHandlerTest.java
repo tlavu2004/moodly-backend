@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.presentation.advice;
+package com.tlavu.moodly.shared.controller.advice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -6,8 +6,8 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
-import com.tlavu.moodly.shared.infrastructure.RequestIdFilter;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;

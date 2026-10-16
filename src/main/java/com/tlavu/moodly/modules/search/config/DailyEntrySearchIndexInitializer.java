@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.search.config;
 
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
 
-import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;

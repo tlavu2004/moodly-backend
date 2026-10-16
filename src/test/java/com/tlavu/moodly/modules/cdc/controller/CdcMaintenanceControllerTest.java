@@ -11,7 +11,7 @@ import com.tlavu.moodly.modules.cdc.service.CdcDeliveryService;
 import com.tlavu.moodly.modules.cdc.service.DailyEntryReindexService;
 import com.tlavu.moodly.modules.cdc.model.CdcDeadLetter;
 import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
-import com.tlavu.moodly.shared.presentation.advice.GlobalExceptionHandler;
+import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

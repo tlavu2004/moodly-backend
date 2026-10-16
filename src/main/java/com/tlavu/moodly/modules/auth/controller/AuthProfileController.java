@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.auth.controller;
 
 import com.tlavu.moodly.modules.auth.service.UserProfileService;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
-import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Schema;

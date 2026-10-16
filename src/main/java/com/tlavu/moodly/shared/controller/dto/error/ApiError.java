@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.presentation.dto.error;
+package com.tlavu.moodly.shared.controller.dto.error;
 
 import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;

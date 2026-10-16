@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.service;
 
-import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 
 public class AvatarException extends RuntimeException {
 	private final GlobalErrorCode code;

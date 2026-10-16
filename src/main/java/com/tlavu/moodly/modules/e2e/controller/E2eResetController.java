@@ -1,8 +1,8 @@
 package com.tlavu.moodly.modules.e2e.controller;
 
 import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
-import com.tlavu.moodly.shared.application.exception.ForbiddenException;
-import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.exception.ForbiddenException;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

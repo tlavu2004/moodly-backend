@@ -16,7 +16,7 @@ import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;

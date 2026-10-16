@@ -16,7 +16,7 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 
 @Service
 @Slf4j

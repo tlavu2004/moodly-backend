@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.infrastructure;
+package com.tlavu.moodly.shared.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

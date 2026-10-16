@@ -1,6 +1,6 @@
-package com.tlavu.moodly.shared.application.exception.code.global;
+package com.tlavu.moodly.shared.error.code.global;
 
-import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
+import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
