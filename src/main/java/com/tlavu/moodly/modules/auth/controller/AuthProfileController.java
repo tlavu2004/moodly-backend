@@ -1,0 +1,41 @@
+package com.tlavu.moodly.modules.auth.controller;
+
+import com.tlavu.moodly.modules.auth.service.UserProfileService;
+import com.tlavu.moodly.modules.auth.model.UserProfile;
+import com.tlavu.moodly.shared.presentation.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/auth/profile")
+@Tag(name = "Authentication", description = "Authenticated user profile operations")
+public class AuthProfileController {
+
+	private final UserProfileService profiles;
+
+	public AuthProfileController(UserProfileService profiles) {
+		this.profiles = profiles;
+	}
+
+	/** Idempotent post-authentication bootstrap; credentials and tokens remain owned by Auth0. */
+	@PutMapping
+	@Operation(
+			summary = "Synchronize the current user profile",
+			description = "Creates or refreshes the profile for the authenticated Auth0 user. This operation is idempotent."
+	)
+	public ApiResponse<ProfileResponse> synchronize() {
+		return ApiResponse.success(ProfileResponse.from(profiles.synchronizeCurrent()));
+	}
+
+	@Schema(requiredProperties = {"userId", "email", "createdAt", "updatedAt"})
+	public record ProfileResponse(String userId, String email, Instant createdAt, Instant updatedAt) {
+		private static ProfileResponse from(UserProfile profile) {
+			return new ProfileResponse(profile.getAuth0Subject(), profile.getEmail(), profile.getCreatedAt(), profile.getUpdatedAt());
+		}
+	}
+}

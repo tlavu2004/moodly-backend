@@ -12,11 +12,11 @@ public class ElasticsearchTestConfiguration {
 
 	@Bean
 	CdcSearchTestSupport cdcSearchTestSupport(
-			com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository dailyEntryRepository,
-			com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository deadLetterRepository,
+			com.tlavu.moodly.modules.entries.repository.DailyEntryRepository dailyEntryRepository,
+			com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository deadLetterRepository,
 			org.springframework.data.mongodb.core.MongoTemplate mongoTemplate,
 			co.elastic.clients.elasticsearch.ElasticsearchClient elasticsearchClient,
-			com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager indexManager
+			com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager indexManager
 	) {
 		return new CdcSearchTestSupport(
 				dailyEntryRepository, deadLetterRepository, mongoTemplate, elasticsearchClient, indexManager);

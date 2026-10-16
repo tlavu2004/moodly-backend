@@ -2,6 +2,12 @@
 
 Moodly is a modular monolith: one Spring Boot application and one deployable unit.
 
+Each feature module uses `controller`, `service`, `model`, and `repository` packages
+where needed. Modules may also have focused packages such as `config`, `integration`,
+`listener`, or `monitoring`. HTTP controllers and request/response types live in
+`controller`; use-case orchestration lives in `service`; MongoDB documents and
+business value types live in `model`; persistence access lives in `repository`.
+
 ## Module ownership
 
 - `modules.auth` owns users, password hashing, JWT issuance/verification, and Spring Security integration.
@@ -14,11 +20,13 @@ Moodly is a modular monolith: one Spring Boot application and one deployable uni
 
 ## Dependency rules
 
-- Controllers call their own module's application services, never another module's repository.
-- Repositories are private to their owning module's infrastructure package.
+- Controllers call their own module's services, never another module's repository.
+- Repositories live in their owning module's `repository` package.
 - Cross-module communication uses explicit application-service interfaces or small contracts.
 - The `cdc` module may consume entry change events and write to the search adapter, but it must not contain entry business rules.
 - The `search` module is a derived read index; MongoDB remains the source of truth.
-- Avoid direct imports from another module's `api` or `infrastructure` package.
+- Avoid direct imports from another module's `controller`, `repository`, `config`,
+  or `integration` package.
 
-These rules are documented now and should be enforced with an architecture test once the first controllers and repositories are added.
+These are intended boundaries. Existing cross-module repository imports remain for a
+later behavior-preserving refactor; package moves alone do not enforce the rules.

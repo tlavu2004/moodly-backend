@@ -12,11 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
-import com.tlavu.moodly.modules.auth.infrastructure.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.infrastructure.PendingAvatarUploadRepository;
-import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
-import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
+import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
+import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
+import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import java.time.Clock;

@@ -8,7 +8,7 @@ import com.tlavu.moodly.shared.application.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.application.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.application.exception.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.application.exception.code.global.GlobalErrorCode;
-import com.tlavu.moodly.modules.auth.application.AvatarException;
+import com.tlavu.moodly.modules.auth.service.AvatarException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;

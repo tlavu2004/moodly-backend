@@ -1,12 +1,12 @@
 package com.tlavu.moodly.support;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.tlavu.moodly.modules.cdc.domain.CdcResumeToken;
-import com.tlavu.moodly.modules.cdc.application.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.cdc.infrastructure.CdcDeadLetterRepository;
-import com.tlavu.moodly.modules.entries.domain.DailyEntry;
-import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
-import com.tlavu.moodly.modules.search.infrastructure.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.cdc.model.CdcResumeToken;
+import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
 import java.util.UUID;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
