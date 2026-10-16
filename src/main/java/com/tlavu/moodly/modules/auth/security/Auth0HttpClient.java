@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.config;
+package com.tlavu.moodly.modules.auth.security;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;

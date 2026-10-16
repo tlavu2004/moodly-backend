@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceTest {

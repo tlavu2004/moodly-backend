@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.service.EntrySearchService;
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;

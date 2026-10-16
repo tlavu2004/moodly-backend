@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.security;
 
 import java.util.Locale;
 import org.springframework.security.access.AccessDeniedException;

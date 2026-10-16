@@ -1,6 +1,6 @@
-package com.tlavu.moodly.modules.auth.config;
+package com.tlavu.moodly.modules.auth.security;
 
-import com.tlavu.moodly.modules.auth.config.Auth0HttpClient;
+import com.tlavu.moodly.modules.auth.security.Auth0HttpClient;
 
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.controller.dto.error.ApiError;

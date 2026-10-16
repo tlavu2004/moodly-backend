@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.search.controller;
 
 import com.tlavu.moodly.modules.search.service.EntrySearchService;
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;

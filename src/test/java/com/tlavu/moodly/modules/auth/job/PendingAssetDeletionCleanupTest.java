@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

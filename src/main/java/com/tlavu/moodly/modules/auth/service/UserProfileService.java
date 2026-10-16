@@ -5,6 +5,7 @@ import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import java.time.Instant;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 /** Explicitly synchronizes application-owned profile data from a verified Auth0 identity. */
 @Service

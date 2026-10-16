@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.habits.controller;
 
 import com.tlavu.moodly.modules.habits.service.HabitService;
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

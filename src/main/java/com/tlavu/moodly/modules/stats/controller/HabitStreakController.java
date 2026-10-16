@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.stats.controller;
 
 import com.tlavu.moodly.modules.stats.service.StatsService;
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

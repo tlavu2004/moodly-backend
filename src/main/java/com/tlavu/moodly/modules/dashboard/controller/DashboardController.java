@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.dashboard.controller;
 
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.modules.dashboard.service.DashboardService;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;

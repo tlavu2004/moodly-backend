@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.job;
 
 import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;

@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.entries.controller;
 
 import com.tlavu.moodly.modules.entries.service.DailyEntryService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.auth.service.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
