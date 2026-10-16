@@ -20,7 +20,7 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.
 - `modules.search` owns Elasticsearch index models and the search API.
-- `modules.cdc` owns MongoDB Change Stream consumption and MongoDB-to-Elasticsearch synchronisation.
+- `modules.cdc` owns MongoDB Change Stream consumption and MongoDB-to-Elasticsearch synchronization.
 - `shared` contains only genuinely cross-cutting contracts, errors, and configuration.
 
 ## Dependency rules
