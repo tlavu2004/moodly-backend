@@ -18,7 +18,7 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.auth` owns application profiles, Auth0 JWT validation, avatar lifecycle,
   and Spring Security integration.
 - Within `modules.auth`, `security` resolves the verified identity and configures JWT validation,
-  `job` runs avatar cleanup, and `error/exception` holds avatar-specific errors.
+  `job` runs avatar cleanup, and `exception` holds avatar-specific errors.
 - `modules.habits` owns habit lifecycle operations.
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.

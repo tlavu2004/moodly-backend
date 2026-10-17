@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
-import com.tlavu.moodly.modules.auth.error.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 @Service

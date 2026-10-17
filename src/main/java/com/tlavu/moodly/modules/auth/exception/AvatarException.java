@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.error.exception;
+package com.tlavu.moodly.modules.auth.exception;
 
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 
