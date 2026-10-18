@@ -341,7 +341,10 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.cloudName").value("test-cloud"))
 				.andExpect(jsonPath("$.data.apiKey").value("test-api-key"))
 				.andExpect(jsonPath("$.data.uploadPreset").value("test-upload-preset"))
+				.andExpect(jsonPath("$.data.timestamp").isNumber())
 				.andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
+				.andExpect(jsonPath("$.data.signature").isNotEmpty())
+				.andExpect(jsonPath("$.data.uploadUrl").isNotEmpty())
 				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
 				.andReturn().getResponse().getContentAsString();
 		var publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
@@ -358,6 +361,8 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.publicId").value(publicId))
+				.andExpect(jsonPath("$.data.contentType").value("image/png"))
+				.andExpect(jsonPath("$.data.sizeBytes").value(1024))
 				.andExpect(jsonPath("$.data.deliveryUrl").value(org.hamcrest.Matchers.containsString("/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v1/")));
 		mockMvc.perform(get("/me/avatar").with(ownerToken))
 				.andExpect(status().isOk())

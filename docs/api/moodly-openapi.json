@@ -157,7 +157,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseUploadSignature"
+                  "$ref": "#/components/schemas/ApiResponseUploadSignatureResponse"
                 }
               }
             }
@@ -201,7 +201,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                  "$ref": "#/components/schemas/ApiResponseAvatarResponse"
                 }
               }
             }
@@ -753,7 +753,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                  "$ref": "#/components/schemas/ApiResponseAvatarResponse"
                 }
               }
             }
@@ -785,7 +785,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseAvatar"
+                  "$ref": "#/components/schemas/ApiResponseAvatarResponse"
                 }
               }
             }
@@ -1306,7 +1306,7 @@
           "contentType"
         ]
       },
-      "ApiResponseUploadSignature": {
+      "ApiResponseUploadSignatureResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1314,7 +1314,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/UploadSignature",
+            "$ref": "#/components/schemas/UploadSignatureResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -1332,7 +1332,7 @@
           "timestamp"
         ]
       },
-      "UploadSignature": {
+      "UploadSignatureResponse": {
         "type": "object",
         "properties": {
           "cloudName": {
@@ -1380,7 +1380,7 @@
           "publicId"
         ]
       },
-      "ApiResponseAvatar": {
+      "ApiResponseAvatarResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1388,7 +1388,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/Avatar",
+            "$ref": "#/components/schemas/AvatarResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -1406,7 +1406,7 @@
           "timestamp"
         ]
       },
-      "Avatar": {
+      "AvatarResponse": {
         "type": "object",
         "properties": {
           "publicId": {
