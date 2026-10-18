@@ -13,7 +13,8 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
-import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
@@ -102,7 +103,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(publicId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 4, "image/webp", 2048));
+				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
 		var avatar = service.confirm(publicId, 4);
@@ -134,7 +135,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(publicId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 1, "image/png", 5L * 1024 * 1024 + 1));
+				.thenReturn(new ConfirmedAsset(publicId, 1, "image/png", 5L * 1024 * 1024 + 1));
 
 		assertThatThrownBy(() -> service.confirm(publicId, 1))
 				.isInstanceOf(IllegalArgumentException.class)
@@ -169,7 +170,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(mismatchedId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(mismatchedId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(mismatchedId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(mismatchedId, 2, "image/png", 1024));
+				.thenReturn(new ConfirmedAsset(mismatchedId, 2, "image/png", 1024));
 		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("version does not match");
 
@@ -177,7 +178,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(gifId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(gifId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(gifId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(gifId, 1, "image/gif", 1024));
+				.thenReturn(new ConfirmedAsset(gifId, 1, "image/gif", 1024));
 		assertThatThrownBy(() -> service.confirm(gifId, 1)).isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("metadata is invalid");
 
@@ -211,7 +212,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(publicId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 4, "image/webp", 2048));
+				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 

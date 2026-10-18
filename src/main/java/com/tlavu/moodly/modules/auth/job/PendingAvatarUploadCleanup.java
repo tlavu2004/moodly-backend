@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.job;
 
-import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;

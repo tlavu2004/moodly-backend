@@ -3,7 +3,7 @@ package com.tlavu.moodly.modules.auth.service;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;

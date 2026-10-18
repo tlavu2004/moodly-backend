@@ -14,14 +14,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
-import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.ConfirmedAsset;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -353,7 +353,7 @@ class ApiIntegrationTest {
 		verify(cloudinary, never()).findImage(publicId);
 
 		org.mockito.Mockito.when(cloudinary.findImage(publicId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 1, "image/png", 1024));
+				.thenReturn(new ConfirmedAsset(publicId, 1, "image/png", 1024));
 		mockMvc.perform(post("/me/avatar/confirm").with(ownerToken)
 					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
 				.andExpect(status().isOk())

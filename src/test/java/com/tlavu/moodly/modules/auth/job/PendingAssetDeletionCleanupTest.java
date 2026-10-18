@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
-import com.tlavu.moodly.modules.auth.integration.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import java.time.Instant;
 import java.util.List;
