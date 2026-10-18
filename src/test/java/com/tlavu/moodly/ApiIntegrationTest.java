@@ -15,7 +15,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.integration.dto.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;

@@ -14,7 +14,7 @@ import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.integration.dto.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
