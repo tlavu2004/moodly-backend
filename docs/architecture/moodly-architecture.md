@@ -5,7 +5,7 @@ Moodly is a modular monolith: one Spring Boot application and one deployable uni
 Each feature module uses `controller`, `service`, `model`, and `repository` packages
 where needed. Modules may also have focused packages such as `config`, `integration`,
 `listener`, or `monitoring`. HTTP controllers live in `controller`, and modules may
-place request/response types in a sibling `dto` package. Use-case orchestration
+place transfer types in a sibling `dto` package. Use-case orchestration
 lives in `service`; MongoDB documents and business value types live in `model`;
 persistence access lives in `repository`.
 
@@ -19,8 +19,8 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.auth` owns application profiles, Auth0 JWT validation, avatar lifecycle,
   and Spring Security integration.
 - Within `modules.auth`, `security` resolves the verified identity and configures JWT validation,
-  `job` runs avatar cleanup, `service/result` holds avatar use-case results, and
-  `exception` holds avatar-specific errors.
+  `job` runs avatar cleanup, `dto/request` and `dto/response` hold API types,
+  `dto/result` holds internal operation results, and `exception` holds avatar-specific errors.
 - `modules.habits` owns habit lifecycle operations.
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.

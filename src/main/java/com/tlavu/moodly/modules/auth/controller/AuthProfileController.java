@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.controller;
 
-import com.tlavu.moodly.modules.auth.dto.ProfileResponse;
+import com.tlavu.moodly.modules.auth.dto.response.ProfileResponse;
 import com.tlavu.moodly.modules.auth.service.UserProfileService;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

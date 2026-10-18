@@ -1,6 +1,6 @@
-package com.tlavu.moodly.modules.auth.dto;
+package com.tlavu.moodly.modules.auth.dto.response;
 
-import com.tlavu.moodly.modules.auth.service.result.Avatar;
+import com.tlavu.moodly.modules.auth.dto.result.Avatar;
 
 public record AvatarResponse(
 		String publicId,

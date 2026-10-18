@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.dto;
+package com.tlavu.moodly.modules.auth.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

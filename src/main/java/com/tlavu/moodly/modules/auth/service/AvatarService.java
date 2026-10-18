@@ -7,8 +7,8 @@ import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClien
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
-import com.tlavu.moodly.modules.auth.service.result.Avatar;
-import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
+import com.tlavu.moodly.modules.auth.dto.result.Avatar;
+import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;

@@ -1,12 +1,12 @@
 package com.tlavu.moodly.modules.auth.controller;
 
-import com.tlavu.moodly.modules.auth.dto.AvatarResponse;
-import com.tlavu.moodly.modules.auth.dto.ConfirmRequest;
-import com.tlavu.moodly.modules.auth.dto.UploadRequest;
-import com.tlavu.moodly.modules.auth.dto.UploadSignatureResponse;
+import com.tlavu.moodly.modules.auth.dto.request.ConfirmRequest;
+import com.tlavu.moodly.modules.auth.dto.request.UploadRequest;
+import com.tlavu.moodly.modules.auth.dto.response.AvatarResponse;
+import com.tlavu.moodly.modules.auth.dto.response.UploadSignatureResponse;
+import com.tlavu.moodly.modules.auth.dto.result.Avatar;
+import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import com.tlavu.moodly.modules.auth.service.AvatarService;
-import com.tlavu.moodly.modules.auth.service.result.Avatar;
-import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.service.result;
+package com.tlavu.moodly.modules.auth.dto.result;
 
 public record Avatar(
 		String publicId,

@@ -1,6 +1,6 @@
-package com.tlavu.moodly.modules.auth.dto;
+package com.tlavu.moodly.modules.auth.dto.response;
 
-import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
+import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import java.time.Instant;
 
 public record UploadSignatureResponse(

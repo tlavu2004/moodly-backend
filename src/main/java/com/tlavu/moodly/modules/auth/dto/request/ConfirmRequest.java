@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.dto;
+package com.tlavu.moodly.modules.auth.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
