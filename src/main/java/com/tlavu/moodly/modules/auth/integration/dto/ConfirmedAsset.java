@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.integration;
+package com.tlavu.moodly.modules.auth.integration.dto;
 
 public record ConfirmedAsset(
 		String publicId,

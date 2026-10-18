@@ -12,7 +12,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 
-import com.tlavu.moodly.modules.auth.integration.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.dto.ConfirmedAsset;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;

@@ -4,9 +4,10 @@ Moodly is a modular monolith: one Spring Boot application and one deployable uni
 
 Each feature module uses `controller`, `service`, `model`, and `repository` packages
 where needed. Modules may also have focused packages such as `config`, `integration`,
-`listener`, or `monitoring`. HTTP controllers and request/response types live in
-`controller`; use-case orchestration lives in `service`; MongoDB documents and
-business value types live in `model`; persistence access lives in `repository`.
+`listener`, or `monitoring`. HTTP controllers live in `controller`, and modules may
+place request/response types in a sibling `dto` package. Use-case orchestration
+lives in `service`; MongoDB documents and business value types live in `model`;
+persistence access lives in `repository`.
 
 The cross-cutting `shared` package uses `controller` for HTTP advice and DTOs,
 `config` for Spring configuration, `filter` for request filtering, `error/code`

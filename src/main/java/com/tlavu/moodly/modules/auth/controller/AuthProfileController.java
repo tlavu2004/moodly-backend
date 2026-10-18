@@ -1,12 +1,10 @@
 package com.tlavu.moodly.modules.auth.controller;
 
 import com.tlavu.moodly.modules.auth.service.UserProfileService;
-import com.tlavu.moodly.modules.auth.model.UserProfile;
+import com.tlavu.moodly.modules.auth.dto.ProfileResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.time.Instant;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +17,7 @@ public class AuthProfileController {
 	private final UserProfileService profiles;
 
 	public AuthProfileController(UserProfileService profiles) {
+
 		this.profiles = profiles;
 	}
 
@@ -30,12 +29,5 @@ public class AuthProfileController {
 	)
 	public ApiResponse<ProfileResponse> synchronize() {
 		return ApiResponse.success(ProfileResponse.from(profiles.synchronizeCurrent()));
-	}
-
-	@Schema(requiredProperties = {"userId", "email", "createdAt", "updatedAt"})
-	public record ProfileResponse(String userId, String email, Instant createdAt, Instant updatedAt) {
-		private static ProfileResponse from(UserProfile profile) {
-			return new ProfileResponse(profile.getAuth0Subject(), profile.getEmail(), profile.getCreatedAt(), profile.getUpdatedAt());
-		}
 	}
 }
