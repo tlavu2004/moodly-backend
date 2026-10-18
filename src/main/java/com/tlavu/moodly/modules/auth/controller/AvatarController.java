@@ -5,6 +5,8 @@ import com.tlavu.moodly.modules.auth.dto.ConfirmRequest;
 import com.tlavu.moodly.modules.auth.dto.UploadRequest;
 import com.tlavu.moodly.modules.auth.dto.UploadSignatureResponse;
 import com.tlavu.moodly.modules.auth.service.AvatarService;
+import com.tlavu.moodly.modules.auth.service.result.Avatar;
+import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,7 +34,7 @@ public class AvatarController {
 	)
 	public ApiResponse<UploadSignatureResponse> signature(@Valid @RequestBody UploadRequest request) {
 
-		AvatarService.UploadSignature signature = avatarService.createSignature(
+		UploadSignature signature = avatarService.createSignature(
 			request.contentType(),
 			request.sizeBytes()
 		);
@@ -46,7 +48,7 @@ public class AvatarController {
 	)
 	public ApiResponse<AvatarResponse> confirm(@Valid @RequestBody ConfirmRequest request) {
 
-		AvatarService.Avatar avatar = avatarService.confirm(
+		Avatar avatar = avatarService.confirm(
 			request.publicId(),
 			request.version()
 		);

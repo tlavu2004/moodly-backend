@@ -7,6 +7,8 @@ import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClien
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
+import com.tlavu.moodly.modules.auth.service.result.Avatar;
+import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -120,6 +122,4 @@ public class AvatarService {
 	private static String subjectPath(String subject) { return subject.replaceAll("[^A-Za-z0-9_-]", "_"); }
 	private static String trimSlash(String value) { return value.replaceAll("^/+|/+$", ""); }
 	private static String sha1(String value) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(value.getBytes(StandardCharsets.UTF_8))); } catch (Exception e) { throw new IllegalStateException(e); } }
-	public record UploadSignature(String cloudName, String apiKey, String uploadPreset, String publicId, long timestamp, Instant expiresAt, String signature, String uploadUrl) {}
-	public record Avatar(String publicId, String contentType, Long sizeBytes, String deliveryUrl) {}
 }

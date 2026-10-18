@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.dto;
 
-import com.tlavu.moodly.modules.auth.service.AvatarService;
+import com.tlavu.moodly.modules.auth.service.result.UploadSignature;
 import java.time.Instant;
 
 public record UploadSignatureResponse(
@@ -14,7 +14,7 @@ public record UploadSignatureResponse(
 		String uploadUrl
 ) {
 
-	public static UploadSignatureResponse from(AvatarService.UploadSignature signature) {
+	public static UploadSignatureResponse from(UploadSignature signature) {
 		return new UploadSignatureResponse(
 			signature.cloudName(),
 			signature.apiKey(),
