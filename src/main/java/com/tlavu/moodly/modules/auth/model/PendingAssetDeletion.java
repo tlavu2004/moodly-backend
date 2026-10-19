@@ -12,21 +12,29 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @NoArgsConstructor
 public class PendingAssetDeletion {
+
 	private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
 
 	@Id
 	@SuppressWarnings("unused") // Assigned by Spring Data MongoDB after persistence.
 	private String id;
-	@Indexed(unique = true) private String publicId;
-	@Indexed private Instant nextAttemptAt;
+
+	@Indexed(unique = true)
+	private String publicId;
+
+	@Indexed
+	private Instant nextAttemptAt;
+
 	private int cleanupAttempts;
 
 	public PendingAssetDeletion(String publicId, Instant nextAttemptAt) {
+
 		this.publicId = publicId;
 		this.nextAttemptAt = nextAttemptAt;
 	}
 
 	public void recordFailure(Instant now) {
+
 		cleanupAttempts++;
 		nextAttemptAt = now.plus(RETRY_DELAY);
 	}

@@ -21,7 +21,6 @@ public class UserProfile {
 	private String auth0Subject;
 
 	private String email;
-
 	private String avatarPublicId;
 	private Long avatarVersion;
 	private String avatarContentType;
@@ -29,14 +28,26 @@ public class UserProfile {
 	private Instant createdAt;
 	private Instant updatedAt;
 
-	public UserProfile(String auth0Subject, String email, Instant createdAt) {
+	public UserProfile(
+			String auth0Subject,
+			String email,
+			Instant createdAt
+	) {
+
 		this.auth0Subject = auth0Subject;
 		this.email = email;
 		this.createdAt = createdAt;
 		this.updatedAt = createdAt;
 	}
 
-	public void replaceAvatar(String publicId, long version, String contentType, long sizeBytes, Instant now) {
+	public void replaceAvatar(
+			String publicId,
+			long version,
+			String contentType,
+			long sizeBytes,
+			Instant now
+	) {
+
 		this.avatarPublicId = publicId;
 		this.avatarVersion = version;
 		this.avatarContentType = contentType;
@@ -45,6 +56,7 @@ public class UserProfile {
 	}
 
 	public void clearAvatar(Instant now) {
+
 		this.avatarPublicId = null;
 		this.avatarVersion = null;
 		this.avatarContentType = null;

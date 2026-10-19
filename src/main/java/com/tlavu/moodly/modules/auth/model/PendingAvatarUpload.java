@@ -11,13 +11,34 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @NoArgsConstructor
 public class PendingAvatarUpload {
+
 	@Id
 	@SuppressWarnings("unused") // Assigned by Spring Data MongoDB after persistence.
 	private String id;
-	@Indexed(unique = true) private String publicId;
+
+	@Indexed(unique = true)
+	private String publicId;
+
 	private String auth0Subject;
-	@Indexed private Instant expiresAt;
+
+	@Indexed
+	private Instant expiresAt;
+
 	private int cleanupAttempts;
-	public PendingAvatarUpload(String publicId, String auth0Subject, Instant expiresAt) { this.publicId = publicId; this.auth0Subject = auth0Subject; this.expiresAt = expiresAt; }
-	public void recordCleanupFailure() { cleanupAttempts++; }
+
+	public PendingAvatarUpload(
+			String publicId,
+			String auth0Subject,
+			Instant expiresAt
+	) {
+
+		this.publicId = publicId;
+		this.auth0Subject = auth0Subject;
+		this.expiresAt = expiresAt;
+	}
+
+	public void recordCleanupFailure() {
+
+		cleanupAttempts++;
+	}
 }
