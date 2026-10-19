@@ -2,11 +2,11 @@ package com.tlavu.moodly.modules.auth.service;
 
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 /** Explicitly synchronizes application-owned profile data from a verified Auth0 identity. */
 @Service
@@ -18,13 +18,19 @@ public class UserProfileService {
 
 	public UserProfile synchronizeCurrent() {
 		var identity = currentUser.identity();
-		return profiles.findByAuth0Subject(identity.subject())
-				.orElseGet(() -> create(identity));
+		return profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity));
 	}
 
 	private UserProfile create(CurrentUser.Identity identity) {
+
 		try {
-			return profiles.save(new UserProfile(identity.subject(), identity.email(), Instant.now()));
+			return profiles.save(
+				new UserProfile(
+					identity.subject(),
+					identity.email(),
+					Instant.now()
+				)
+			);
 		} catch (DuplicateKeyException exception) {
 			return profiles.findByAuth0Subject(identity.subject()).orElseThrow(() -> exception);
 		}
