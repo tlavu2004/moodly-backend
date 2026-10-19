@@ -3,12 +3,14 @@ package com.tlavu.moodly.modules.auth.model;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "pending_asset_deletions")
 @Getter
+@NoArgsConstructor
 public class PendingAssetDeletion {
 	private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
 
@@ -18,9 +20,6 @@ public class PendingAssetDeletion {
 	@Indexed(unique = true) private String publicId;
 	@Indexed private Instant nextAttemptAt;
 	private int cleanupAttempts;
-
-	@SuppressWarnings("unused") // Required by Spring Data MongoDB for document materialization.
-	public PendingAssetDeletion() {}
 
 	public PendingAssetDeletion(String publicId, Instant nextAttemptAt) {
 		this.publicId = publicId;

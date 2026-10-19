@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.auth.model;
 
 import java.time.Instant;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 /** Application-owned profile data; Auth0 remains the authority for credentials and sessions. */
 @Document(collection = "users")
 @Getter
+@NoArgsConstructor
 public class UserProfile {
 
 	@Id
@@ -26,10 +28,6 @@ public class UserProfile {
 	private Long avatarSizeBytes;
 	private Instant createdAt;
 	private Instant updatedAt;
-
-	@SuppressWarnings("unused") // Required by Spring Data MongoDB for document materialization.
-	public UserProfile() {
-	}
 
 	public UserProfile(String auth0Subject, String email, Instant createdAt) {
 		this.auth0Subject = auth0Subject;
