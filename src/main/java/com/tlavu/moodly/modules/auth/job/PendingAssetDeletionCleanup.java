@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.job;
 
 import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class PendingAssetDeletionCleanup {
 	@Scheduled(fixedDelayString = "${moodly.cloudinary.pending-cleanup-delay-ms:300000}")
 	public void cleanupObsoleteAssets() {
 
-		for (var pending : pendingDeletions.findByNextAttemptAtBefore(Instant.now())) {
+		for (PendingAssetDeletion pending : pendingDeletions.findByNextAttemptAtBefore(Instant.now())) {
 			try {
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingDeletions.delete(pending);

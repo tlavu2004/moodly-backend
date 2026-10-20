@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.job;
 
 import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class PendingAvatarUploadCleanup {
 
 	@Scheduled(fixedDelayString = "${moodly.cloudinary.pending-cleanup-delay-ms:300000}")
 	public void cleanupExpiredUploads() {
-		for (var pending : pendingUploads.findByExpiresAtBefore(Instant.now())) {
+		for (PendingAvatarUpload pending : pendingUploads.findByExpiresAtBefore(Instant.now())) {
 			try {
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingUploads.delete(pending);
