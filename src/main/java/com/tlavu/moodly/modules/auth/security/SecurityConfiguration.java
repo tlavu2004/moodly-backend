@@ -1,13 +1,14 @@
 package com.tlavu.moodly.modules.auth.security;
 
-import com.tlavu.moodly.modules.auth.security.Auth0HttpClient;
-
-import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -18,8 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -33,8 +34,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.ObjectMapper;
-import org.slf4j.MDC;
-import com.tlavu.moodly.shared.filter.RequestIdFilter;
+
+import static java.util.Objects.requireNonNullElse;
 
 @Configuration
 @EnableWebSecurity
@@ -42,38 +43,95 @@ public class SecurityConfiguration {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) {
-		http
-				.csrf(AbstractHttpConfigurer::disable)
+		http.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers(
-								"/actuator/health", "/internal/cdc/**", "/internal/e2e/**",
-								"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
+								"/actuator/health",
+								"/internal/cdc/**",
+								"/internal/e2e/**",
+								"/swagger-ui.html",
+								"/swagger-ui/**",
+								"/v3/api-docs/**"
 						).permitAll()
-						.anyRequest().authenticated())
+						.anyRequest()
+						.authenticated()
+				)
 				.oauth2ResourceServer(resourceServer -> resourceServer
 						.jwt(Customizer.withDefaults())
-						.authenticationEntryPoint((request, response, _) ->
-								writeError(response, objectMapper, HttpStatus.UNAUTHORIZED, GlobalErrorCode.UNAUTHORIZED, request.getRequestURI())))
+						.authenticationEntryPoint((
+								request,
+								response,
+								_
+						) -> writeError(
+								response,
+								objectMapper,
+								HttpStatus.UNAUTHORIZED,
+								GlobalErrorCode.UNAUTHORIZED,
+								request.getRequestURI()
+						))
+				)
 				.exceptionHandling(exceptions -> exceptions
-						.authenticationEntryPoint((request, response, _) ->
-								writeError(response, objectMapper, HttpStatus.UNAUTHORIZED, GlobalErrorCode.UNAUTHORIZED, request.getRequestURI()))
-						.accessDeniedHandler((request, response, _) ->
-								writeError(response, objectMapper, HttpStatus.FORBIDDEN, GlobalErrorCode.FORBIDDEN, request.getRequestURI())));
+						.authenticationEntryPoint((
+								request,
+								response,
+								_
+						) -> writeError(
+								response,
+								objectMapper,
+								HttpStatus.UNAUTHORIZED,
+								GlobalErrorCode.UNAUTHORIZED,
+								request.getRequestURI()
+						))
+						.accessDeniedHandler((
+								request,
+								response,
+								_
+						) -> writeError(
+								response,
+								objectMapper,
+								HttpStatus.FORBIDDEN,
+								GlobalErrorCode.FORBIDDEN,
+								request.getRequestURI()
+						))
+				);
 		return http.build();
 	}
 
 	@Bean
-	CorsConfigurationSource corsConfigurationSource(@Value("${moodly.cors.allowed-origins:}") List<String> allowedOrigins) {
-		var configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(allowedOrigins.stream().filter(origin -> !origin.isBlank()).toList());
-		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", RequestIdFilter.HEADER));
+	CorsConfigurationSource corsConfigurationSource(
+			@Value("${moodly.cors.allowed-origins:}") List<String> allowedOrigins
+	) {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(
+				allowedOrigins.stream()
+						.filter(origin -> !origin.isBlank())
+						.toList()
+		);
+		configuration.setAllowedMethods(
+				List.of(
+						"GET",
+						"POST",
+						"PUT",
+						"PATCH",
+						"DELETE",
+						"OPTIONS"
+				)
+		);
+		configuration.setAllowedHeaders(
+				List.of(
+						"Authorization",
+						"Content-Type",
+						RequestIdFilter.HEADER
+				)
+		);
 		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
-		var source = new UrlBasedCorsConfigurationSource();
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
+
 		return source;
 	}
 
@@ -82,23 +140,38 @@ public class SecurityConfiguration {
 	JwtDecoder jwtDecoder(
 			@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
 			@Value("${moodly.auth0.audience}") String audience,
-			@Value("${moodly.auth0.http.connect-timeout:10s}") java.time.Duration connectTimeout,
-			@Value("${moodly.auth0.http.read-timeout:10s}") java.time.Duration readTimeout,
+			@Value("${moodly.auth0.http.connect-timeout:10s}") Duration connectTimeout,
+			@Value("${moodly.auth0.http.read-timeout:10s}") Duration readTimeout,
 			@Value("${moodly.auth0.http.max-attempts:3}") int maxAttempts,
-			@Value("${moodly.auth0.http.retry-delay:500ms}") java.time.Duration retryDelay
+			@Value("${moodly.auth0.http.retry-delay:500ms}") Duration retryDelay
 	) {
-		var decoder = NimbusJwtDecoder.withIssuerLocation(issuer)
-				.restOperations(Auth0HttpClient.create(connectTimeout, readTimeout, maxAttempts, retryDelay)).build();
-		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-				JwtValidators.createDefaultWithIssuer(issuer), audienceValidator(audience)
-		));
+		NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(issuer)
+				.restOperations(Auth0HttpClient.create(
+						connectTimeout,
+						readTimeout,
+						maxAttempts,
+						retryDelay
+				)).build();
+		decoder.setJwtValidator(
+				new DelegatingOAuth2TokenValidator<>(
+						JwtValidators.createDefaultWithIssuer(issuer),
+						audienceValidator(audience)
+				)
+		);
+
 		return decoder;
 	}
 
 	OAuth2TokenValidator<Jwt> audienceValidator(String audience) {
 		return jwt -> jwt.getAudience() != null && jwt.getAudience().contains(audience)
 				? OAuth2TokenValidatorResult.success()
-				: OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "The token audience is invalid.", null));
+				: OAuth2TokenValidatorResult.failure(
+						new OAuth2Error(
+								"invalid_token",
+								"The token audience is invalid.",
+								null
+						)
+				);
 	}
 
 	private void writeError(
@@ -110,9 +183,22 @@ public class SecurityConfiguration {
 	) throws IOException {
 		response.setStatus(status.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(new ApiError(
-				status.value(), errorCode.getCode(), errorCode.getDefaultMessage(), path, List.of(),
-				java.util.Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable")
-		)));
+
+		objectMapper.writeValue(
+				response.getOutputStream(),
+				ApiResponse.error(
+						new ApiError(
+								status.value(),
+								errorCode.getCode(),
+								errorCode.getDefaultMessage(),
+								path,
+								List.of(),
+								requireNonNullElse(
+										MDC.get(RequestIdFilter.MDC_KEY),
+										"unavailable"
+								)
+						)
+				)
+		);
 	}
 }
