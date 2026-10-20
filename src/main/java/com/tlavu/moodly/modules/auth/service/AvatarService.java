@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.service;
 
 import com.tlavu.moodly.modules.auth.dto.result.Avatar;
+import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
@@ -85,9 +86,9 @@ public class AvatarService {
 
 		userProfileService.synchronizeCurrent();
 
-		var timestamp = Instant.now().getEpochSecond();
+		long timestamp = Instant.now().getEpochSecond();
 		var publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
-		var expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
+		Instant expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
 
 		pendingUploads.save(
 				new PendingAvatarUpload(
@@ -124,13 +125,13 @@ public class AvatarService {
 			throw new IllegalArgumentException("Avatar version must be positive.");
 		}
 
-		var pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
+		PendingAvatarUpload pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
 				.filter(upload -> upload.getExpiresAt().isAfter(Instant.now()))
 				.orElseThrow(() -> new AvatarException(
 						GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
 						"Avatar upload is unknown or has expired.")
 				);
-		var asset = cloudinary.findImage(publicId);
+		ConfirmedAsset asset = cloudinary.findImage(publicId);
 
 		if (asset.version() != version) {
 			throw new IllegalArgumentException("Avatar version does not match the uploaded asset.");
@@ -143,7 +144,7 @@ public class AvatarService {
 			throw new IllegalArgumentException("Cloudinary avatar metadata is invalid.");
 		}
 
-		var profile = profiles.findByAuth0Subject(subject).orElseThrow();
+		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();
 		var previousPublicId = profile.getAvatarPublicId();
 
 		profile.replaceAvatar(
@@ -175,7 +176,7 @@ public class AvatarService {
 
 	public Avatar delete() {
 
-		var profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
+		UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
 
 		if (profile == null || profile.getAvatarPublicId() == null) {
 			return new Avatar(
@@ -201,7 +202,7 @@ public class AvatarService {
 		} catch (RuntimeException exception) {
 
 			try {
-				var pending = pendingDeletions.findByPublicId(publicId)
+				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
 						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
 
 				pending.recordFailure(Instant.now());

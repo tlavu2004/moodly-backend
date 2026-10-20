@@ -17,7 +17,7 @@ public class UserProfileService {
 	private final UserProfileRepository profiles;
 
 	public UserProfile synchronizeCurrent() {
-		var identity = currentUser.identity();
+		CurrentUser.Identity identity = currentUser.identity();
 		return profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity));
 	}
 
