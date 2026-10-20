@@ -87,7 +87,7 @@ public class AvatarService {
 		userProfileService.synchronizeCurrent();
 
 		long timestamp = Instant.now().getEpochSecond();
-		var publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
+		String publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
 		Instant expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
 
 		pendingUploads.save(
@@ -98,7 +98,7 @@ public class AvatarService {
 				)
 		);
 
-		var toSign = "public_id=" + publicId + "&timestamp=" + timestamp + "&upload_preset=" + uploadPreset;
+		String toSign = "public_id=" + publicId + "&timestamp=" + timestamp + "&upload_preset=" + uploadPreset;
 
 		return new UploadSignature(
 				cloudName,
@@ -114,7 +114,7 @@ public class AvatarService {
 
 	public Avatar confirm(String publicId, long version) {
 
-		var subject = currentUser.id();
+		String subject = currentUser.id();
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) {
 			throw new AvatarException(
 					GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
@@ -145,7 +145,7 @@ public class AvatarService {
 		}
 
 		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();
-		var previousPublicId = profile.getAvatarPublicId();
+		String previousPublicId = profile.getAvatarPublicId();
 
 		profile.replaceAvatar(
 			asset.publicId(),
@@ -187,7 +187,7 @@ public class AvatarService {
 			);
 		}
 
-		var previousPublicId = profile.getAvatarPublicId();
+		String previousPublicId = profile.getAvatarPublicId();
 		profile.clearAvatar(Instant.now());
 		profiles.save(profile);
 		deleteObsoleteAsset(previousPublicId);
