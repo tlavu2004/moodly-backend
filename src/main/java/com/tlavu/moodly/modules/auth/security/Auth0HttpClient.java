@@ -12,12 +12,25 @@ import org.springframework.web.client.RestTemplate;
 
 /** Bounded retries for transient discovery/JWKS network failures, never token validation. */
 final class Auth0HttpClient {
+
 	private Auth0HttpClient() {}
 
-	static RestTemplate create(Duration connectTimeout, Duration readTimeout, int attempts, Duration delay) {
-		if (connectTimeout.isNegative() || connectTimeout.isZero()
-				|| readTimeout.isNegative() || readTimeout.isZero()
-				|| attempts < 1 || attempts > 5 || delay.isNegative()) {
+	static RestTemplate create(
+		Duration connectTimeout,
+		Duration readTimeout,
+		int attempts,
+		Duration delay
+	) {
+
+		if (
+				connectTimeout.isNegative() ||
+				connectTimeout.isZero() ||
+				readTimeout.isNegative() ||
+				readTimeout.isZero() ||
+				attempts < 1 ||
+				attempts > 5 ||
+				delay.isNegative()
+		) {
 			throw new IllegalArgumentException("Auth0 HTTP timeouts must be positive, attempts 1..5, delay non-negative");
 		}
 		var factory = new SimpleClientHttpRequestFactory();
@@ -35,8 +48,11 @@ final class Auth0HttpClient {
 					return execution.execute(request, body);
 				} catch (IOException failure) {
 					// Do not replay HTTP errors, TLS failures, or arbitrary I/O errors.
-					if (Thread.currentThread().isInterrupted() || attempt >= attempts
-							|| !(failure instanceof SocketTimeoutException || failure instanceof ConnectException)) {
+					if (
+							Thread.currentThread().isInterrupted() ||
+							attempt >= attempts ||
+							!(failure instanceof SocketTimeoutException || failure instanceof ConnectException)
+					) {
 						throw failure;
 					}
 					LoggerFactory.getLogger(Auth0HttpClient.class).warn(
