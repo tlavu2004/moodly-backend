@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
 			MethodArgumentNotValidException exception,
 			HttpServletRequest request
 	) {
-		var errors = exception.getBindingResult()
+		List<FieldErrorResponse> errors = exception.getBindingResult()
 				.getFieldErrors()
 				.stream()
 				.map(error -> new FieldErrorResponse(
@@ -262,7 +262,7 @@ public class GlobalExceptionHandler {
 				exception
 		);
 
-		var error = new ApiError(
+		ApiError error = new ApiError(
 				status.value(),
 				errorCode.getCode(),
 				message,
@@ -294,8 +294,8 @@ public class GlobalExceptionHandler {
 	}
 
 	private String sanitizedDiagnosticStack(Throwable exception) {
-		var diagnostic = new StringBuilder();
-		var current = exception;
+		StringBuilder diagnostic = new StringBuilder();
+		Throwable current = exception;
 		int depth = 0;
 
 		while (current != null && depth < MAX_LOGGED_CAUSE_DEPTH) {
@@ -305,7 +305,7 @@ public class GlobalExceptionHandler {
 
 			diagnostic.append(current.getClass().getName()).append('\n');
 
-			var frames = current.getStackTrace();
+			StackTraceElement[] frames = current.getStackTrace();
 			int frameCount = Math.min(frames.length, MAX_LOGGED_FRAMES_PER_CAUSE);
 
 			for (int index = 0; index < frameCount; index++) {

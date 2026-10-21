@@ -25,8 +25,8 @@ public class RequestIdFilter extends OncePerRequestFilter {
 			HttpServletResponse response,
 			FilterChain chain
 	) throws ServletException, IOException {
-		var supplied = request.getHeader(HEADER);
-		var requestId = supplied != null && supplied.matches("[A-Za-z0-9._-]{1,100}")
+		String supplied = request.getHeader(HEADER);
+		String requestId = supplied != null && supplied.matches("[A-Za-z0-9._-]{1,100}")
 				? supplied
 				: UUID.randomUUID().toString();
 

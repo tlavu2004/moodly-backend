@@ -7,33 +7,36 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 class GlobalExceptionHandlerTest {
 
 	@Test
 	void keepsTheErrorCodeCatalogUnique() {
-		var codes = Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getCode).toList();
+		List<String> codes = Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getCode).toList();
 		assertThat(codes).doesNotHaveDuplicates();
 		assertThat(Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getStatus)).doesNotContainNull();
 	}
 
 	@Test
 	void derivesConflictStatusAndMessageFromItsCode() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/habits/habit-1");
 
-		var response = new GlobalExceptionHandler().handleApplication(new ConflictException(), request);
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleApplication(new ConflictException(), request);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 		assertThat(response.getBody().error().status()).isEqualTo(409);
@@ -43,11 +46,11 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void preservesAvatarErrorResponseDetails() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/me/avatar/confirm");
-		var exception = AvatarException.uploadExpired();
+		AvatarException exception = AvatarException.uploadExpired();
 
-		var response = new GlobalExceptionHandler().handleApplication(exception, request);
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleApplication(exception, request);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(response.getBody().success()).isFalse();
@@ -61,10 +64,10 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void doesNotExposeUnexpectedExceptionDetails() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
 
-		var response = new GlobalExceptionHandler().handleUnexpectedException(
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleUnexpectedException(
 				new IllegalStateException("database-password=secret"), request);
 
 		assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
@@ -75,16 +78,18 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void distinguishesDeclaredRequestFailuresFromUnexpectedIllegalArguments() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
-		var handler = new GlobalExceptionHandler();
+		GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-		var invalidRequest = handler.handleApplication(new InvalidRequestException("Page must be positive."), request);
+		ResponseEntity<ApiResponse<Void>> invalidRequest = handler.handleApplication(
+				new InvalidRequestException("Page must be positive."), request);
 		assertThat(invalidRequest.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(invalidRequest.getBody().error().code()).isEqualTo("INVALID_REQUEST");
 		assertThat(invalidRequest.getBody().error().message()).isEqualTo("Page must be positive.");
 
-		var unexpected = handler.handleUnexpectedException(new IllegalArgumentException("secret=internal"), request);
+		ResponseEntity<ApiResponse<Void>> unexpected = handler.handleUnexpectedException(
+				new IllegalArgumentException("secret=internal"), request);
 		assertThat(unexpected.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(unexpected.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
 		assertThat(unexpected.getBody().error().message()).doesNotContain("secret");
@@ -92,17 +97,17 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void mapsControllerSecurityFailuresWithoutExposingTheirMessages() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/habits");
-		var handler = new GlobalExceptionHandler();
+		GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-		var denied = handler.handleAccessDenied(
+		ResponseEntity<ApiResponse<Void>> denied = handler.handleAccessDenied(
 				new org.springframework.security.access.AccessDeniedException("sensitive principal"), request);
 		assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 		assertThat(denied.getBody().error().code()).isEqualTo("FORBIDDEN");
 		assertThat(denied.getBody().error().message()).doesNotContain("sensitive principal");
 
-		var unauthenticated = handler.handleAuthenticationFailure(
+		ResponseEntity<ApiResponse<Void>> unauthenticated = handler.handleAuthenticationFailure(
 				new org.springframework.security.authentication.BadCredentialsException("sensitive token"), request);
 		assertThat(unauthenticated.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 		assertThat(unauthenticated.getBody().error().code()).isEqualTo("UNAUTHORIZED");
@@ -111,10 +116,10 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void logsSanitizedStackLocationsAndRequestIdWithoutExceptionMessages() {
-		var request = Mockito.mock(HttpServletRequest.class);
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
-		var logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
-		var events = new ListAppender<ILoggingEvent>();
+		Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+		ListAppender<ILoggingEvent> events = new ListAppender<>();
 		events.start();
 		logger.addAppender(events);
 		MDC.put(RequestIdFilter.MDC_KEY, "review-test-request");

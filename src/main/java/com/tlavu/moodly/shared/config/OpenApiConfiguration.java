@@ -4,6 +4,7 @@ import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.examples.Example;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.BooleanSchema;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
@@ -214,7 +216,7 @@ public class OpenApiConfiguration {
 				.values()
 				.forEach(pathItem -> pathItem.readOperations()
 						.forEach(operation -> {
-							var responses = operation.getResponses();
+							ApiResponses responses = operation.getResponses();
 							responses.addApiResponse("400", reference("BadRequest"));
 							responses.addApiResponse("405", reference("MethodNotAllowed"));
 							responses.addApiResponse("406", reference("NotAcceptable"));
@@ -233,19 +235,19 @@ public class OpenApiConfiguration {
 	}
 
 	private void addConflictResponses(OpenAPI openApi) {
-		var updateHabit = openApi.getPaths().get("/habits/{habitId}");
+		PathItem updateHabit = openApi.getPaths().get("/habits/{habitId}");
 
 		if (updateHabit != null && updateHabit.getPatch() != null) {
 			addConflictResponse(updateHabit.getPatch());
 		}
 
-		var archiveHabit = openApi.getPaths().get("/habits/{habitId}/archive");
+		PathItem archiveHabit = openApi.getPaths().get("/habits/{habitId}/archive");
 
 		if (archiveHabit != null && archiveHabit.getPost() != null) {
 			addConflictResponse(archiveHabit.getPost());
 		}
 
-		var restoreHabit = openApi.getPaths().get("/habits/{habitId}/restore");
+		PathItem restoreHabit = openApi.getPaths().get("/habits/{habitId}/restore");
 
 		if (restoreHabit != null && restoreHabit.getPost() != null) {
 			addConflictResponse(restoreHabit.getPost());
@@ -320,7 +322,7 @@ public class OpenApiConfiguration {
 	}
 
 	private Map<String, Object> orderedMap(Object... keyValues) {
-		var values = new LinkedHashMap<String, Object>();
+		Map<String, Object> values = new LinkedHashMap<>();
 
 		for (int index = 0; index < keyValues.length; index += 2) {
 			values.put((String) keyValues[index], keyValues[index + 1]);

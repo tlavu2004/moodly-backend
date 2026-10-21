@@ -11,10 +11,10 @@ class RequestIdFilterTest {
 
 	@Test
 	void propagatesSafeRequestIdsAndReplacesUnsafeValues() throws Exception {
-		var filter = new RequestIdFilter();
-		var request = new MockHttpServletRequest();
+		RequestIdFilter filter = new RequestIdFilter();
+		MockHttpServletRequest request = new MockHttpServletRequest();
 		request.addHeader(RequestIdFilter.HEADER, "client-request-42");
-		var response = new MockHttpServletResponse();
+		MockHttpServletResponse response = new MockHttpServletResponse();
 		filter.doFilter(request, response, new MockFilterChain());
 		assertThat(response.getHeader(RequestIdFilter.HEADER)).isEqualTo("client-request-42");
 
