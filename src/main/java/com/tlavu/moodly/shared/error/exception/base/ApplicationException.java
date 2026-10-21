@@ -4,7 +4,7 @@ import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-/** An expected application failure with a stable public code and HTTP mapping. */
+/** Base for expected failures; subclasses select the public code, which also determines HTTP status. */
 public abstract class ApplicationException extends RuntimeException {
 
 	@Getter

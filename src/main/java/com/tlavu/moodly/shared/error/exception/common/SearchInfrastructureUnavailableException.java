@@ -3,7 +3,7 @@ package com.tlavu.moodly.shared.error.exception.common;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 
-/** Raised when Elasticsearch cannot serve a search or index maintenance operation. */
+/** Named factories keep the SEARCH_UNAVAILABLE code and safe messages together while retaining the cause. */
 public class SearchInfrastructureUnavailableException extends ApplicationException {
 
 	private SearchInfrastructureUnavailableException(String safeMessage, Throwable cause) {

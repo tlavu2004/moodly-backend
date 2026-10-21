@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.auth.exception;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 
+/** Each factory pairs an avatar-specific 400 code with its safe message for the caller. */
 public class AvatarException extends InvalidRequestException {
 
 	private AvatarException(GlobalErrorCode code, String safeMessage) {
