@@ -55,7 +55,6 @@ public class AvatarService {
 			@Value("${moodly.cloudinary.upload-preset}") String uploadPreset,
 			@Value("${moodly.cloudinary.folder}") String folder
 	) {
-
 		this.currentUser = currentUser;
 		this.userProfileService = userProfileService;
 		this.profiles = profiles;
@@ -70,7 +69,6 @@ public class AvatarService {
 	}
 
 	public UploadSignature createSignature(String contentType, long sizeBytes) {
-
 		if (!ALLOWED_TYPES.contains(contentType)) {
 			throw new AvatarException(
 					GlobalErrorCode.AVATAR_CONTENT_TYPE_UNSUPPORTED,
@@ -113,7 +111,6 @@ public class AvatarService {
 	}
 
 	public Avatar confirm(String publicId, long version) {
-
 		String subject = currentUser.id();
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) {
 			throw new AvatarException(
@@ -148,11 +145,11 @@ public class AvatarService {
 		String previousPublicId = profile.getAvatarPublicId();
 
 		profile.replaceAvatar(
-			asset.publicId(),
-			asset.version(),
-			asset.contentType(),
-			asset.sizeBytes(),
-			Instant.now()
+				asset.publicId(),
+				asset.version(),
+				asset.contentType(),
+				asset.sizeBytes(),
+				Instant.now()
 		);
 		profiles.save(profile);
 		pendingUploads.delete(pending);
@@ -168,14 +165,12 @@ public class AvatarService {
 	}
 
 	public Avatar current() {
-
 		return profiles.findByAuth0Subject(currentUser.id())
 				.map(this::avatar)
 				.orElse(new Avatar(null, null, null, null));
 	}
 
 	public Avatar delete() {
-
 		UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
 
 		if (profile == null || profile.getAvatarPublicId() == null) {

@@ -28,13 +28,11 @@ public class PendingAssetDeletion {
 	private int cleanupAttempts;
 
 	public PendingAssetDeletion(String publicId, Instant nextAttemptAt) {
-
 		this.publicId = publicId;
 		this.nextAttemptAt = nextAttemptAt;
 	}
 
 	public void recordFailure(Instant now) {
-
 		cleanupAttempts++;
 		nextAttemptAt = now.plus(RETRY_DELAY);
 	}

@@ -33,7 +33,6 @@ public class UserProfile {
 			String email,
 			Instant createdAt
 	) {
-
 		this.auth0Subject = auth0Subject;
 		this.email = email;
 		this.createdAt = createdAt;
@@ -47,7 +46,6 @@ public class UserProfile {
 			long sizeBytes,
 			Instant now
 	) {
-
 		this.avatarPublicId = publicId;
 		this.avatarVersion = version;
 		this.avatarContentType = contentType;
@@ -56,7 +54,6 @@ public class UserProfile {
 	}
 
 	public void clearAvatar(Instant now) {
-
 		this.avatarPublicId = null;
 		this.avatarVersion = null;
 		this.avatarContentType = null;

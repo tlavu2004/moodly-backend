@@ -31,14 +31,12 @@ public class PendingAvatarUpload {
 			String auth0Subject,
 			Instant expiresAt
 	) {
-
 		this.publicId = publicId;
 		this.auth0Subject = auth0Subject;
 		this.expiresAt = expiresAt;
 	}
 
 	public void recordCleanupFailure() {
-
 		cleanupAttempts++;
 	}
 }

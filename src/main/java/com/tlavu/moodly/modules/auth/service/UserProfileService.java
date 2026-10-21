@@ -22,7 +22,6 @@ public class UserProfileService {
 	}
 
 	private UserProfile create(CurrentUser.Identity identity) {
-
 		try {
 			return profiles.save(
 				new UserProfile(
