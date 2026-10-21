@@ -1,14 +1,11 @@
 package com.tlavu.moodly.shared.controller.advice;
 
-import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
-import com.tlavu.moodly.shared.error.exception.ForbiddenException;
-import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
-import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.ApplicationException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -20,6 +17,12 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,15 +56,15 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler(IllegalArgumentException.class)
-	ResponseEntity<ApiResponse<Void>> handleBadRequest(
-			IllegalArgumentException exception,
+	@ExceptionHandler(ApplicationException.class)
+	ResponseEntity<ApiResponse<Void>> handleApplication(
+			ApplicationException exception,
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				HttpStatus.BAD_REQUEST,
-				GlobalErrorCode.INVALID_REQUEST,
-				safeMessage(exception),
+				exception.getStatus(),
+				exception.getCode(),
+				exception.getMessage(),
 				request,
 				List.of(),
 				exception
@@ -90,18 +93,6 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(
 				HttpStatus.CONFLICT,
 				GlobalErrorCode.DUPLICATE_RESOURCE,
-				request,
-				List.of(),
-				exception
-		);
-	}
-
-	@ExceptionHandler(AvatarException.class)
-	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
-		return buildErrorResponse(
-				HttpStatus.BAD_REQUEST,
-				exception.getCode(),
-				exception.getMessage(),
 				request,
 				List.of(),
 				exception
@@ -137,47 +128,24 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler(ForbiddenException.class)
-	ResponseEntity<ApiResponse<Void>> handleForbidden(
-			ForbiddenException exception,
-			HttpServletRequest request
-	) {
-		return buildErrorResponse(
-				HttpStatus.FORBIDDEN,
-				GlobalErrorCode.FORBIDDEN,
-				request,
-				List.of(),
-				exception
-		);
+	@ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+	ResponseEntity<ApiResponse<Void>> handleInvalidParameter(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.BAD_REQUEST, GlobalErrorCode.INVALID_REQUEST, request, List.of(), exception);
 	}
 
-	@ExceptionHandler(SearchInfrastructureUnavailableException.class)
-	ResponseEntity<ApiResponse<Void>> handleSearchUnavailable(
-			SearchInfrastructureUnavailableException exception,
-			HttpServletRequest request
-	) {
-		return buildErrorResponse(
-				HttpStatus.SERVICE_UNAVAILABLE,
-				GlobalErrorCode.SEARCH_UNAVAILABLE,
-				request,
-				List.of(),
-				exception
-		);
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, GlobalErrorCode.METHOD_NOT_ALLOWED, request, List.of(), exception);
 	}
 
-	@ExceptionHandler(ResourceNotFoundException.class)
-	ResponseEntity<ApiResponse<Void>> handleNotFound(
-			ResourceNotFoundException exception,
-			HttpServletRequest request
-	) {
-		return buildErrorResponse(
-				HttpStatus.NOT_FOUND,
-				GlobalErrorCode.NOT_FOUND,
-				safeMessage(exception),
-				request,
-				List.of(),
-				exception
-		);
+	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+	ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE, request, List.of(), exception);
+	}
+
+	@ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+	ResponseEntity<ApiResponse<Void>> handleMissingEndpoint(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.NOT_FOUND, GlobalErrorCode.NOT_FOUND, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(Exception.class)
@@ -285,15 +253,4 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	private String safeMessage(Throwable exception) {
-		if (
-				exception == null ||
-				exception.getMessage() == null ||
-				exception.getMessage().isBlank()
-		) {
-			return "Unexpected error";
-		}
-
-		return exception.getMessage();
-	}
 }

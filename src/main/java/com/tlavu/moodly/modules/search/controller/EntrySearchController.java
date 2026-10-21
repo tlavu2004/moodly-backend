@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.search.service.EntrySearchService;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -38,13 +39,13 @@ public class EntrySearchController {
 	) {
 		EntrySearchService.validatedOffset(page, size);
 		if (q.isBlank()) {
-			throw new IllegalArgumentException("The 'q' parameter must not be blank.");
+			throw new InvalidRequestException("The 'q' parameter must not be blank.");
 		}
 		if (q.trim().length() > 200) {
-			throw new IllegalArgumentException("The 'q' parameter must not exceed 200 characters.");
+			throw new InvalidRequestException("The 'q' parameter must not exceed 200 characters.");
 		}
 		if (from != null && to != null && from.isAfter(to)) {
-			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
+			throw new InvalidRequestException("The 'from' date must not be after the 'to' date.");
 		}
 		return ApiResponse.success(entrySearchService.search(currentUser.id(), q.trim(), from, to, page, size));
 	}

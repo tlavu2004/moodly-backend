@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import com.tlavu.moodly.shared.time.MoodlyTime;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import java.time.temporal.TemporalAdjusters;
 
 public enum MoodTrendPeriod {
@@ -32,7 +33,7 @@ public enum MoodTrendPeriod {
 				return period;
 			}
 		}
-		throw new IllegalArgumentException("Unsupported mood trend period: " + value + ". Supported values: week.");
+		throw new InvalidRequestException("Unsupported mood trend period. Supported values: week.");
 	}
 
 	public LocalDate startDate(LocalDate date) {

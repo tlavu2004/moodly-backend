@@ -8,6 +8,7 @@ import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import java.util.List;
 import java.util.UUID;
 import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,7 +41,7 @@ public class HabitService {
 			case "active" -> habitRepository.findByUserIdAndActiveTrue(userId);
 			case "archived" -> habitRepository.findByUserIdAndActiveFalse(userId);
 			case "all" -> habitRepository.findByUserId(userId);
-			default -> throw new IllegalArgumentException("status must be one of: active, archived, all");
+			default -> throw new InvalidRequestException("status must be one of: active, archived, all");
 		};
 	}
 

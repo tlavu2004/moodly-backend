@@ -67,6 +67,7 @@ public class OpenApiConfiguration {
 			addReusableErrorResponses(components);
 			addDefaultErrorResponses(openApi);
 			addConflictResponses(openApi);
+			addUnavailableResponses(openApi);
 		};
 	}
 
@@ -198,6 +199,18 @@ public class OpenApiConfiguration {
 						"An unexpected error occurred."
 				)
 		);
+		components.addResponses("MethodNotAllowed", errorResponse(
+				"The HTTP method is not supported for this endpoint.", 405,
+				"METHOD_NOT_ALLOWED", "The HTTP method is not supported for this endpoint."));
+		components.addResponses("UnsupportedMediaType", errorResponse(
+				"The request content type is not supported.", 415,
+				"UNSUPPORTED_MEDIA_TYPE", "The request content type is not supported."));
+		components.addResponses("SearchUnavailable", errorResponse(
+				"Search is temporarily unavailable.", 503,
+				"SEARCH_UNAVAILABLE", "Search is temporarily unavailable."));
+		components.addResponses("AvatarServiceUnavailable", errorResponse(
+				"Avatar service is temporarily unavailable.", 503,
+				"AVATAR_SERVICE_UNAVAILABLE", "Avatar service is temporarily unavailable."));
 	}
 
 	private void addDefaultErrorResponses(OpenAPI openApi) {
@@ -207,6 +220,8 @@ public class OpenApiConfiguration {
 						.forEach(operation -> {
 							var responses = operation.getResponses();
 							responses.addApiResponse("400", reference("BadRequest"));
+							responses.addApiResponse("405", reference("MethodNotAllowed"));
+							responses.addApiResponse("415", reference("UnsupportedMediaType"));
 
 							if (usesMaintenanceKey(operation)) {
 								responses.addApiResponse("403", reference("MaintenanceKeyRequired"));
@@ -242,6 +257,16 @@ public class OpenApiConfiguration {
 
 	private void addConflictResponse(Operation operation) {
 		operation.getResponses().addApiResponse("409", reference("Conflict"));
+	}
+
+	private void addUnavailableResponses(OpenAPI openApi) {
+		openApi.getPaths().forEach((path, item) -> {
+			if (path.startsWith("/entries/search") || path.startsWith("/internal/cdc") || path.startsWith("/internal/e2e")) {
+				item.readOperations().forEach(operation -> operation.getResponses().addApiResponse("503", reference("SearchUnavailable")));
+			} else if (path.startsWith("/me/avatar")) {
+				item.readOperations().forEach(operation -> operation.getResponses().addApiResponse("503", reference("AvatarServiceUnavailable")));
+			}
+		});
 	}
 
 	private boolean usesMaintenanceKey(Operation operation) {

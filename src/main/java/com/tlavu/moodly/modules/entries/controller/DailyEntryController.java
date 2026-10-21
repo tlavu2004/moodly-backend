@@ -5,6 +5,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -62,10 +63,10 @@ public class DailyEntryController {
 	) {
 		validatePage(page, size);
 		if (from.isAfter(to)) {
-			throw new IllegalArgumentException("The 'from' date must not be after the 'to' date.");
+			throw new InvalidRequestException("The 'from' date must not be after the 'to' date.");
 		}
 		if (from.isAfter(MoodlyTime.today(clock)) || to.isAfter(MoodlyTime.today(clock))) {
-			throw new IllegalArgumentException("Entry dates must not be in the future.");
+			throw new InvalidRequestException("Entry dates must not be in the future.");
 		}
 		return ApiResponse.success(PageResponse.from(dailyEntryService.findBetween(currentUser.id(), from, to, page, size)));
 	}
@@ -80,7 +81,7 @@ public class DailyEntryController {
 	}
 
 	private void validatePage(int page, int size) {
-		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
-		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");
+		if (page < 0) throw new InvalidRequestException("The 'page' parameter must be at least 0.");
+		if (size < 1 || size > 100) throw new InvalidRequestException("The 'size' parameter must be between 1 and 100.");
 	}
 }

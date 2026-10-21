@@ -487,7 +487,7 @@ class ApiIntegrationTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
-				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period: month. Supported values: week."));
+				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period. Supported values: week."));
 	}
 
 	@TestConfiguration(proxyBeanMethods = false)

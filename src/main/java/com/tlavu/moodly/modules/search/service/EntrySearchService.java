@@ -7,6 +7,7 @@ import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -85,17 +86,17 @@ public class EntrySearchService {
 					.toList();
 			long total = response.hits().total() == null ? items.size() : response.hits().total().value();
 			return PageResponse.of(items, page, size, total);
-		} catch (IOException exception) {
+		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", exception);
 		}
 	}
 
 	public static int validatedOffset(int page, int size) {
-		if (page < 0) throw new IllegalArgumentException("The 'page' parameter must be at least 0.");
-		if (size < 1 || size > 100) throw new IllegalArgumentException("The 'size' parameter must be between 1 and 100.");
+		if (page < 0) throw new InvalidRequestException("The 'page' parameter must be at least 0.");
+		if (size < 1 || size > 100) throw new InvalidRequestException("The 'size' parameter must be between 1 and 100.");
 		long offset = (long) page * size;
 		if (offset + size > MAX_RESULT_WINDOW) {
-			throw new IllegalArgumentException("The requested page exceeds the searchable result window of " + MAX_RESULT_WINDOW + ".");
+			throw new InvalidRequestException("The requested page exceeds the searchable result window of " + MAX_RESULT_WINDOW + ".");
 		}
 		return Math.toIntExact(offset);
 	}

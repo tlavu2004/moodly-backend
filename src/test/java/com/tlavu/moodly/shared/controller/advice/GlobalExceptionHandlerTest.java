@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
@@ -34,7 +35,7 @@ class GlobalExceptionHandlerTest {
 				"Avatar upload is unknown or has expired."
 		);
 
-		var response = new GlobalExceptionHandler().handleAvatar(exception, request);
+		var response = new GlobalExceptionHandler().handleApplication(exception, request);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(response.getBody().success()).isFalse();
@@ -58,6 +59,23 @@ class GlobalExceptionHandlerTest {
 		assertThat(response.getBody().error().message()).isEqualTo("An unexpected error occurred.");
 		assertThat(response.getBody().error().message()).doesNotContain("secret");
 		assertThat(response.getBody().error().requestId()).isEqualTo("unavailable");
+	}
+
+	@Test
+	void distinguishesDeclaredRequestFailuresFromUnexpectedIllegalArguments() {
+		var request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/example");
+		var handler = new GlobalExceptionHandler();
+
+		var invalidRequest = handler.handleApplication(new InvalidRequestException("Page must be positive."), request);
+		assertThat(invalidRequest.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(invalidRequest.getBody().error().code()).isEqualTo("INVALID_REQUEST");
+		assertThat(invalidRequest.getBody().error().message()).isEqualTo("Page must be positive.");
+
+		var unexpected = handler.handleUnexpectedException(new IllegalArgumentException("secret=internal"), request);
+		assertThat(unexpected.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+		assertThat(unexpected.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+		assertThat(unexpected.getBody().error().message()).doesNotContain("secret");
 	}
 
 	@Test

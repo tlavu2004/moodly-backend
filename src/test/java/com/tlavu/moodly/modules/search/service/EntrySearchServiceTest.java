@@ -119,7 +119,7 @@ class EntrySearchServiceTest {
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> service.search("user-1", "tired", null, null, Integer.MAX_VALUE, 100))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.InvalidRequestException.class)
 				.hasMessageContaining("result window");
 		verifyNoInteractions(elasticsearchClient, indexManager);
 	}
