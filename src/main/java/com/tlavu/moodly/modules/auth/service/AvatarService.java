@@ -12,7 +12,6 @@ import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
-import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -71,16 +70,10 @@ public class AvatarService {
 
 	public UploadSignature createSignature(String contentType, long sizeBytes) {
 		if (!ALLOWED_TYPES.contains(contentType)) {
-			throw new AvatarException(
-					GlobalErrorCode.AVATAR_CONTENT_TYPE_UNSUPPORTED,
-					"Avatar content type must be image/jpeg, image/png, or image/webp."
-			);
+			throw AvatarException.unsupportedContentType();
 		}
 		if (sizeBytes < 1 || sizeBytes > MAX_BYTES) {
-			throw new AvatarException(
-					GlobalErrorCode.AVATAR_FILE_TOO_LARGE,
-					"Avatar must be between 1 byte and 5 MiB."
-			);
+			throw AvatarException.invalidFileSize();
 		}
 
 		userProfileService.synchronizeCurrent();
@@ -114,10 +107,7 @@ public class AvatarService {
 	public Avatar confirm(String publicId, long version) {
 		String subject = currentUser.id();
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) {
-			throw new AvatarException(
-					GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
-					"Avatar upload was not found."
-			);
+			throw AvatarException.uploadNotFound();
 		}
 		if (version < 1) {
 			throw new InvalidRequestException("Avatar version must be positive.");
@@ -125,21 +115,18 @@ public class AvatarService {
 
 		PendingAvatarUpload pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
 				.filter(upload -> upload.getExpiresAt().isAfter(Instant.now()))
-				.orElseThrow(() -> new AvatarException(
-						GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
-						"Avatar upload is unknown or has expired.")
-				);
+				.orElseThrow(AvatarException::uploadExpired);
 		ConfirmedAsset asset = cloudinary.findImage(publicId);
 
 		if (asset.version() != version) {
-			throw new AvatarException(GlobalErrorCode.AVATAR_ASSET_INVALID, "Avatar version does not match the uploaded asset.");
+			throw AvatarException.versionMismatch();
 		}
 		if (
 				!publicId.equals(asset.publicId()) ||
 				!ALLOWED_TYPES.contains(asset.contentType()) ||
 				asset.sizeBytes() > MAX_BYTES
 		) {
-			throw new AvatarException(GlobalErrorCode.AVATAR_ASSET_INVALID, "Uploaded avatar metadata is invalid.");
+			throw AvatarException.invalidMetadata();
 		}
 
 		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();

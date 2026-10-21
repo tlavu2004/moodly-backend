@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.ConflictException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -74,7 +75,7 @@ public class HabitService {
 	private void verifyVersion(Habit habit, long requestedVersion) {
 		long currentVersion = habit.getVersion() == null ? 0 : habit.getVersion();
 		if (currentVersion != requestedVersion) {
-			throw new org.springframework.dao.OptimisticLockingFailureException("Habit was changed by another request.");
+			throw new ConflictException();
 		}
 	}
 }

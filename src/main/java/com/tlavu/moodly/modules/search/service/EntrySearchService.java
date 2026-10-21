@@ -87,7 +87,7 @@ public class EntrySearchService {
 			long total = response.hits().total() == null ? items.size() : response.hits().total().value();
 			return PageResponse.of(items, page, size, total);
 		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
-			throw new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", exception);
+			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		}
 	}
 

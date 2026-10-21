@@ -3,7 +3,6 @@ package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
-import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -72,7 +71,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 
 			if (response.statusCode() == 404) {
-				throw new AvatarException(GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload was not found.");
+				throw AvatarException.uploadNotFound();
 			}
 			if (response.statusCode() != 200) {
 				throw new AvatarServiceUnavailableException(new IllegalStateException("Cloudinary verification returned HTTP " + response.statusCode()));

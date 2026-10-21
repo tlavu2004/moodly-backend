@@ -7,19 +7,27 @@ import org.springframework.http.HttpStatus;
 public abstract class ApplicationException extends RuntimeException {
 
 	private final ErrorCode code;
-	private final HttpStatus status;
-
-	protected ApplicationException(ErrorCode code, HttpStatus status, String message) {
-		this(code, status, message, null);
+	protected ApplicationException(ErrorCode code) {
+		super(code.getDefaultMessage());
+		this.code = code;
 	}
 
-	protected ApplicationException(ErrorCode code, HttpStatus status, String message, Throwable cause) {
-		super(message == null || message.isBlank() ? code.getDefaultMessage() : message, cause);
+	protected ApplicationException(ErrorCode code, String safeMessage) {
+		super(safeMessage);
 		this.code = code;
-		this.status = status;
+	}
+
+	protected ApplicationException(ErrorCode code, Throwable cause) {
+		super(code.getDefaultMessage(), cause);
+		this.code = code;
+	}
+
+	protected ApplicationException(ErrorCode code, String safeMessage, Throwable cause) {
+		super(safeMessage, cause);
+		this.code = code;
 	}
 
 	public ErrorCode getCode() { return code; }
 
-	public HttpStatus getStatus() { return status; }
+	public HttpStatus getStatus() { return code.getStatus(); }
 }

@@ -1,5 +1,6 @@
 package com.tlavu.moodly.shared.config;
 
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -108,11 +109,11 @@ public class OpenApiConfiguration {
 										"error",
 										orderedMap(
 												"status",
-												400,
+												GlobalErrorCode.INVALID_REQUEST.getStatus().value(),
 												"code",
-												"INVALID_REQUEST",
+												GlobalErrorCode.INVALID_REQUEST.getCode(),
 												"message",
-												"The request is invalid.",
+												GlobalErrorCode.INVALID_REQUEST.getDefaultMessage(),
 												"path",
 												"/example",
 												"errors",
@@ -132,8 +133,7 @@ public class OpenApiConfiguration {
 				"BadRequest",
 				errorResponse(
 						"The request is invalid.",
-						400,
-						"VALIDATION_FAILED",
+						GlobalErrorCode.VALIDATION_FAILED,
 						"One or more fields are invalid."
 				)
 		);
@@ -141,8 +141,7 @@ public class OpenApiConfiguration {
 				"Unauthorized",
 				errorResponse(
 						"Authentication is required or the access token is invalid.",
-						401,
-						"UNAUTHORIZED",
+						GlobalErrorCode.UNAUTHORIZED,
 						"Authentication is required."
 				)
 		);
@@ -150,16 +149,14 @@ public class OpenApiConfiguration {
 				"Forbidden",
 				errorResponse(
 						"The authenticated user is not allowed to perform this operation.",
-						403,
-						"FORBIDDEN",
+						GlobalErrorCode.FORBIDDEN,
 						"Access is denied."
 				)
 		);
 		components.addResponses(
 				"MaintenanceKeyRequired",
 				errorResponse("A valid X-Maintenance-Key header is required.",
-						403,
-						"FORBIDDEN",
+						GlobalErrorCode.FORBIDDEN,
 						"You are not allowed to perform this operation."
 				)
 		);
@@ -167,8 +164,7 @@ public class OpenApiConfiguration {
 				"NotFound",
 				errorResponse(
 						"The requested resource was not found.",
-						404,
-						"NOT_FOUND",
+						GlobalErrorCode.NOT_FOUND,
 						"The requested resource was not found."
 				)
 		);
@@ -176,8 +172,7 @@ public class OpenApiConfiguration {
 				"Conflict",
 				errorResponse(
 						"The resource conflicts with its current state.",
-						409,
-						"CONFLICT",
+						GlobalErrorCode.CONFLICT,
 						"Refresh the resource and retry."
 				)
 		);
@@ -185,8 +180,7 @@ public class OpenApiConfiguration {
 				"AvatarUploadNotFound",
 				errorResponse(
 						"The avatar upload is unknown, expired, or belongs to another user.",
-						400,
-						"AVATAR_UPLOAD_NOT_FOUND",
+						GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
 						"The avatar upload was not found or has expired."
 				)
 		);
@@ -194,26 +188,25 @@ public class OpenApiConfiguration {
 				"InternalServerError",
 				errorResponse(
 						"An unexpected server error occurred.",
-						500,
-						"INTERNAL_SERVER_ERROR",
+						GlobalErrorCode.INTERNAL_SERVER_ERROR,
 						"An unexpected error occurred."
 				)
 		);
 		components.addResponses("MethodNotAllowed", errorResponse(
-				"The HTTP method is not supported for this endpoint.", 405,
-				"METHOD_NOT_ALLOWED", "The HTTP method is not supported for this endpoint."));
+				"The HTTP method is not supported for this endpoint.", GlobalErrorCode.METHOD_NOT_ALLOWED,
+				"The HTTP method is not supported for this endpoint."));
 		components.addResponses("UnsupportedMediaType", errorResponse(
-				"The request content type is not supported.", 415,
-				"UNSUPPORTED_MEDIA_TYPE", "The request content type is not supported."));
+				"The request content type is not supported.", GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE,
+				"The request content type is not supported."));
 		components.addResponses("NotAcceptable", errorResponse(
-				"The requested response content type is not supported.", 406,
-				"NOT_ACCEPTABLE", "The requested response content type is not supported."));
+				"The requested response content type is not supported.", GlobalErrorCode.NOT_ACCEPTABLE,
+				"The requested response content type is not supported."));
 		components.addResponses("SearchUnavailable", errorResponse(
-				"Search is temporarily unavailable.", 503,
-				"SEARCH_UNAVAILABLE", "Search is temporarily unavailable."));
+				"Search is temporarily unavailable.", GlobalErrorCode.SEARCH_UNAVAILABLE,
+				"Search is temporarily unavailable."));
 		components.addResponses("AvatarServiceUnavailable", errorResponse(
-				"Avatar service is temporarily unavailable.", 503,
-				"AVATAR_SERVICE_UNAVAILABLE", "Avatar service is temporarily unavailable."));
+				"Avatar service is temporarily unavailable.", GlobalErrorCode.AVATAR_SERVICE_UNAVAILABLE,
+				"Avatar service is temporarily unavailable."));
 	}
 
 	private void addDefaultErrorResponses(OpenAPI openApi) {
@@ -291,8 +284,7 @@ public class OpenApiConfiguration {
 
 	private ApiResponse errorResponse(
 			String description,
-			int status,
-			String code,
+			GlobalErrorCode code,
 			String message
 	) {
 		Example example = new Example().value(
@@ -300,8 +292,8 @@ public class OpenApiConfiguration {
 						"success", false,
 						"data", null,
 						"error", orderedMap(
-								"status", status,
-								"code", code,
+								"status", code.getStatus().value(),
+								"code", code.getCode(),
 								"message", message,
 								"path", "/example",
 								"errors", List.of(),

@@ -70,7 +70,7 @@ public class CdcDeliveryService {
 			throw new IllegalStateException("CDC dead-letter replay was interrupted " + deadLetter.getId(), exception);
 		} catch (IOException | ElasticsearchException exception) {
 			handleReplayFailure(deadLetter, exception);
-			throw new SearchInfrastructureUnavailableException("CDC dead-letter replay is unavailable", exception);
+			throw SearchInfrastructureUnavailableException.duringReplay(exception);
 		} catch (RuntimeException exception) {
 			handleReplayFailure(deadLetter, exception);
 			throw new IllegalStateException("Could not replay CDC dead-letter event " + deadLetter.getId(), exception);

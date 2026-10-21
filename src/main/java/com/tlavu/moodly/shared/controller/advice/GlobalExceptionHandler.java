@@ -52,7 +52,6 @@ public class GlobalExceptionHandler {
 				))
 				.toList();
 		return buildErrorResponse(
-				HttpStatus.BAD_REQUEST,
 				GlobalErrorCode.VALIDATION_FAILED,
 				request,
 				errors,
@@ -66,7 +65,6 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				exception.getStatus(),
 				exception.getCode(),
 				exception.getMessage(),
 				request,
@@ -81,7 +79,6 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				HttpStatus.BAD_REQUEST,
 				GlobalErrorCode.MISSING_REQUIRED_HEADER,
 				request,
 				List.of(),
@@ -95,7 +92,6 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				HttpStatus.CONFLICT,
 				GlobalErrorCode.DUPLICATE_RESOURCE,
 				request,
 				List.of(),
@@ -109,7 +105,6 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				HttpStatus.CONFLICT,
 				GlobalErrorCode.CONFLICT,
 				"Resource was changed by another request. Refresh and retry.",
 				request,
@@ -124,7 +119,6 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		return buildErrorResponse(
-				HttpStatus.BAD_REQUEST,
 				GlobalErrorCode.INVALID_REQUEST,
 				request,
 				List.of(),
@@ -134,43 +128,42 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
 	ResponseEntity<ApiResponse<Void>> handleInvalidParameter(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.BAD_REQUEST, GlobalErrorCode.INVALID_REQUEST, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.INVALID_REQUEST, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
 	ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, GlobalErrorCode.METHOD_NOT_ALLOWED, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.METHOD_NOT_ALLOWED, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
 	ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
 	ResponseEntity<ApiResponse<Void>> handleNotAcceptable(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.NOT_ACCEPTABLE, GlobalErrorCode.NOT_ACCEPTABLE, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.NOT_ACCEPTABLE, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(AuthenticationException.class)
 	ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.UNAUTHORIZED, GlobalErrorCode.UNAUTHORIZED, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.UNAUTHORIZED, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)
 	ResponseEntity<ApiResponse<Void>> handleAccessDenied(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.FORBIDDEN, GlobalErrorCode.FORBIDDEN, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.FORBIDDEN, request, List.of(), exception);
 	}
 
 	@ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
 	ResponseEntity<ApiResponse<Void>> handleMissingEndpoint(Exception exception, HttpServletRequest request) {
-		return buildErrorResponse(HttpStatus.NOT_FOUND, GlobalErrorCode.NOT_FOUND, request, List.of(), exception);
+		return buildErrorResponse(GlobalErrorCode.NOT_FOUND, request, List.of(), exception);
 	}
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception, HttpServletRequest request) {
 		return buildErrorResponse(
-				HttpStatus.INTERNAL_SERVER_ERROR,
 				GlobalErrorCode.INTERNAL_SERVER_ERROR,
 				request,
 				List.of(),
@@ -179,23 +172,22 @@ public class GlobalExceptionHandler {
 	}
 
 	private ResponseEntity<ApiResponse<Void>> buildErrorResponse(
-			HttpStatus status,
 			ErrorCode errorCode,
 			HttpServletRequest request,
 			List<FieldErrorResponse> errors,
 			Exception exception
 	) {
-		return buildErrorResponse(status, errorCode, errorCode.getDefaultMessage(), request, errors, exception);
+		return buildErrorResponse(errorCode, errorCode.getDefaultMessage(), request, errors, exception);
 	}
 
 	private ResponseEntity<ApiResponse<Void>> buildErrorResponse(
-			HttpStatus status,
 			ErrorCode errorCode,
 			String message,
 			HttpServletRequest request,
 			List<FieldErrorResponse> errors,
 			Exception exception
 	) {
+		HttpStatus status = errorCode.getStatus();
 		logByStatus(
 				status,
 				request,

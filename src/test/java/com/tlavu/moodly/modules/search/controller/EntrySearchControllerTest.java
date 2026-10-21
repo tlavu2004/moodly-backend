@@ -99,7 +99,7 @@ class EntrySearchControllerTest {
 	@Test
 	void returnsServiceUnavailableWhenElasticsearchCannotServeSearch() throws Exception {
 		when(entrySearchService.search(USER_ID, "tired", null, null, 0, 20))
-				.thenThrow(new SearchInfrastructureUnavailableException("Elasticsearch search is unavailable", new java.io.IOException("down")));
+				.thenThrow(SearchInfrastructureUnavailableException.duringSearch(new java.io.IOException("down")));
 
 		mockMvc.perform(get("/entries/search")
 					.param("q", "tired"))

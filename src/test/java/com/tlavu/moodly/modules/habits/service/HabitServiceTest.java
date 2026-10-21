@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.habits.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,6 +12,7 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.controller.CreateHabitRequest;
+import com.tlavu.moodly.shared.error.exception.ConflictException;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -69,5 +71,16 @@ class HabitServiceTest {
 
 		var archived = habitService.archive("user-1", "habit-1", 0L);
 		assertFalse(archived.isActive());
+	}
+
+	@Test
+	void rejectsAStaleHabitVersionWithTheSharedConflictCode() {
+		var habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
+		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
+
+		var exception = assertThrows(ConflictException.class, () -> habitService.archive("user-1", "habit-1", 1L));
+
+		assertEquals("CONFLICT", exception.getCode().getCode());
+		verify(habitRepository, org.mockito.Mockito.never()).save(habit);
 	}
 }

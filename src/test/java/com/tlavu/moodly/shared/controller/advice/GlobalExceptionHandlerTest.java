@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.exception.ConflictException;
 import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,16 +25,27 @@ class GlobalExceptionHandlerTest {
 	void keepsTheErrorCodeCatalogUnique() {
 		var codes = Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getCode).toList();
 		assertThat(codes).doesNotHaveDuplicates();
+		assertThat(Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getStatus)).doesNotContainNull();
+	}
+
+	@Test
+	void derivesConflictStatusAndMessageFromItsCode() {
+		var request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/habits/habit-1");
+
+		var response = new GlobalExceptionHandler().handleApplication(new ConflictException(), request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+		assertThat(response.getBody().error().status()).isEqualTo(409);
+		assertThat(response.getBody().error().code()).isEqualTo("CONFLICT");
+		assertThat(response.getBody().error().message()).isEqualTo(GlobalErrorCode.CONFLICT.getDefaultMessage());
 	}
 
 	@Test
 	void preservesAvatarErrorResponseDetails() {
 		var request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/me/avatar/confirm");
-		var exception = new AvatarException(
-				GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
-				"Avatar upload is unknown or has expired."
-		);
+		var exception = AvatarException.uploadExpired();
 
 		var response = new GlobalExceptionHandler().handleApplication(exception, request);
 

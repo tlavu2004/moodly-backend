@@ -78,14 +78,13 @@ public class E2eUserResetService {
 				var indexed = elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId),
 						com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument.class);
 				if (!indexed.found() || !userId.equals(indexed.source().userId())) {
-					throw new SearchInfrastructureUnavailableException(
-							"E2E reset search indexing could not be verified",
+					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId));
 				}
 			}
 			return new ResetResult(userId, habitRepository.findByUserId(userId).size(), entries.size(), "verified");
 		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
-			throw new SearchInfrastructureUnavailableException("E2E reset search indexing is unavailable", exception);
+			throw SearchInfrastructureUnavailableException.duringE2eIndexing(exception);
 		}
 	}
 
