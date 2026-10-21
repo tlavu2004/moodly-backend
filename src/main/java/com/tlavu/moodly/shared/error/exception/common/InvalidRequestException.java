@@ -13,7 +13,10 @@ public class InvalidRequestException extends ApplicationException {
 		super(GlobalErrorCode.INVALID_REQUEST, message);
 	}
 
-	protected InvalidRequestException(GlobalErrorCode code, String safeMessage) {
+	protected InvalidRequestException(
+		GlobalErrorCode code,
+		String safeMessage
+	) {
 		super(code, safeMessage);
 	}
 }

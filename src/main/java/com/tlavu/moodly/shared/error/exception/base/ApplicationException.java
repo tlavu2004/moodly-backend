@@ -15,20 +15,32 @@ public abstract class ApplicationException extends RuntimeException {
 		this.code = code;
 	}
 
-	protected ApplicationException(ErrorCode code, String safeMessage) {
+	protected ApplicationException(
+			ErrorCode code,
+			String safeMessage
+	) {
 		super(safeMessage);
 		this.code = code;
 	}
 
-	protected ApplicationException(ErrorCode code, Throwable cause) {
+	protected ApplicationException(
+			ErrorCode code,
+			Throwable cause
+	) {
 		super(code.getDefaultMessage(), cause);
 		this.code = code;
 	}
 
-	protected ApplicationException(ErrorCode code, String safeMessage, Throwable cause) {
+	protected ApplicationException(
+			ErrorCode code,
+			String safeMessage,
+			Throwable cause
+	) {
 		super(safeMessage, cause);
 		this.code = code;
 	}
 
-	public HttpStatus getStatus() { return code.getStatus(); }
+	public HttpStatus getStatus() {
+		return code.getStatus();
+	}
 }
