@@ -12,6 +12,7 @@ public enum GlobalErrorCode implements ErrorCode {
 	INVALID_REQUEST("INVALID_REQUEST", "The request is invalid."),
 	METHOD_NOT_ALLOWED("METHOD_NOT_ALLOWED", "The HTTP method is not supported for this endpoint."),
 	UNSUPPORTED_MEDIA_TYPE("UNSUPPORTED_MEDIA_TYPE", "The request content type is not supported."),
+	NOT_ACCEPTABLE("NOT_ACCEPTABLE", "The requested response content type is not supported."),
 	MISSING_REQUIRED_HEADER("MISSING_REQUIRED_HEADER", "A required request header is missing."),
 	DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "A document with the same unique key already exists."),
 	CONFLICT("CONFLICT", "The resource was changed by another request."),

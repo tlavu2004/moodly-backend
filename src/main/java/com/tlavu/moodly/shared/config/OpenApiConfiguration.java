@@ -205,6 +205,9 @@ public class OpenApiConfiguration {
 		components.addResponses("UnsupportedMediaType", errorResponse(
 				"The request content type is not supported.", 415,
 				"UNSUPPORTED_MEDIA_TYPE", "The request content type is not supported."));
+		components.addResponses("NotAcceptable", errorResponse(
+				"The requested response content type is not supported.", 406,
+				"NOT_ACCEPTABLE", "The requested response content type is not supported."));
 		components.addResponses("SearchUnavailable", errorResponse(
 				"Search is temporarily unavailable.", 503,
 				"SEARCH_UNAVAILABLE", "Search is temporarily unavailable."));
@@ -221,6 +224,7 @@ public class OpenApiConfiguration {
 							var responses = operation.getResponses();
 							responses.addApiResponse("400", reference("BadRequest"));
 							responses.addApiResponse("405", reference("MethodNotAllowed"));
+							responses.addApiResponse("406", reference("NotAcceptable"));
 							responses.addApiResponse("415", reference("UnsupportedMediaType"));
 
 							if (usesMaintenanceKey(operation)) {

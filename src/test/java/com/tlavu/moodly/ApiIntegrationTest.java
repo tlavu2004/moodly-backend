@@ -490,6 +490,38 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period. Supported values: week."));
 	}
 
+	@Test
+	void normalizesFrameworkRequestFailures() throws Exception {
+		var jwtUser = jwt().jwt(token -> token.subject(USER_ID));
+
+		mockMvc.perform(get("/entries").with(jwtUser).param("to", "2026-10-21"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+		mockMvc.perform(get("/entries").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.param("from", "2026-10-01").param("to", "2026-10-21").param("page", "invalid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+		mockMvc.perform(post("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isMethodNotAllowed())
+				.andExpect(jsonPath("$.error.code").value("METHOD_NOT_ALLOWED"));
+
+		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.TEXT_PLAIN).content("invalid"))
+				.andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.error.code").value("UNSUPPORTED_MEDIA_TYPE"));
+
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.accept(MediaType.TEXT_PLAIN))
+				.andExpect(status().isNotAcceptable())
+				.andExpect(jsonPath("$.error.code").value("NOT_ACCEPTABLE"));
+
+		mockMvc.perform(get("/missing-endpoint").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+	}
+
 	@TestConfiguration(proxyBeanMethods = false)
 	static class FixedClockConfiguration {
 		@Bean

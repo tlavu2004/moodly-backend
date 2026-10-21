@@ -79,6 +79,25 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	void mapsControllerSecurityFailuresWithoutExposingTheirMessages() {
+		var request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/habits");
+		var handler = new GlobalExceptionHandler();
+
+		var denied = handler.handleAccessDenied(
+				new org.springframework.security.access.AccessDeniedException("sensitive principal"), request);
+		assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(denied.getBody().error().code()).isEqualTo("FORBIDDEN");
+		assertThat(denied.getBody().error().message()).doesNotContain("sensitive principal");
+
+		var unauthenticated = handler.handleAuthenticationFailure(
+				new org.springframework.security.authentication.BadCredentialsException("sensitive token"), request);
+		assertThat(unauthenticated.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(unauthenticated.getBody().error().code()).isEqualTo("UNAUTHORIZED");
+		assertThat(unauthenticated.getBody().error().message()).doesNotContain("sensitive token");
+	}
+
+	@Test
 	void logsSanitizedStackLocationsAndRequestIdWithoutExceptionMessages() {
 		var request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");

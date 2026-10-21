@@ -15,8 +15,12 @@ import org.slf4j.MDC;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -143,6 +147,21 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE, request, List.of(), exception);
 	}
 
+	@ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+	ResponseEntity<ApiResponse<Void>> handleNotAcceptable(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.NOT_ACCEPTABLE, GlobalErrorCode.NOT_ACCEPTABLE, request, List.of(), exception);
+	}
+
+	@ExceptionHandler(AuthenticationException.class)
+	ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.UNAUTHORIZED, GlobalErrorCode.UNAUTHORIZED, request, List.of(), exception);
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	ResponseEntity<ApiResponse<Void>> handleAccessDenied(Exception exception, HttpServletRequest request) {
+		return buildErrorResponse(HttpStatus.FORBIDDEN, GlobalErrorCode.FORBIDDEN, request, List.of(), exception);
+	}
+
 	@ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
 	ResponseEntity<ApiResponse<Void>> handleMissingEndpoint(Exception exception, HttpServletRequest request) {
 		return buildErrorResponse(HttpStatus.NOT_FOUND, GlobalErrorCode.NOT_FOUND, request, List.of(), exception);
@@ -192,7 +211,7 @@ public class GlobalExceptionHandler {
 				requestId()
 		);
 
-		return ResponseEntity.status(status).body(ApiResponse.error(error));
+		return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(ApiResponse.error(error));
 	}
 
 	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
