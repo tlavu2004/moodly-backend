@@ -84,11 +84,11 @@ Các mục sau là **đề xuất tăng cường cho dự án đích**, không p
 
 ## 7. Áp dụng vào cấu trúc hiện tại của Moodly
 
-Moodly giữ envelope `ApiResponse` và `ApiError(status, code, message, path, errors, requestId)`. `RequestIdFilter` phát `X-Request-ID`; `MoodlyTime` tính ngày theo `Asia/Ho_Chi_Minh`. `shared/error/exception/ApplicationException` là gốc cho lỗi ứng dụng dự kiến, chứa `ErrorCode`, HTTP status, message an toàn và cause tùy chọn. `GlobalExceptionHandler` bắt lớp gốc theo đa hình, lỗi request của framework và fallback 500. Spring Security ghi cùng envelope cho 401/403 vì lỗi này xảy ra trước MVC.
+Moodly giữ envelope `ApiResponse` và `ApiError(status, code, message, path, errors, requestId)`. `RequestIdFilter` phát `X-Request-ID`; `MoodlyTime` tính ngày theo `Asia/Ho_Chi_Minh`. `shared/error/exception/ApplicationException` là gốc cho lỗi ứng dụng dự kiến, chứa `ErrorCode`, HTTP status, message an toàn và cause tùy chọn. `GlobalExceptionHandler` bắt lớp gốc theo đa hình, lỗi request của framework và fallback 500. Lỗi xác thực ở filter Spring Security xảy ra trước MVC nên `SecurityConfiguration` ghi cùng envelope; lỗi security phát sinh trong controller được Global ánh xạ 401/403. Job, CDC listener và lỗi trước khi MVC dispatch không thể được Global bắt; chúng cần retry, dead letter, health hoặc log ở biên riêng.
 
 | Thứ tự | Kiểm kê và quy ước Moodly |
 |---|---|
-| `shared` | Bean Validation → 400 `VALIDATION_FAILED`; body/parameter sai → 400 `INVALID_REQUEST`; method → 405 `METHOD_NOT_ALLOWED`; media type → 415 `UNSUPPORTED_MEDIA_TYPE`; duplicate key/optimistic lock → 409; fallback → 500 `INTERNAL_SERVER_ERROR`. Không ánh xạ mọi `IllegalArgumentException` thành 400 vì lỗi đó cũng có thể xuất phát từ thư viện, cấu hình hoặc lỗi lập trình. |
+| `shared` | Bean Validation → 400 `VALIDATION_FAILED`; body/parameter sai → 400 `INVALID_REQUEST`; method → 405 `METHOD_NOT_ALLOWED`; `Accept` sai → 406 `NOT_ACCEPTABLE`; request media type sai → 415 `UNSUPPORTED_MEDIA_TYPE`; duplicate key/optimistic lock → 409; fallback → 500 `INTERNAL_SERVER_ERROR`. Không ánh xạ mọi `IllegalArgumentException` thành 400 vì lỗi đó cũng có thể xuất phát từ thư viện, cấu hình hoặc lỗi lập trình. |
 | `auth` | `CurrentUser` lấy identity từ JWT đã xác thực; 401/403 do security xử lý. Avatar giữ mã cũ; asset 404 là `AVATAR_UPLOAD_NOT_FOUND` 400; metadata sai là `AVATAR_ASSET_INVALID` 400; Cloudinary lỗi là `AVATAR_SERVICE_UNAVAILABLE` 503 và giữ cause. Cleanup có retry riêng sau khi profile đã lưu. |
 | `habits` | Status lọc sai → 400 `INVALID_REQUEST`; habit không thuộc user → 404 `NOT_FOUND`; version cũ → 409 `CONFLICT`. DTO vẫn dùng Bean Validation. |
 | `entries` | Date range, ngày tương lai và pagination sai → 400 `INVALID_REQUEST`; mood và habit log dùng validation DTO. Cần xác minh quyền sở hữu habit trước khi thêm habit log để tránh dữ liệu trỏ tới habit của user khác. |
@@ -96,7 +96,7 @@ Moodly giữ envelope `ApiResponse` và `ApiError(status, code, message, path, e
 | `dashboard` | Cho lỗi từ habits, entries và stats truyền lên handler; không trả dashboard thiếu dữ liệu như thành công. |
 | `search` | Query/date/result window sai → 400. IOException hoặc ElasticsearchException tại biên query → 503 `SEARCH_UNAVAILABLE`; giữ cause, không công bố truy vấn nội bộ. |
 | `cdc` | Retry lỗi Elasticsearch tạm thời; lỗi cố định vào dead letter. Replay thất bại phải giữ dead letter và báo lỗi. Reindex IOException/ElasticsearchException → 503. Listener ghi health khi phục hồi thất bại. |
-| `e2e` | Reset chỉ bật ngoài production, key sai → 403; chỉ tác động synthetic user. Lỗi Elasticsearch → 503; lỗi Mongo hoặc bất biến verify → fallback 500. |
+| `e2e` | Reset chỉ bật ngoài production, key sai → 403; chỉ tác động synthetic user. Lỗi Elasticsearch và xác minh chỉ mục → 503; lỗi Mongo → fallback 500. |
 
 ### Danh mục mã đã dùng
 
@@ -105,7 +105,7 @@ Moodly giữ envelope `ApiResponse` và `ApiError(status, code, message, path, e
 | 400 | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID` |
 | 401/403 | `UNAUTHORIZED`, `FORBIDDEN` |
 | 404 | `NOT_FOUND` |
-| 405/415 | `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE` |
+| 405/406/415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE` |
 | 409 | `DUPLICATE_RESOURCE`, `CONFLICT` |
 | 503 | `SEARCH_UNAVAILABLE`, `AVATAR_SERVICE_UNAVAILABLE` |
 | 500 | `INTERNAL_SERVER_ERROR` |
