@@ -191,6 +191,13 @@ class ApiIntegrationTest {
 
 		var openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
 		var examples = openApi.path("components").path("examples");
+		var badRequestExample = openApi.path("components").path("responses")
+			.path("BadRequest").path("content").path("application/json")
+			.path("examples").path("default").path("value");
+		assertThat(badRequestExample.isObject()).isTrue();
+		assertThat(badRequestExample.path("data").isNull()).isTrue();
+		assertThat(badRequestExample.path("error").path("status").asInt()).isEqualTo(400);
+		assertThat(badRequestExample.path("error").path("code").asString()).isEqualTo("VALIDATION_FAILED");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/Conflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
