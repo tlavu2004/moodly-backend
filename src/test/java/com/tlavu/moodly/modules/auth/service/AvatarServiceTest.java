@@ -139,7 +139,7 @@ class AvatarServiceTest {
 				.thenReturn(new ConfirmedAsset(publicId, 1, "image/png", 5L * 1024 * 1024 + 1));
 
 		assertThatThrownBy(() -> service.confirm(publicId, 1))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(AvatarException.class)
 				.hasMessageContaining("metadata is invalid");
 
 		verify(profiles, never()).save(any());
@@ -172,7 +172,7 @@ class AvatarServiceTest {
 				.thenReturn(Optional.of(new PendingAvatarUpload(mismatchedId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(mismatchedId))
 				.thenReturn(new ConfirmedAsset(mismatchedId, 2, "image/png", 1024));
-		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(IllegalArgumentException.class)
+		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(AvatarException.class)
 				.hasMessageContaining("version does not match");
 
 		var gifId = NAMESPACE + "gif";
@@ -180,7 +180,7 @@ class AvatarServiceTest {
 				.thenReturn(Optional.of(new PendingAvatarUpload(gifId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(gifId))
 				.thenReturn(new ConfirmedAsset(gifId, 1, "image/gif", 1024));
-		assertThatThrownBy(() -> service.confirm(gifId, 1)).isInstanceOf(IllegalArgumentException.class)
+		assertThatThrownBy(() -> service.confirm(gifId, 1)).isInstanceOf(AvatarException.class)
 				.hasMessageContaining("metadata is invalid");
 
 		verify(profiles, never()).save(any());
@@ -190,7 +190,7 @@ class AvatarServiceTest {
 	void rejectsANonPositiveConfirmationVersionBeforeLookingUpCloudinary() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		assertThatThrownBy(() -> service.confirm(NAMESPACE + "invalid-version", 0))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.InvalidRequestException.class)
 				.hasMessageContaining("must be positive");
 		verify(cloudinary, never()).findImage(any());
 	}

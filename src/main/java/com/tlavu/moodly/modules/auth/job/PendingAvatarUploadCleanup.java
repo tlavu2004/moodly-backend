@@ -31,12 +31,14 @@ public class PendingAvatarUploadCleanup {
 				pendingUploads.delete(pending);
 			} catch (RuntimeException exception) {
 				pending.recordCleanupFailure();
-				pendingUploads.save(pending);
-				log.warn(
-						"Avatar cleanup retry {} failed for {}",
-						pending.getCleanupAttempts(),
-						pending.getPublicId()
-				);
+				try {
+					pendingUploads.save(pending);
+					log.warn("Avatar cleanup retry {} failed ({})",
+							pending.getCleanupAttempts(), exception.getClass().getSimpleName());
+				} catch (RuntimeException persistenceException) {
+					log.error("Avatar cleanup retry state could not be persisted ({})",
+							persistenceException.getClass().getSimpleName());
+				}
 			}
 		}
 	}

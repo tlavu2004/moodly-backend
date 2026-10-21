@@ -1,6 +1,9 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -68,8 +71,11 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 					HttpResponse.BodyHandlers.ofString()
 			);
 
+			if (response.statusCode() == 404) {
+				throw new AvatarException(GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND, "Avatar upload was not found.");
+			}
 			if (response.statusCode() != 200) {
-				throw new IllegalArgumentException("Cloudinary could not confirm the uploaded avatar.");
+				throw new AvatarServiceUnavailableException(new IllegalStateException("Cloudinary verification returned HTTP " + response.statusCode()));
 			}
 
 			JsonNode asset = objectMapper.readTree(response.body());
@@ -86,19 +92,11 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
-			throw new IllegalStateException(
-					"Cloudinary verification was interrupted.",
-					exception
-			);
-		} catch (IllegalArgumentException exception) {
-			// A missing or inaccessible asset is invalid client input for confirmation,
-			// not an unexpected server failure.
+			throw new AvatarServiceUnavailableException(exception);
+		} catch (AvatarException | AvatarServiceUnavailableException exception) {
 			throw exception;
 		} catch (Exception exception) {
-			throw new IllegalStateException(
-					"Cloudinary verification failed.",
-					exception
-			);
+			throw new AvatarServiceUnavailableException(exception);
 		}
 	}
 

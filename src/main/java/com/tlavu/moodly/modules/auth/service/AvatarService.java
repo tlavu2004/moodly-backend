@@ -13,6 +13,7 @@ import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -119,7 +120,7 @@ public class AvatarService {
 			);
 		}
 		if (version < 1) {
-			throw new IllegalArgumentException("Avatar version must be positive.");
+			throw new InvalidRequestException("Avatar version must be positive.");
 		}
 
 		PendingAvatarUpload pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
@@ -131,14 +132,14 @@ public class AvatarService {
 		ConfirmedAsset asset = cloudinary.findImage(publicId);
 
 		if (asset.version() != version) {
-			throw new IllegalArgumentException("Avatar version does not match the uploaded asset.");
+			throw new AvatarException(GlobalErrorCode.AVATAR_ASSET_INVALID, "Avatar version does not match the uploaded asset.");
 		}
 		if (
 				!publicId.equals(asset.publicId()) ||
 				!ALLOWED_TYPES.contains(asset.contentType()) ||
 				asset.sizeBytes() > MAX_BYTES
 		) {
-			throw new IllegalArgumentException("Cloudinary avatar metadata is invalid.");
+			throw new AvatarException(GlobalErrorCode.AVATAR_ASSET_INVALID, "Uploaded avatar metadata is invalid.");
 		}
 
 		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();
