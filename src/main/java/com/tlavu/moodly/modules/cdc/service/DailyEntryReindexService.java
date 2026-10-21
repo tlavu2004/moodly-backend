@@ -44,7 +44,7 @@ public class DailyEntryReindexService {
 				}
 				page = dailyEntryRepository.findAll(page.nextPageable());
 			}
-		} catch (IOException exception) {
+		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw new SearchInfrastructureUnavailableException("Elasticsearch reindex is unavailable", exception);
 		}
 	}

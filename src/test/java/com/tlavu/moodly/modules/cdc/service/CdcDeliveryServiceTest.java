@@ -184,8 +184,8 @@ class CdcDeliveryServiceTest {
 		var service = service();
 
 		assertThatThrownBy(() -> service.replay(deadLetter))
-				.isInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("Could not replay CDC dead-letter event");
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException.class)
+				.hasMessageContaining("CDC dead-letter replay is unavailable");
 
 		assertThat(deadLetter.getAttempts()).isEqualTo(6);
 		assertThat(deadLetter.getError()).isEqualTo("Elasticsearch unavailable");

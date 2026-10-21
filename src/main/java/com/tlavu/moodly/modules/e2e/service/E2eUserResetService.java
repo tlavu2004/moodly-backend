@@ -82,7 +82,7 @@ public class E2eUserResetService {
 				}
 			}
 			return new ResetResult(userId, habitRepository.findByUserId(userId).size(), entries.size(), "verified");
-		} catch (IOException exception) {
+		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw new SearchInfrastructureUnavailableException("E2E reset search indexing is unavailable", exception);
 		}
 	}

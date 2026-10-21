@@ -27,7 +27,7 @@ public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
 	public void run(@NonNull ApplicationArguments args) {
 		try {
 			indexManager.createIfMissing();
-		} catch (IOException exception) {
+		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw new SearchInfrastructureUnavailableException("Elasticsearch index initialization is unavailable", exception);
 		}
 	}
