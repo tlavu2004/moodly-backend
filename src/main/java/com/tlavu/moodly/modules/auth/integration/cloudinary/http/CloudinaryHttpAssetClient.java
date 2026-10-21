@@ -91,6 +91,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
+
 			throw new AvatarServiceUnavailableException(exception);
 		} catch (AvatarException | AvatarServiceUnavailableException exception) {
 			throw exception;
@@ -103,10 +104,25 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 	public void deleteImage(String publicId) {
 		// Deletion is intentionally performed only after the replacement has been persisted.
 		long timestamp = Instant.now().getEpochSecond();
-		String signature = sha1("public_id=" + publicId + "&timestamp=" + timestamp + apiSecret);
-		String body = "public_id=" + encode(publicId) + "&timestamp=" + timestamp + "&api_key=" + encode(apiKey) + "&signature=" + encode(signature);
+		String signature = sha1(
+				"public_id=" +
+				publicId +
+				"&timestamp=" +
+				timestamp +
+				apiSecret
+		);
+		String body = "public_id=" +
+				encode(publicId) +
+				"&timestamp=" +
+				timestamp +
+				"&api_key=" +
+				encode(apiKey) +
+				"&signature=" +
+				encode(signature);
 		URI uri = URI.create(
-				"https://api.cloudinary.com/v1_1/" + cloudName + "/image/destroy"
+				"https://api.cloudinary.com/v1_1/" +
+				cloudName +
+				"/image/destroy"
 		);
 		HttpRequest request = HttpRequest.newBuilder(uri)
 				.timeout(requestTimeout)
