@@ -1,6 +1,8 @@
 package com.tlavu.moodly.modules.auth.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,6 @@ class CurrentUserTest {
 		authentication.setAuthenticated(true);
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		assertThat(currentUser.id()).isEqualTo("auth0|user-123");
-		assertThat(currentUser.identity()).isEqualTo(new CurrentUser.Identity("auth0|user-123", "user@example.com"));
+		assertThat(currentUser.identity()).isEqualTo(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
 	}
 }

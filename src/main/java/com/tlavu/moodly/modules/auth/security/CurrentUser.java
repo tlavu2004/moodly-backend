@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.security;
 
+import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import java.util.Locale;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -18,9 +19,9 @@ public class CurrentUser {
 		return authenticatedJwt().getSubject();
 	}
 
-	public Identity identity() {
+	public CurrentUserIdentity identity() {
 		Jwt jwt = authenticatedJwt();
-		return new Identity(jwt.getSubject(), normalizedEmail(jwt));
+		return new CurrentUserIdentity(jwt.getSubject(), normalizedEmail(jwt));
 	}
 
 	private Jwt authenticatedJwt() {
@@ -44,8 +45,5 @@ public class CurrentUser {
 		}
 
 		return email.trim().toLowerCase(Locale.ROOT);
-	}
-
-	public record Identity(String subject, String email) {
 	}
 }

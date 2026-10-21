@@ -6,8 +6,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -16,7 +18,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceTest {
@@ -30,7 +31,7 @@ class UserProfileServiceTest {
 
 	@Test
 	void explicitlyCreatesAProfileFromTheVerifiedIdentity() {
-		when(currentUser.identity()).thenReturn(new CurrentUser.Identity("auth0|user-123", "user@example.com"));
+		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
 		when(profiles.findByAuth0Subject("auth0|user-123")).thenReturn(Optional.empty());
 		when(profiles.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -46,7 +47,7 @@ class UserProfileServiceTest {
 	@Test
 	void reusesAnExistingProfileIdempotently() {
 		var existing = new UserProfile("auth0|user-123", "user@example.com", Instant.now());
-		when(currentUser.identity()).thenReturn(new CurrentUser.Identity("auth0|user-123", "user@example.com"));
+		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
 		when(profiles.findByAuth0Subject("auth0|user-123")).thenReturn(Optional.of(existing));
 
 		assertThat(service.synchronizeCurrent()).isSameAs(existing);

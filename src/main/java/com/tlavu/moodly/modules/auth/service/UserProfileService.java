@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.service;
 
+import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
@@ -17,11 +18,11 @@ public class UserProfileService {
 	private final UserProfileRepository profiles;
 
 	public UserProfile synchronizeCurrent() {
-		CurrentUser.Identity identity = currentUser.identity();
+		CurrentUserIdentity identity = currentUser.identity();
 		return profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity));
 	}
 
-	private UserProfile create(CurrentUser.Identity identity) {
+	private UserProfile create(CurrentUserIdentity identity) {
 		try {
 			return profiles.save(
 				new UserProfile(
