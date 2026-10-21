@@ -144,7 +144,9 @@ README's temporary threshold.
 
 ## Test
 
-`mvn test` starts an isolated `mongo:8.3.7` replica set with Testcontainers; it does not use the local Docker Compose database. Docker Desktop must be running.
+`mvn test` starts isolated MongoDB and Elasticsearch containers with
+Testcontainers; it does not use the local or test Docker Compose stacks. Docker
+Desktop must be running.
 
 ```bash
 make test
@@ -155,5 +157,15 @@ For a manually inspectable test database, start the separate test Compose enviro
 ```bash
 make test-up
 ```
+
+### Deferred test infrastructure review
+
+After the backend refactor is complete and the application is ready for
+production, decide whether Maven integration tests should reuse the
+`moodly-test` Compose stack instead of creating and removing Testcontainers for
+each run. Compare startup time and memory use. Preserve test isolation,
+repeatable database cleanup, dynamic connection configuration, and CI
+reliability before changing the setup. Keep automated tests away from local and
+production databases.
 
 See `docs/blueprint/moodly-blueprint.md` for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.
