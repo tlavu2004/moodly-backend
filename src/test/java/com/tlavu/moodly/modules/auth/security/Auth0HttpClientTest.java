@@ -18,7 +18,7 @@ class Auth0HttpClientTest {
 
 	@Test
 	void retriesTimeoutThenReturnsSuccessfulResponse() throws Exception {
-		var response = mock(ClientHttpResponse.class);
+		ClientHttpResponse response = mock(ClientHttpResponse.class);
 		when(execution.execute(request, body)).thenThrow(new SocketTimeoutException()).thenReturn(response);
 		assertThat(Auth0HttpClient.retry(3, Duration.ZERO).intercept(request, body, execution)).isSameAs(response);
 		verify(execution, times(2)).execute(request, body);
@@ -42,7 +42,7 @@ class Auth0HttpClientTest {
 
 	@Test
 	void doesNotRetryHttpErrorResponse() throws Exception {
-		var response = mock(ClientHttpResponse.class);
+		ClientHttpResponse response = mock(ClientHttpResponse.class);
 		when(response.getStatusCode()).thenReturn(org.springframework.http.HttpStatus.UNAUTHORIZED);
 		when(execution.execute(request, body)).thenReturn(response);
 		assertThat(Auth0HttpClient.retry(3, Duration.ZERO).intercept(request, body, execution)).isSameAs(response);

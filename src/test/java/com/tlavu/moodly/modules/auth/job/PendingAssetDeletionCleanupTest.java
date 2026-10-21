@@ -28,7 +28,8 @@ class PendingAssetDeletionCleanupTest {
 
 	@Test
 	void removesTheCleanupTaskAfterCloudinaryDeletionSucceeds() {
-		var pending = new PendingAssetDeletion("moodly/test/users/user/avatar/obsolete", Instant.now().minusSeconds(1));
+		PendingAssetDeletion pending = new PendingAssetDeletion(
+				"moodly/test/users/user/avatar/obsolete", Instant.now().minusSeconds(1));
 		when(pendingDeletions.findByNextAttemptAtBefore(any())).thenReturn(List.of(pending));
 
 		cleanup.cleanupObsoleteAssets();
@@ -40,13 +41,14 @@ class PendingAssetDeletionCleanupTest {
 
 	@Test
 	void retainsAndReschedulesTheCleanupTaskWhenCloudinaryDeletionFails() {
-		var pending = new PendingAssetDeletion("moodly/test/users/user/avatar/obsolete", Instant.now().minusSeconds(1));
+		PendingAssetDeletion pending = new PendingAssetDeletion(
+				"moodly/test/users/user/avatar/obsolete", Instant.now().minusSeconds(1));
 		when(pendingDeletions.findByNextAttemptAtBefore(any())).thenReturn(List.of(pending));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
 
 		cleanup.cleanupObsoleteAssets();
 
-		var saved = ArgumentCaptor.forClass(PendingAssetDeletion.class);
+		ArgumentCaptor<PendingAssetDeletion> saved = ArgumentCaptor.forClass(PendingAssetDeletion.class);
 		verify(pendingDeletions).save(saved.capture());
 		assertThat(saved.getValue().getCleanupAttempts()).isEqualTo(1);
 		assertThat(saved.getValue().getNextAttemptAt()).isAfter(Instant.now());

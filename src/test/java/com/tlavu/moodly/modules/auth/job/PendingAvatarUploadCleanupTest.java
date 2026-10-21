@@ -26,7 +26,8 @@ class PendingAvatarUploadCleanupTest {
 
 	@Test
 	void deletesExpiredUnconfirmedAssetsAndTheirPendingRecords() {
-		var pending = new PendingAvatarUpload("moodly/test/users/user/avatar/expired", "user", Instant.now().minusSeconds(1));
+		PendingAvatarUpload pending = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/expired", "user", Instant.now().minusSeconds(1));
 		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
 
 		cleanup.cleanupExpiredUploads();
@@ -37,13 +38,14 @@ class PendingAvatarUploadCleanupTest {
 
 	@Test
 	void recordsTheFailureSoAnExpiredAssetCanBeRetried() {
-		var pending = new PendingAvatarUpload("moodly/test/users/user/avatar/retry", "user", Instant.now().minusSeconds(1));
+		PendingAvatarUpload pending = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/retry", "user", Instant.now().minusSeconds(1));
 		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
 
 		cleanup.cleanupExpiredUploads();
 
-		var saved = ArgumentCaptor.forClass(PendingAvatarUpload.class);
+		ArgumentCaptor<PendingAvatarUpload> saved = ArgumentCaptor.forClass(PendingAvatarUpload.class);
 		verify(pendingUploads).save(saved.capture());
 		org.assertj.core.api.Assertions.assertThat(saved.getValue().getCleanupAttempts()).isEqualTo(1);
 	}

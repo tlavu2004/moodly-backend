@@ -21,14 +21,14 @@ class CurrentUserTest {
 
 	@Test
 	void resolvesTheVerifiedIdentityWithoutWritingApplicationData() {
-		var jwt = Jwt.withTokenValue("test-token")
+		Jwt jwt = Jwt.withTokenValue("test-token")
 				.header("alg", "none")
 				.subject("auth0|user-123")
 				.claim("email", "  USER@Example.COM ")
 				.issuedAt(Instant.now())
 				.expiresAt(Instant.now().plusSeconds(60))
 				.build();
-		var authentication = new JwtAuthenticationToken(jwt);
+		JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt);
 		authentication.setAuthenticated(true);
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		assertThat(currentUser.id()).isEqualTo("auth0|user-123");

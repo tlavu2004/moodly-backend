@@ -17,7 +17,7 @@ class SecurityConfigurationTest {
 
 	@Test
 	void acceptsATokenWithTheConfiguredIssuerAudienceAndLifetime() {
-		var validator = new DelegatingOAuth2TokenValidator<>(
+		DelegatingOAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
 				JwtValidators.createDefaultWithIssuer(ISSUER), configuration.audienceValidator(AUDIENCE));
 
 		assertThat(validator.validate(token(ISSUER, List.of(AUDIENCE), Instant.now().plusSeconds(60))).hasErrors()).isFalse();
@@ -25,7 +25,7 @@ class SecurityConfigurationTest {
 
 	@Test
 	void rejectsWrongIssuerWrongAudienceAndExpiredTokens() {
-		var validator = new DelegatingOAuth2TokenValidator<>(
+		DelegatingOAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
 				JwtValidators.createDefaultWithIssuer(ISSUER), configuration.audienceValidator(AUDIENCE));
 
 		assertThat(validator.validate(token("https://other.auth0.com/", List.of(AUDIENCE), Instant.now().plusSeconds(60))).hasErrors()).isTrue();

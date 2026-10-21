@@ -35,9 +35,9 @@ class UserProfileServiceTest {
 		when(profiles.findByAuth0Subject("auth0|user-123")).thenReturn(Optional.empty());
 		when(profiles.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		var result = service.synchronizeCurrent();
+		UserProfile result = service.synchronizeCurrent();
 
-		var saved = ArgumentCaptor.forClass(UserProfile.class);
+		ArgumentCaptor<UserProfile> saved = ArgumentCaptor.forClass(UserProfile.class);
 		verify(profiles).save(saved.capture());
 		assertThat(result).isSameAs(saved.getValue());
 		assertThat(result.getAuth0Subject()).isEqualTo("auth0|user-123");
@@ -46,7 +46,7 @@ class UserProfileServiceTest {
 
 	@Test
 	void reusesAnExistingProfileIdempotently() {
-		var existing = new UserProfile("auth0|user-123", "user@example.com", Instant.now());
+		UserProfile existing = new UserProfile("auth0|user-123", "user@example.com", Instant.now());
 		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
 		when(profiles.findByAuth0Subject("auth0|user-123")).thenReturn(Optional.of(existing));
 

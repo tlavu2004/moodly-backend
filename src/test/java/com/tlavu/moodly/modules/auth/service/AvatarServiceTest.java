@@ -16,6 +16,7 @@ import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.dto.result.Avatar;
+import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
@@ -57,7 +58,7 @@ class AvatarServiceTest {
 	@Test
 	void createsAnOwnerScopedSignedUploadPayload() throws Exception {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var payload = service.createSignature("image/png", 1024);
+		UploadSignature payload = service.createSignature("image/png", 1024);
 
 		assertThat(payload.publicId()).startsWith(NAMESPACE);
 		assertThat(payload.uploadUrl()).isEqualTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload");
@@ -75,7 +76,7 @@ class AvatarServiceTest {
 		service.createSignature("image/png", 5L * 1024 * 1024);
 		service.createSignature("image/webp", 1024);
 
-		var pending = ArgumentCaptor.forClass(PendingAvatarUpload.class);
+		ArgumentCaptor<PendingAvatarUpload> pending = ArgumentCaptor.forClass(PendingAvatarUpload.class);
 		verify(pendingUploads, times(3)).save(pending.capture());
 		assertThat(pending.getAllValues()).allSatisfy(upload -> {
 			assertThat(upload.getAuth0Subject()).isEqualTo(SUBJECT);
@@ -97,9 +98,9 @@ class AvatarServiceTest {
 
 	@Test
 	void confirmsOwnedVerifiedAssetAndDeletesTheReplacedAvatar() {
-		var publicId = NAMESPACE + "new-avatar";
+		String publicId = NAMESPACE + "new-avatar";
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		profile.replaceAvatar(NAMESPACE + "old-avatar", 3, "image/png", 100, Instant.now());
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
@@ -107,7 +108,7 @@ class AvatarServiceTest {
 				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
-		var avatar = service.confirm(publicId, 4);
+		Avatar avatar = service.confirm(publicId, 4);
 
 		assertThat(avatar.publicId()).isEqualTo(publicId);
 		assertThat(avatar.deliveryUrl()).contains("/v4/" + publicId);
@@ -131,7 +132,7 @@ class AvatarServiceTest {
 
 	@Test
 	void rejectsCloudinaryMetadataThatViolatesAvatarPolicy() {
-		var publicId = NAMESPACE + "oversized";
+		String publicId = NAMESPACE + "oversized";
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
@@ -148,7 +149,7 @@ class AvatarServiceTest {
 
 	@Test
 	void rejectsAnUnknownExpiredOrVersionMismatchedConfirmationWithoutChangingTheProfile() {
-		var publicId = NAMESPACE + "expired";
+		String publicId = NAMESPACE + "expired";
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().minusSeconds(1))));
@@ -162,12 +163,12 @@ class AvatarServiceTest {
 
 	@Test
 	void rejectsUnknownMismatchedAndDisallowedConfirmationsWithoutChangingTheProfile() {
-		var unknownId = NAMESPACE + "unknown";
+		String unknownId = NAMESPACE + "unknown";
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(pendingUploads.findByPublicIdAndAuth0Subject(unknownId, SUBJECT)).thenReturn(Optional.empty());
 		assertThatThrownBy(() -> service.confirm(unknownId, 1)).isInstanceOf(AvatarException.class);
 
-		var mismatchedId = NAMESPACE + "mismatched";
+		String mismatchedId = NAMESPACE + "mismatched";
 		when(pendingUploads.findByPublicIdAndAuth0Subject(mismatchedId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(mismatchedId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(mismatchedId))
@@ -175,7 +176,7 @@ class AvatarServiceTest {
 		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(AvatarException.class)
 				.hasMessageContaining("version does not match");
 
-		var gifId = NAMESPACE + "gif";
+		String gifId = NAMESPACE + "gif";
 		when(pendingUploads.findByPublicIdAndAuth0Subject(gifId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(gifId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(gifId))
@@ -205,10 +206,10 @@ class AvatarServiceTest {
 
 	@Test
 	void returnsThePersistedReplacementWhenObsoleteAssetCleanupFails() {
-		var publicId = NAMESPACE + "new-avatar";
-		var previousPublicId = NAMESPACE + "old-avatar";
+		String publicId = NAMESPACE + "new-avatar";
+		String previousPublicId = NAMESPACE + "old-avatar";
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
@@ -226,7 +227,7 @@ class AvatarServiceTest {
 	@Test
 	void deletesTheCurrentAvatarAfterClearingTheProfile() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		profile.replaceAvatar(NAMESPACE + "old-avatar", 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
@@ -240,8 +241,8 @@ class AvatarServiceTest {
 	@Test
 	void returnsThePersistedEmptyAvatarWhenObsoleteAssetCleanupFails() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
-		var previousPublicId = NAMESPACE + "old-avatar";
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		String previousPublicId = NAMESPACE + "old-avatar";
 		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
@@ -255,8 +256,8 @@ class AvatarServiceTest {
 	@Test
 	void keepsThePersistedAvatarStateWhenCleanupCannotBeQueued() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		var profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
-		var previousPublicId = NAMESPACE + "old-avatar";
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		String previousPublicId = NAMESPACE + "old-avatar";
 		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
