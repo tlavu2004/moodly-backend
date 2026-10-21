@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 
 class GlobalExceptionHandlerTest {
 
@@ -21,6 +23,27 @@ class GlobalExceptionHandlerTest {
 	void keepsTheErrorCodeCatalogUnique() {
 		var codes = Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getCode).toList();
 		assertThat(codes).doesNotHaveDuplicates();
+	}
+
+	@Test
+	void preservesAvatarErrorResponseDetails() {
+		var request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/me/avatar/confirm");
+		var exception = new AvatarException(
+				GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
+				"Avatar upload is unknown or has expired."
+		);
+
+		var response = new GlobalExceptionHandler().handleAvatar(exception, request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(response.getBody().success()).isFalse();
+		assertThat(response.getBody().error().status()).isEqualTo(400);
+		assertThat(response.getBody().error().code()).isEqualTo("AVATAR_UPLOAD_NOT_FOUND");
+		assertThat(response.getBody().error().message()).isEqualTo("Avatar upload is unknown or has expired.");
+		assertThat(response.getBody().error().path()).isEqualTo("/me/avatar/confirm");
+		assertThat(response.getBody().error().errors()).isEmpty();
+		assertThat(response.getBody().error().requestId()).isEqualTo("unavailable");
 	}
 
 	@Test

@@ -97,9 +97,14 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(AvatarException.class)
 	ResponseEntity<ApiResponse<Void>> handleAvatar(AvatarException exception, HttpServletRequest request) {
-		logByStatus(HttpStatus.BAD_REQUEST, request, exception);
-		var error = new ApiError(400, exception.getCode().getCode(), exception.getMessage(), request.getRequestURI(), List.of(), requestId());
-		return ResponseEntity.badRequest().body(ApiResponse.error(error));
+		return buildErrorResponse(
+				HttpStatus.BAD_REQUEST,
+				exception.getCode(),
+				exception.getMessage(),
+				request,
+				List.of(),
+				exception
+		);
 	}
 
 	@ExceptionHandler(OptimisticLockingFailureException.class)
