@@ -1,18 +1,20 @@
 package com.tlavu.moodly.shared.controller.advice;
 
+import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.ForbiddenException;
 import com.tlavu.moodly.shared.error.exception.ResourceNotFoundException;
 import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
-import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
-import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
@@ -22,13 +24,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.slf4j.MDC;
-import com.tlavu.moodly.shared.filter.RequestIdFilter;
 
 @Slf4j
 @RestControllerAdvice
 @SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
+
 	private static final int MAX_LOGGED_CAUSE_DEPTH = 4;
 	private static final int MAX_LOGGED_FRAMES_PER_CAUSE = 12;
 
@@ -208,8 +209,21 @@ public class GlobalExceptionHandler {
 			List<FieldErrorResponse> errors,
 			Exception exception
 	) {
-		logByStatus(status, request, exception);
-		var error = new ApiError(status.value(), errorCode.getCode(), message, request.getRequestURI(), errors, requestId());
+		logByStatus(
+				status,
+				request,
+				exception
+		);
+
+		var error = new ApiError(
+				status.value(),
+				errorCode.getCode(),
+				message,
+				request.getRequestURI(),
+				errors,
+				requestId()
+		);
+
 		return ResponseEntity.status(status).body(ApiResponse.error(error));
 	}
 
@@ -234,32 +248,52 @@ public class GlobalExceptionHandler {
 		var diagnostic = new StringBuilder();
 		var current = exception;
 		int depth = 0;
+
 		while (current != null && depth < MAX_LOGGED_CAUSE_DEPTH) {
-			if (depth > 0) diagnostic.append("Caused by: ");
+			if (depth > 0) {
+				diagnostic.append("Caused by: ");
+			}
+
 			diagnostic.append(current.getClass().getName()).append('\n');
+
 			var frames = current.getStackTrace();
 			int frameCount = Math.min(frames.length, MAX_LOGGED_FRAMES_PER_CAUSE);
+
 			for (int index = 0; index < frameCount; index++) {
 				diagnostic.append("\tat ").append(frames[index]).append('\n');
 			}
+
 			if (frames.length > frameCount) {
 				diagnostic.append("\t... ").append(frames.length - frameCount).append(" more\n");
 			}
+
 			current = current.getCause();
 			depth++;
 		}
-		if (current != null) diagnostic.append("Caused by: ... additional causes omitted\n");
+
+		if (current != null) {
+			diagnostic.append("Caused by: ... additional causes omitted\n");
+		}
+
 		return diagnostic.toString().stripTrailing();
 	}
 
 	private String requestId() {
-		return Objects.requireNonNullElse(MDC.get(RequestIdFilter.MDC_KEY), "unavailable");
+		return Objects.requireNonNullElse(
+				MDC.get(RequestIdFilter.MDC_KEY),
+				"unavailable"
+		);
 	}
 
 	private String safeMessage(Throwable exception) {
-		if (exception == null || exception.getMessage() == null || exception.getMessage().isBlank()) {
+		if (
+				exception == null ||
+				exception.getMessage() == null ||
+				exception.getMessage().isBlank()
+		) {
 			return "Unexpected error";
 		}
+
 		return exception.getMessage();
 	}
 }
