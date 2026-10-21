@@ -3,7 +3,10 @@ package com.tlavu.moodly.shared.error.exception.common;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 
-/** Named factories keep the SEARCH_UNAVAILABLE code and safe messages together while retaining the cause. */
+/**
+ * Fixes SEARCH_UNAVAILABLE. The private constructor makes callers use named factories
+ * that pair a safe operation message with the underlying cause.
+ */
 public class SearchInfrastructureUnavailableException extends ApplicationException {
 
 	private SearchInfrastructureUnavailableException(String safeMessage, Throwable cause) {

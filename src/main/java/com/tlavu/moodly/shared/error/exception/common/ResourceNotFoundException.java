@@ -3,7 +3,7 @@ package com.tlavu.moodly.shared.error.exception.common;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 
-/** Uses the fixed NOT_FOUND code while callers supply a safe resource-specific message. */
+/** Fixes the NOT_FOUND code; callers supply only a safe message naming the missing resource. */
 public class ResourceNotFoundException extends ApplicationException {
 
 	public ResourceNotFoundException(String message) {
