@@ -8,7 +8,7 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;

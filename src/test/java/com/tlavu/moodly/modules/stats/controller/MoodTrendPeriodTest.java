@@ -19,7 +19,7 @@ class MoodTrendPeriodTest {
 	@Test
 	void acceptsOnlyTheDocumentedApiValue() {
 		assertEquals(MoodTrendPeriod.WEEK, MoodTrendPeriod.fromValue("week"));
-		assertThrows(com.tlavu.moodly.shared.error.exception.InvalidRequestException.class, () -> MoodTrendPeriod.fromValue("month"));
+		assertThrows(com.tlavu.moodly.shared.error.exception.common.InvalidRequestException.class, () -> MoodTrendPeriod.fromValue("month"));
 	}
 
 }

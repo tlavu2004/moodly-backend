@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.cdc.service;
 
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;

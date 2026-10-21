@@ -16,7 +16,7 @@ import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -119,7 +119,7 @@ class EntrySearchServiceTest {
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> service.search("user-1", "tired", null, null, Integer.MAX_VALUE, 100))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.InvalidRequestException.class)
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.InvalidRequestException.class)
 				.hasMessageContaining("result window");
 		verifyNoInteractions(elasticsearchClient, indexManager);
 	}

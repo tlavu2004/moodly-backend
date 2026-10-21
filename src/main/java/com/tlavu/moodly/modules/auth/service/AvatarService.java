@@ -12,7 +12,7 @@ import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
-import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;

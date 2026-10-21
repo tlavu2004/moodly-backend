@@ -12,7 +12,7 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.controller.CreateHabitRequest;
-import com.tlavu.moodly.shared.error.exception.ConflictException;
+import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

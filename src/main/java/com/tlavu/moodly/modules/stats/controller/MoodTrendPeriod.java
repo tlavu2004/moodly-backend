@@ -6,7 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import com.tlavu.moodly.shared.time.MoodlyTime;
-import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.time.temporal.TemporalAdjusters;
 
 public enum MoodTrendPeriod {

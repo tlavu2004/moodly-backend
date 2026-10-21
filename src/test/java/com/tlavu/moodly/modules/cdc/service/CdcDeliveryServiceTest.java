@@ -184,7 +184,7 @@ class CdcDeliveryServiceTest {
 		var service = service();
 
 		assertThatThrownBy(() -> service.replay(deadLetter))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException.class)
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException.class)
 				.hasMessageContaining("CDC dead-letter replay is unavailable");
 
 		assertThat(deadLetter.getAttempts()).isEqualTo(6);

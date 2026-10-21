@@ -4,7 +4,7 @@ import com.tlavu.moodly.modules.search.service.EntrySearchService;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
-import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;

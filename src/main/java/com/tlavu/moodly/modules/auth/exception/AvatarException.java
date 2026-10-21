@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.auth.exception;
 
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
-import com.tlavu.moodly.shared.error.exception.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 
 public class AvatarException extends InvalidRequestException {
 

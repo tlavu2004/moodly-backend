@@ -4,7 +4,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.cdc.model.CdcDeadLetter;
 import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.shared.error.exception.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
