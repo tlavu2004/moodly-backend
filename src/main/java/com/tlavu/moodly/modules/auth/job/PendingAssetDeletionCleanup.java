@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.job;
 
-import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import java.time.Instant;

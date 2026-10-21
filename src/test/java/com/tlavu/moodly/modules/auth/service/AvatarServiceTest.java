@@ -13,7 +13,7 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.dto.result.Avatar;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;

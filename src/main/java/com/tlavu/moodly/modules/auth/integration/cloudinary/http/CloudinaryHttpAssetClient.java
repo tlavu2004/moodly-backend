@@ -1,6 +1,7 @@
-package com.tlavu.moodly.modules.auth.integration.cloudinary;
+package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;

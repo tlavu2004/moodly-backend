@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.integration.cloudinary;
+package com.tlavu.moodly.modules.auth.integration.cloudinary.contract;
 
 import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 

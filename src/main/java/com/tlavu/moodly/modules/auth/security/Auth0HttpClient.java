@@ -21,7 +21,6 @@ final class Auth0HttpClient {
 			int attempts,
 			Duration delay
 	) {
-
 		if (
 				connectTimeout.isNegative() ||
 				connectTimeout.isZero() ||
