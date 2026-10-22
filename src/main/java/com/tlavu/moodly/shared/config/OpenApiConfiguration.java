@@ -82,10 +82,8 @@ public class OpenApiConfiguration {
 				new Example().summary("Successful response")
 						.value(
 								orderedMap(
-										"success",
-										true,
-										"data",
-										orderedMap("id", "example-id"),
+										"success", true,
+										"data", orderedMap("id", "example-id"),
 										"timestamp", "2026-09-12T10:00:00Z"
 								)
 						)
@@ -95,10 +93,8 @@ public class OpenApiConfiguration {
 				new Example().summary("Successful structured empty response")
 						.value(
 								orderedMap(
-										"success",
-										true,
-										"data",
-										orderedMap("items", List.of()),
+										"success", true,
+										"data", orderedMap("items", List.of()),
 										"timestamp", "2026-09-12T10:00:00Z"
 								)
 						)
@@ -108,25 +104,16 @@ public class OpenApiConfiguration {
 				new Example().summary("Error response")
 						.value(
 								orderedMap(
-										"success",
-										false,
-										"error",
-										orderedMap(
-												"status",
-												GlobalErrorCode.INVALID_REQUEST.getStatus().value(),
-												"code",
-												GlobalErrorCode.INVALID_REQUEST.getCode(),
-												"message",
-												GlobalErrorCode.INVALID_REQUEST.getDefaultMessage(),
-												"path",
-												"/example",
-												"errors",
-												List.of(),
-												"requestId",
-												"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+										"success", false,
+										"error", orderedMap(
+												"status", GlobalErrorCode.INVALID_REQUEST.getStatus().value(),
+												"code", GlobalErrorCode.INVALID_REQUEST.getCode(),
+												"message", GlobalErrorCode.INVALID_REQUEST.getDefaultMessage(),
+												"path", "/example",
+												"errors", List.of(),
+												"requestId", "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
 										),
-										"timestamp",
-										"2026-09-12T10:00:00Z"
+										"timestamp", "2026-09-12T10:00:00Z"
 								)
 						)
 		);
@@ -196,21 +183,46 @@ public class OpenApiConfiguration {
 						"An unexpected error occurred."
 				)
 		);
-		components.addResponses("MethodNotAllowed", errorResponse(
-				"The HTTP method is not supported for this endpoint.", GlobalErrorCode.METHOD_NOT_ALLOWED,
-				"The HTTP method is not supported for this endpoint."));
-		components.addResponses("UnsupportedMediaType", errorResponse(
-				"The request content type is not supported.", GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE,
-				"The request content type is not supported."));
-		components.addResponses("NotAcceptable", errorResponse(
-				"The requested response content type is not supported.", GlobalErrorCode.NOT_ACCEPTABLE,
-				"The requested response content type is not supported."));
-		components.addResponses("SearchUnavailable", errorResponse(
-				"Search is temporarily unavailable.", GlobalErrorCode.SEARCH_UNAVAILABLE,
-				"Search is temporarily unavailable."));
-		components.addResponses("AvatarServiceUnavailable", errorResponse(
-				"Avatar service is temporarily unavailable.", AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE,
-				"Avatar service is temporarily unavailable."));
+		components.addResponses(
+				"MethodNotAllowed",
+				errorResponse(
+						"The HTTP method is not supported for this endpoint.",
+						GlobalErrorCode.METHOD_NOT_ALLOWED,
+						"The HTTP method is not supported for this endpoint."
+				)
+		);
+		components.addResponses(
+				"UnsupportedMediaType",
+				errorResponse(
+						"The request content type is not supported.",
+						GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE,
+						"The request content type is not supported."
+				)
+		);
+		components.addResponses(
+				"NotAcceptable",
+				errorResponse(
+						"The requested response content type is not supported.",
+						GlobalErrorCode.NOT_ACCEPTABLE,
+						"The requested response content type is not supported."
+				)
+		);
+		components.addResponses(
+				"SearchUnavailable",
+				errorResponse(
+						"Search is temporarily unavailable.",
+						GlobalErrorCode.SEARCH_UNAVAILABLE,
+						"Search is temporarily unavailable."
+				)
+		);
+		components.addResponses(
+				"AvatarServiceUnavailable",
+				errorResponse(
+						"Avatar service is temporarily unavailable.",
+						AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE,
+						"Avatar service is temporarily unavailable."
+				)
+		);
 	}
 
 	private void addDefaultErrorResponses(OpenAPI openApi) {
@@ -262,9 +274,11 @@ public class OpenApiConfiguration {
 
 	private void addUnavailableResponses(OpenAPI openApi) {
 		openApi.getPaths().forEach((path, item) -> {
-			if (path.startsWith("/entries/search")
-					|| path.startsWith("/internal/cdc")
-					|| path.startsWith("/internal/e2e")) {
+			if (
+					path.startsWith("/entries/search") ||
+					path.startsWith("/internal/cdc") ||
+					path.startsWith("/internal/e2e")
+			) {
 				addUnavailableResponse(item, "SearchUnavailable");
 			} else if (path.startsWith("/me/avatar")) {
 				addUnavailableResponse(item, "AvatarServiceUnavailable");
