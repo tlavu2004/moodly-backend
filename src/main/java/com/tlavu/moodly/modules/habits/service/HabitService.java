@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.habits.service;
 
-import com.tlavu.moodly.modules.habits.controller.CreateHabitRequest;
-import com.tlavu.moodly.modules.habits.controller.UpdateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;

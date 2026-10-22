@@ -1,10 +1,14 @@
 package com.tlavu.moodly.modules.habits.controller;
 
+import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.HabitVersionRequest;
+import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
 import com.tlavu.moodly.modules.habits.service.HabitService;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -44,7 +48,7 @@ public class HabitController {
 	@GetMapping
 	@Operation(summary = "List habits", description = "Returns habits owned by the authenticated user, filtered by lifecycle status.")
 	public ApiResponse<List<Habit>> findByStatus(
-			@io.swagger.v3.oas.annotations.Parameter(description = "Lifecycle filter", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"active", "archived", "all"}))
+			@Parameter(description = "Lifecycle filter", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"active", "archived", "all"}))
 			@RequestParam(defaultValue = "active") String status
 	) {
 		return ApiResponse.success(habitService.findByStatus(currentUser.id(), status));
