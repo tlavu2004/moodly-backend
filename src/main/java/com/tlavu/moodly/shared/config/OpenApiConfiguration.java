@@ -1,5 +1,7 @@
 package com.tlavu.moodly.shared.config;
 
+import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
+import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -182,7 +184,7 @@ public class OpenApiConfiguration {
 				"AvatarUploadNotFound",
 				errorResponse(
 						"The avatar upload is unknown, expired, or belongs to another user.",
-						GlobalErrorCode.AVATAR_UPLOAD_NOT_FOUND,
+						AuthErrorCode.AVATAR_UPLOAD_NOT_FOUND,
 						"The avatar upload was not found or has expired."
 				)
 		);
@@ -207,7 +209,7 @@ public class OpenApiConfiguration {
 				"Search is temporarily unavailable.", GlobalErrorCode.SEARCH_UNAVAILABLE,
 				"Search is temporarily unavailable."));
 		components.addResponses("AvatarServiceUnavailable", errorResponse(
-				"Avatar service is temporarily unavailable.", GlobalErrorCode.AVATAR_SERVICE_UNAVAILABLE,
+				"Avatar service is temporarily unavailable.", AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE,
 				"Avatar service is temporarily unavailable."));
 	}
 
@@ -260,12 +262,19 @@ public class OpenApiConfiguration {
 
 	private void addUnavailableResponses(OpenAPI openApi) {
 		openApi.getPaths().forEach((path, item) -> {
-			if (path.startsWith("/entries/search") || path.startsWith("/internal/cdc") || path.startsWith("/internal/e2e")) {
-				item.readOperations().forEach(operation -> operation.getResponses().addApiResponse("503", reference("SearchUnavailable")));
+			if (path.startsWith("/entries/search")
+					|| path.startsWith("/internal/cdc")
+					|| path.startsWith("/internal/e2e")) {
+				addUnavailableResponse(item, "SearchUnavailable");
 			} else if (path.startsWith("/me/avatar")) {
-				item.readOperations().forEach(operation -> operation.getResponses().addApiResponse("503", reference("AvatarServiceUnavailable")));
+				addUnavailableResponse(item, "AvatarServiceUnavailable");
 			}
 		});
+	}
+
+	private void addUnavailableResponse(PathItem item, String responseName) {
+		item.readOperations().forEach(operation -> operation.getResponses()
+				.addApiResponse("503", reference(responseName)));
 	}
 
 	private boolean usesMaintenanceKey(Operation operation) {
@@ -286,7 +295,7 @@ public class OpenApiConfiguration {
 
 	private ApiResponse errorResponse(
 			String description,
-			GlobalErrorCode code,
+			ErrorCode code,
 			String message
 	) {
 		Example example = new Example().value(

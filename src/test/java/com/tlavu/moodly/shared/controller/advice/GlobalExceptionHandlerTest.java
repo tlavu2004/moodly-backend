@@ -7,6 +7,8 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
+import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
@@ -15,6 +17,7 @@ import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
@@ -26,9 +29,13 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void keepsTheErrorCodeCatalogUnique() {
-		List<String> codes = Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getCode).toList();
+		List<String> codes = Stream.concat(
+				Arrays.stream(GlobalErrorCode.values()),
+				Arrays.stream(AuthErrorCode.values())
+		).map(code -> code.getCode()).toList();
 		assertThat(codes).doesNotHaveDuplicates();
 		assertThat(Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getStatus)).doesNotContainNull();
+		assertThat(Arrays.stream(AuthErrorCode.values()).map(AuthErrorCode::getStatus)).doesNotContainNull();
 	}
 
 	@Test
@@ -60,6 +67,22 @@ class GlobalExceptionHandlerTest {
 		assertThat(response.getBody().error().path()).isEqualTo("/me/avatar/confirm");
 		assertThat(response.getBody().error().errors()).isEmpty();
 		assertThat(response.getBody().error().requestId()).isEqualTo("unavailable");
+	}
+
+	@Test
+	void preservesAvatarServiceUnavailableResponseAndCause() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/me/avatar");
+		IllegalStateException cause = new IllegalStateException("provider detail");
+		AvatarServiceUnavailableException exception = new AvatarServiceUnavailableException(cause);
+
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleApplication(exception, request);
+
+		assertThat(exception.getCause()).isSameAs(cause);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+		assertThat(response.getBody().error().code()).isEqualTo("AVATAR_SERVICE_UNAVAILABLE");
+		assertThat(response.getBody().error().message()).isEqualTo(AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE.getDefaultMessage());
+		assertThat(response.getBody().error().message()).doesNotContain("provider detail");
 	}
 
 	@Test

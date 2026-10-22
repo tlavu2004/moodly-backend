@@ -198,6 +198,12 @@ class ApiIntegrationTest {
 		assertThat(badRequestExample.path("data").isNull()).isTrue();
 		assertThat(badRequestExample.path("error").path("status").asInt()).isEqualTo(400);
 		assertThat(badRequestExample.path("error").path("code").asString()).isEqualTo("VALIDATION_FAILED");
+		assertThat(openApi.path("components").path("responses").path("AvatarUploadNotFound")
+				.path("content").path("application/json").path("examples").path("default").path("value")
+				.path("error").path("code").asString()).isEqualTo("AVATAR_UPLOAD_NOT_FOUND");
+		assertThat(openApi.path("components").path("responses").path("AvatarServiceUnavailable")
+				.path("content").path("application/json").path("examples").path("default").path("value")
+				.path("error").path("status").asInt()).isEqualTo(503);
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/Conflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
