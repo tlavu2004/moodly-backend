@@ -93,6 +93,15 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -126,6 +135,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -171,8 +189,20 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/AvatarServiceUnavailable"
           }
         }
       }
@@ -215,8 +245,20 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/AvatarServiceUnavailable"
           }
         }
       }
@@ -257,8 +299,20 @@
           "403": {
             "$ref": "#/components/responses/MaintenanceKeyRequired"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/SearchUnavailable"
           }
         },
         "security": [
@@ -308,8 +362,20 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/SearchUnavailable"
           }
         },
         "security": [
@@ -349,7 +415,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListHabit"
+                  "$ref": "#/components/schemas/ApiResponseListHabitResponse"
                 }
               }
             }
@@ -362,6 +428,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -391,7 +466,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseHabit"
+                  "$ref": "#/components/schemas/ApiResponseHabitResponse"
                 }
               }
             }
@@ -404,6 +479,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -445,7 +529,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseHabit"
+                  "$ref": "#/components/schemas/ApiResponseHabitResponse"
                 }
               }
             }
@@ -459,8 +543,17 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -502,7 +595,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseHabit"
+                  "$ref": "#/components/schemas/ApiResponseHabitResponse"
                 }
               }
             }
@@ -516,8 +609,17 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -559,7 +661,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseHabit"
+                  "$ref": "#/components/schemas/ApiResponseHabitResponse"
                 }
               }
             }
@@ -573,8 +675,17 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -609,6 +720,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -652,6 +772,15 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -685,6 +814,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -733,6 +871,15 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -767,8 +914,20 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/AvatarServiceUnavailable"
           }
         }
       },
@@ -799,8 +958,20 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/AvatarServiceUnavailable"
           }
         }
       }
@@ -842,6 +1013,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -916,6 +1096,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -999,8 +1188,20 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/SearchUnavailable"
           }
         }
       }
@@ -1032,6 +1233,15 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "406": {
+            "$ref": "#/components/responses/NotAcceptable"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -1488,7 +1698,7 @@
           "targetFrequency"
         ]
       },
-      "ApiResponseHabit": {
+      "ApiResponseHabitResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1496,7 +1706,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/Habit",
+            "$ref": "#/components/schemas/HabitResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -1514,7 +1724,7 @@
           "timestamp"
         ]
       },
-      "Habit": {
+      "HabitResponse": {
         "type": "object",
         "properties": {
           "id": {
@@ -1721,7 +1931,7 @@
           "entryCount"
         ]
       },
-      "ApiResponseListHabit": {
+      "ApiResponseListHabitResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1734,7 +1944,7 @@
             ],
             "description": "Present for successful responses.",
             "items": {
-              "$ref": "#/components/schemas/Habit"
+              "$ref": "#/components/schemas/HabitResponse"
             }
           },
           "error": {
@@ -2099,6 +2309,47 @@
           "weeklyMood"
         ]
       },
+      "Habit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetFrequency": {
+            "type": "string",
+            "enum": [
+              "DAILY"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "active",
+          "id",
+          "name",
+          "targetFrequency",
+          "userId",
+          "version"
+        ]
+      },
       "WeeklyMoodSummary": {
         "type": "object",
         "properties": {
@@ -2154,7 +2405,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"VALIDATION_FAILED\",\"message\":\"One or more fields are invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "VALIDATION_FAILED",
+                    "message": "One or more fields are invalid.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2169,7 +2432,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":401,\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 401,
+                    "code": "UNAUTHORIZED",
+                    "message": "Authentication is required.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2184,7 +2459,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"Access is denied.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 403,
+                    "code": "FORBIDDEN",
+                    "message": "Access is denied.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2199,7 +2486,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":403,\"code\":\"FORBIDDEN\",\"message\":\"You are not allowed to perform this operation.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 403,
+                    "code": "FORBIDDEN",
+                    "message": "You are not allowed to perform this operation.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2214,7 +2513,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":404,\"code\":\"NOT_FOUND\",\"message\":\"The requested resource was not found.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 404,
+                    "code": "NOT_FOUND",
+                    "message": "The requested resource was not found.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2229,7 +2540,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":409,\"code\":\"CONFLICT\",\"message\":\"Refresh the resource and retry.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 409,
+                    "code": "CONFLICT",
+                    "message": "Refresh the resource and retry.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2244,7 +2567,19 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":400,\"code\":\"AVATAR_UPLOAD_NOT_FOUND\",\"message\":\"The avatar upload was not found or has expired.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "AVATAR_UPLOAD_NOT_FOUND",
+                    "message": "The avatar upload was not found or has expired.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2259,7 +2594,154 @@
             },
             "examples": {
               "default": {
-                "value": "{\"success\":false,\"data\":null,\"error\":{\"status\":500,\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An unexpected error occurred.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}\n"
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 500,
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "The HTTP method is not supported for this endpoint.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 405,
+                    "code": "METHOD_NOT_ALLOWED",
+                    "message": "The HTTP method is not supported for this endpoint.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "The request content type is not supported.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 415,
+                    "code": "UNSUPPORTED_MEDIA_TYPE",
+                    "message": "The request content type is not supported.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotAcceptable": {
+        "description": "The requested response content type is not supported.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 406,
+                    "code": "NOT_ACCEPTABLE",
+                    "message": "The requested response content type is not supported.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SearchUnavailable": {
+        "description": "Search is temporarily unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 503,
+                    "code": "SEARCH_UNAVAILABLE",
+                    "message": "Search is temporarily unavailable.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AvatarServiceUnavailable": {
+        "description": "Avatar service is temporarily unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 503,
+                    "code": "AVATAR_SERVICE_UNAVAILABLE",
+                    "message": "Avatar service is temporarily unavailable.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
               }
             }
           }
@@ -2306,6 +2788,7 @@
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
+        "description": "Auth0 access token.",
         "scheme": "bearer",
         "bearerFormat": "JWT"
       },

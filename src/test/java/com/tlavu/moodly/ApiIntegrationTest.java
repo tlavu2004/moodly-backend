@@ -82,8 +82,12 @@ class ApiIntegrationTest {
 					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.userId").value(USER_ID))
 				.andExpect(jsonPath("$.data.name").value("Exercise"))
+				.andExpect(jsonPath("$.data.icon").value("run"))
 				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"))
+				.andExpect(jsonPath("$.data.active").value(true))
+				.andExpect(jsonPath("$.data.version").isNumber())
 				.andReturn().getResponse().getContentAsString();
 		var habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
@@ -183,6 +187,7 @@ class ApiIntegrationTest {
 		var document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
 				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
