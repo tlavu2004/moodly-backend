@@ -5,14 +5,20 @@ import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
 import com.tlavu.moodly.modules.habits.dto.HabitResponse;
 import com.tlavu.moodly.modules.habits.dto.HabitVersionRequest;
 import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
+import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.service.HabitService;
+import com.tlavu.moodly.modules.habits.service.HabitStatusFilter;
+import com.tlavu.moodly.modules.habits.service.command.CreateHabitCommand;
+import com.tlavu.moodly.modules.habits.service.command.UpdateHabitCommand;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,14 +55,13 @@ public class HabitController {
 	public ApiResponse<HabitResponse> create(
 			@Valid @RequestBody CreateHabitRequest request
 	) {
-		return ApiResponse.success(
-				HabitResponse.from(
-						habitService.create(
-								currentUser.id(),
-								request
-						)
-				)
+		CreateHabitCommand command = new CreateHabitCommand(
+				request.name(),
+				request.icon(),
+				TargetFrequency.valueOf(request.targetFrequency())
 		);
+		HabitResponse response = HabitResponse.from(habitService.create(currentUser.id(), command));
+		return ApiResponse.success(response);
 	}
 
 	@GetMapping
@@ -75,7 +80,8 @@ public class HabitController {
 			)
 			@RequestParam(defaultValue = "active") String status
 	) {
-		return ApiResponse.success(habitService.findByStatus(currentUser.id(), status)
+		HabitStatusFilter filter = parseStatus(status);
+		return ApiResponse.success(habitService.findByStatus(currentUser.id(), filter)
 				.stream()
 				.map(HabitResponse::from)
 				.toList());
@@ -90,15 +96,13 @@ public class HabitController {
 			@PathVariable String habitId,
 			@Valid @RequestBody UpdateHabitRequest request
 	) {
-		return ApiResponse.success(
-				HabitResponse.from(
-						habitService.update(
-								currentUser.id(),
-								habitId,
-								request
-						)
-				)
+		UpdateHabitCommand command = new UpdateHabitCommand(
+				request.name(),
+				request.icon(),
+				request.version()
 		);
+		HabitResponse response = HabitResponse.from(habitService.update(currentUser.id(), habitId, command));
+		return ApiResponse.success(response);
 	}
 
 	@PostMapping("/{habitId}/archive")
@@ -139,5 +143,14 @@ public class HabitController {
 						)
 				)
 		);
+	}
+
+	private HabitStatusFilter parseStatus(String status) {
+		return switch (status.toLowerCase(Locale.ROOT)) {
+			case "active" -> HabitStatusFilter.ACTIVE;
+			case "archived" -> HabitStatusFilter.ARCHIVED;
+			case "all" -> HabitStatusFilter.ALL;
+			default -> throw new InvalidRequestException("status must be one of: active, archived, all");
+		};
 	}
 }

@@ -183,6 +183,21 @@ class ApiIntegrationTest {
 	}
 
 	@Test
+	void keepsTheHabitStatusFilterContract() throws Exception {
+		mockMvc.perform(get("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.param("status", "ACTIVE"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(0));
+
+		mockMvc.perform(get("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.param("status", "invalid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
 		var document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())

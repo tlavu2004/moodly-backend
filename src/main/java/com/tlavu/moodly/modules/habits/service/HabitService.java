@@ -1,14 +1,12 @@
 package com.tlavu.moodly.modules.habits.service;
 
-import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
-import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
+import com.tlavu.moodly.modules.habits.service.command.CreateHabitCommand;
+import com.tlavu.moodly.modules.habits.service.command.UpdateHabitCommand;
 import java.util.List;
 import java.util.UUID;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import org.springframework.stereotype.Service;
 
@@ -21,13 +19,13 @@ public class HabitService {
 		this.habitRepository = habitRepository;
 	}
 
-	public Habit create(String userId, CreateHabitRequest request) {
+	public Habit create(String userId, CreateHabitCommand command) {
 		var habit = new Habit(
 				UUID.randomUUID().toString(),
 				userId,
-				request.name(),
-				request.icon(),
-				TargetFrequency.valueOf(request.targetFrequency()),
+				command.name(),
+				command.icon(),
+				command.targetFrequency(),
 				true
 		);
 		return habitRepository.save(habit);
@@ -37,19 +35,18 @@ public class HabitService {
 		return habitRepository.findByUserIdAndActiveTrue(userId);
 	}
 
-	public List<Habit> findByStatus(String userId, String status) {
-		return switch (status.toLowerCase()) {
-			case "active" -> habitRepository.findByUserIdAndActiveTrue(userId);
-			case "archived" -> habitRepository.findByUserIdAndActiveFalse(userId);
-			case "all" -> habitRepository.findByUserId(userId);
-			default -> throw new InvalidRequestException("status must be one of: active, archived, all");
+	public List<Habit> findByStatus(String userId, HabitStatusFilter filter) {
+		return switch (filter) {
+			case ACTIVE -> habitRepository.findByUserIdAndActiveTrue(userId);
+			case ARCHIVED -> habitRepository.findByUserIdAndActiveFalse(userId);
+			case ALL -> habitRepository.findByUserId(userId);
 		};
 	}
 
-	public Habit update(String userId, String habitId, UpdateHabitRequest request) {
+	public Habit update(String userId, String habitId, UpdateHabitCommand command) {
 		var habit = ownedHabit(userId, habitId);
-		verifyVersion(habit, request.version());
-		habit.update(request.name(), request.icon());
+		verifyVersion(habit, command.version());
+		habit.update(command.name(), command.icon());
 		return habitRepository.save(habit);
 	}
 

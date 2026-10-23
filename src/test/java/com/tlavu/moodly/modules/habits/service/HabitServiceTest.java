@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
-import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
-import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
+import com.tlavu.moodly.modules.habits.service.command.CreateHabitCommand;
+import com.tlavu.moodly.modules.habits.service.command.UpdateHabitCommand;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +37,7 @@ class HabitServiceTest {
 		when(habitRepository.save(org.mockito.ArgumentMatchers.any(Habit.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		var result = habitService.create("user-1", new CreateHabitRequest("Exercise", "🏃", "DAILY"));
+		var result = habitService.create("user-1", new CreateHabitCommand("Exercise", "🏃", TargetFrequency.DAILY));
 
 		var captor = ArgumentCaptor.forClass(Habit.class);
 		verify(habitRepository).save(captor.capture());
@@ -66,7 +66,7 @@ class HabitServiceTest {
 		var updated = habitService.update(
 				"user-1",
 				"habit-1",
-				new UpdateHabitRequest("Read more", "📖", 0L)
+				new UpdateHabitCommand("Read more", "📖", 0L)
 		);
 		assertEquals("Read more", updated.getName());
 
