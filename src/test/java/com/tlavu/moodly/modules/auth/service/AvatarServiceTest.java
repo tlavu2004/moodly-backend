@@ -20,6 +20,8 @@ import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
+import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
+import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -58,7 +60,7 @@ class AvatarServiceTest {
 	@Test
 	void createsAnOwnerScopedSignedUploadPayload() throws Exception {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		UploadSignature payload = service.createSignature("image/png", 1024);
+		UploadSignature payload = service.createSignature(new CreateUploadSignatureInput("image/png", 1024));
 
 		assertThat(payload.publicId()).startsWith(NAMESPACE);
 		assertThat(payload.uploadUrl()).isEqualTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload");
@@ -72,9 +74,9 @@ class AvatarServiceTest {
 	@Test
 	void acceptsEveryAllowedTypeAtTheAvatarSizeBoundaries() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		service.createSignature("image/jpeg", 1);
-		service.createSignature("image/png", 5L * 1024 * 1024);
-		service.createSignature("image/webp", 1024);
+		service.createSignature(new CreateUploadSignatureInput("image/jpeg", 1));
+		service.createSignature(new CreateUploadSignatureInput("image/png", 5L * 1024 * 1024));
+		service.createSignature(new CreateUploadSignatureInput("image/webp", 1024));
 
 		ArgumentCaptor<PendingAvatarUpload> pending = ArgumentCaptor.forClass(PendingAvatarUpload.class);
 		verify(pendingUploads, times(3)).save(pending.capture());
@@ -87,9 +89,9 @@ class AvatarServiceTest {
 
 	@Test
 	void rejectsUnsupportedOrOversizedAvatarBeforeCreatingAPendingUpload() {
-		assertThatThrownBy(() -> service.createSignature("image/gif", 1024))
+		assertThatThrownBy(() -> service.createSignature(new CreateUploadSignatureInput("image/gif", 1024)))
 				.isInstanceOf(AvatarException.class);
-		assertThatThrownBy(() -> service.createSignature("image/png", 5L * 1024 * 1024 + 1))
+		assertThatThrownBy(() -> service.createSignature(new CreateUploadSignatureInput("image/png", 5L * 1024 * 1024 + 1)))
 				.isInstanceOf(AvatarException.class);
 
 		verify(userProfileService, never()).synchronizeCurrent();
@@ -108,7 +110,7 @@ class AvatarServiceTest {
 				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
-		Avatar avatar = service.confirm(publicId, 4);
+		Avatar avatar = service.confirm(new ConfirmAvatarInput(publicId, 4));
 
 		assertThat(avatar.publicId()).isEqualTo(publicId);
 		assertThat(avatar.deliveryUrl()).contains("/v4/" + publicId);
@@ -122,7 +124,7 @@ class AvatarServiceTest {
 	@Test
 	void rejectsAnotherUsersAvatarBeforeCloudinaryLookup() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		assertThatThrownBy(() -> service.confirm("moodly/test/users/auth0_other/avatar/asset", 1))
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput("moodly/test/users/auth0_other/avatar/asset", 1)))
 				.isInstanceOf(AvatarException.class)
 				.hasMessageContaining("not found");
 
@@ -139,7 +141,7 @@ class AvatarServiceTest {
 		when(cloudinary.findImage(publicId))
 				.thenReturn(new ConfirmedAsset(publicId, 1, "image/png", 5L * 1024 * 1024 + 1));
 
-		assertThatThrownBy(() -> service.confirm(publicId, 1))
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(publicId, 1)))
 				.isInstanceOf(AvatarException.class)
 				.hasMessageContaining("metadata is invalid");
 
@@ -154,7 +156,7 @@ class AvatarServiceTest {
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().minusSeconds(1))));
 
-		assertThatThrownBy(() -> service.confirm(publicId, 1))
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(publicId, 1)))
 				.isInstanceOf(AvatarException.class)
 				.hasMessageContaining("unknown or has expired");
 		verify(cloudinary, never()).findImage(any());
@@ -166,14 +168,14 @@ class AvatarServiceTest {
 		String unknownId = NAMESPACE + "unknown";
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(pendingUploads.findByPublicIdAndAuth0Subject(unknownId, SUBJECT)).thenReturn(Optional.empty());
-		assertThatThrownBy(() -> service.confirm(unknownId, 1)).isInstanceOf(AvatarException.class);
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(unknownId, 1))).isInstanceOf(AvatarException.class);
 
 		String mismatchedId = NAMESPACE + "mismatched";
 		when(pendingUploads.findByPublicIdAndAuth0Subject(mismatchedId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(mismatchedId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(mismatchedId))
 				.thenReturn(new ConfirmedAsset(mismatchedId, 2, "image/png", 1024));
-		assertThatThrownBy(() -> service.confirm(mismatchedId, 1)).isInstanceOf(AvatarException.class)
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(mismatchedId, 1))).isInstanceOf(AvatarException.class)
 				.hasMessageContaining("version does not match");
 
 		String gifId = NAMESPACE + "gif";
@@ -181,7 +183,7 @@ class AvatarServiceTest {
 				.thenReturn(Optional.of(new PendingAvatarUpload(gifId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(gifId))
 				.thenReturn(new ConfirmedAsset(gifId, 1, "image/gif", 1024));
-		assertThatThrownBy(() -> service.confirm(gifId, 1)).isInstanceOf(AvatarException.class)
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(gifId, 1))).isInstanceOf(AvatarException.class)
 				.hasMessageContaining("metadata is invalid");
 
 		verify(profiles, never()).save(any());
@@ -190,7 +192,7 @@ class AvatarServiceTest {
 	@Test
 	void rejectsANonPositiveConfirmationVersionBeforeLookingUpCloudinary() {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		assertThatThrownBy(() -> service.confirm(NAMESPACE + "invalid-version", 0))
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(NAMESPACE + "invalid-version", 0)))
 				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.InvalidRequestException.class)
 				.hasMessageContaining("must be positive");
 		verify(cloudinary, never()).findImage(any());
@@ -218,7 +220,7 @@ class AvatarServiceTest {
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 
-		assertThat(service.confirm(publicId, 4).publicId()).isEqualTo(publicId);
+		assertThat(service.confirm(new ConfirmAvatarInput(publicId, 4)).publicId()).isEqualTo(publicId);
 		assertThat(profile.getAvatarPublicId()).isEqualTo(publicId);
 		verify(profiles).save(profile);
 		verify(pendingDeletions).save(any(PendingAssetDeletion.class));

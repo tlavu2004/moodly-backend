@@ -12,6 +12,8 @@ import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
+import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -68,7 +70,9 @@ public class AvatarService {
 		this.folder = trimSlash(folder);
 	}
 
-	public UploadSignature createSignature(String contentType, long sizeBytes) {
+	public UploadSignature createSignature(CreateUploadSignatureInput input) {
+		String contentType = input.contentType();
+		long sizeBytes = input.sizeBytes();
 		if (!ALLOWED_TYPES.contains(contentType)) {
 			throw AvatarException.unsupportedContentType();
 		}
@@ -104,7 +108,9 @@ public class AvatarService {
 		);
 	}
 
-	public Avatar confirm(String publicId, long version) {
+	public Avatar confirm(ConfirmAvatarInput input) {
+		String publicId = input.publicId();
+		long version = input.version();
 		String subject = currentUser.id();
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) {
 			throw AvatarException.uploadNotFound();
