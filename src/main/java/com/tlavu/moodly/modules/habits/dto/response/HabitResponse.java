@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.habits.dto;
+package com.tlavu.moodly.modules.habits.dto.response;
 
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;

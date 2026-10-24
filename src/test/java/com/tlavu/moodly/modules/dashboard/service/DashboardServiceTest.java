@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.service.EntryReadService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.habits.service.HabitService;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;

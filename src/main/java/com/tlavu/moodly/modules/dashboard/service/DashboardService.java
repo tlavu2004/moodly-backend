@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.dashboard.service;
 
 import com.tlavu.moodly.modules.dashboard.controller.DashboardResponse;
 import com.tlavu.moodly.modules.entries.service.EntryReadService;
-import com.tlavu.moodly.modules.habits.service.HabitService;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.StatsService;
 import java.time.LocalDate;

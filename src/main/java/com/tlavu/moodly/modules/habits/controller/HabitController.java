@@ -1,13 +1,13 @@
 package com.tlavu.moodly.modules.habits.controller;
 
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
-import com.tlavu.moodly.modules.habits.dto.CreateHabitRequest;
-import com.tlavu.moodly.modules.habits.dto.HabitResponse;
-import com.tlavu.moodly.modules.habits.dto.HabitVersionRequest;
-import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.request.CreateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.request.HabitVersionRequest;
+import com.tlavu.moodly.modules.habits.dto.request.UpdateHabitRequest;
+import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
-import com.tlavu.moodly.modules.habits.service.HabitService;
-import com.tlavu.moodly.modules.habits.service.HabitStatusFilter;
+import com.tlavu.moodly.modules.habits.service.filter.HabitStatusFilter;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
@@ -21,12 +21,12 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
