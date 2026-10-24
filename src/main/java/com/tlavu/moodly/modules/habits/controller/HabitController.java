@@ -8,8 +8,8 @@ import com.tlavu.moodly.modules.habits.dto.UpdateHabitRequest;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.service.HabitService;
 import com.tlavu.moodly.modules.habits.service.HabitStatusFilter;
-import com.tlavu.moodly.modules.habits.service.command.CreateHabitCommand;
-import com.tlavu.moodly.modules.habits.service.command.UpdateHabitCommand;
+import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
+import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,12 +55,12 @@ public class HabitController {
 	public ApiResponse<HabitResponse> create(
 			@Valid @RequestBody CreateHabitRequest request
 	) {
-		CreateHabitCommand command = new CreateHabitCommand(
+		CreateHabitInput input = new CreateHabitInput(
 				request.name(),
 				request.icon(),
 				TargetFrequency.valueOf(request.targetFrequency())
 		);
-		HabitResponse response = HabitResponse.from(habitService.create(currentUser.id(), command));
+		HabitResponse response = HabitResponse.from(habitService.create(currentUser.id(), input));
 		return ApiResponse.success(response);
 	}
 
@@ -96,12 +96,12 @@ public class HabitController {
 			@PathVariable String habitId,
 			@Valid @RequestBody UpdateHabitRequest request
 	) {
-		UpdateHabitCommand command = new UpdateHabitCommand(
+		UpdateHabitInput input = new UpdateHabitInput(
 				request.name(),
 				request.icon(),
 				request.version()
 		);
-		HabitResponse response = HabitResponse.from(habitService.update(currentUser.id(), habitId, command));
+		HabitResponse response = HabitResponse.from(habitService.update(currentUser.id(), habitId, input));
 		return ApiResponse.success(response);
 	}
 

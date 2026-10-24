@@ -2,8 +2,8 @@ package com.tlavu.moodly.modules.habits.service;
 
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
-import com.tlavu.moodly.modules.habits.service.command.CreateHabitCommand;
-import com.tlavu.moodly.modules.habits.service.command.UpdateHabitCommand;
+import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
+import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import java.util.List;
 import java.util.UUID;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
@@ -19,13 +19,13 @@ public class HabitService {
 		this.habitRepository = habitRepository;
 	}
 
-	public Habit create(String userId, CreateHabitCommand command) {
+	public Habit create(String userId, CreateHabitInput input) {
 		var habit = new Habit(
 				UUID.randomUUID().toString(),
 				userId,
-				command.name(),
-				command.icon(),
-				command.targetFrequency(),
+				input.name(),
+				input.icon(),
+				input.targetFrequency(),
 				true
 		);
 		return habitRepository.save(habit);
@@ -43,10 +43,10 @@ public class HabitService {
 		};
 	}
 
-	public Habit update(String userId, String habitId, UpdateHabitCommand command) {
+	public Habit update(String userId, String habitId, UpdateHabitInput input) {
 		var habit = ownedHabit(userId, habitId);
-		verifyVersion(habit, command.version());
-		habit.update(command.name(), command.icon());
+		verifyVersion(habit, input.version());
+		habit.update(input.name(), input.icon());
 		return habitRepository.save(habit);
 	}
 
