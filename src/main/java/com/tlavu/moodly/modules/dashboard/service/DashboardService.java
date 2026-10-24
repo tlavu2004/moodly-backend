@@ -2,10 +2,13 @@ package com.tlavu.moodly.modules.dashboard.service;
 
 import com.tlavu.moodly.modules.dashboard.controller.DashboardResponse;
 import com.tlavu.moodly.modules.entries.service.EntryReadService;
+import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
+import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.StatsService;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,10 +29,10 @@ public class DashboardService {
 	}
 
 	public DashboardResponse getDashboard(String userId, LocalDate today) {
-		var habits = habitService.findActive(userId);
+		List<HabitView> habits = habitService.findActive(userId);
 		var todayEntry = entryReadService.findByDate(userId, today).orElse(null);
 		var completedHabitCount = todayEntry == null ? 0 : (int) todayEntry.getHabits().stream()
-				.filter(log -> log.isDone() && habits.stream().anyMatch(habit -> habit.getId().equals(log.getHabitId())))
+				.filter(log -> log.isDone() && habits.stream().anyMatch(habit -> habit.id().equals(log.getHabitId())))
 				.count();
 		var totalHabitCount = habits.size();
 		var completionRatio = totalHabitCount == 0 ? 0.0 : (double) completedHabitCount / totalHabitCount;
@@ -42,12 +45,12 @@ public class DashboardService {
 				moodEntryCount == 0 ? null : moodScoreTotal / moodEntryCount,
 				moodEntryCount
 		);
-		var habitIds = habits.stream().map(habit -> habit.getId()).toList();
+		var habitIds = habits.stream().map(HabitView::id).toList();
 		var bestCurrentStreak = statsService.calculateBestCurrentStreak(userId, habitIds, today);
 
 		return new DashboardResponse(
 				todayEntry,
-				habits,
+				habits.stream().map(HabitResponse::from).toList(),
 				completedHabitCount,
 				totalHabitCount,
 				completionRatio,

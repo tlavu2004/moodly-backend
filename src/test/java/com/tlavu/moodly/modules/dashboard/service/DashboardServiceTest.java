@@ -9,6 +9,8 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
+import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.service.StatsService;
@@ -37,8 +39,8 @@ class DashboardServiceTest {
 	void buildsTheAuthenticatedUsersDashboardSummary() {
 		var today = LocalDate.of(2026, 8, 5);
 		var habits = List.of(
-				new Habit("exercise", "user-1", "Exercise", null, TargetFrequency.DAILY, true),
-				new Habit("reading", "user-1", "Read", null, TargetFrequency.DAILY, true)
+				HabitView.from(new Habit("exercise", "user-1", "Exercise", null, TargetFrequency.DAILY, true)),
+				HabitView.from(new Habit("reading", "user-1", "Read", null, TargetFrequency.DAILY, true))
 		);
 		var entry = new DailyEntry("user-1", today);
 		entry.getHabits().addAll(List.of(
@@ -57,7 +59,7 @@ class DashboardServiceTest {
 		var result = dashboardService.getDashboard("user-1", today);
 
 		assertEquals(entry, result.todayEntry());
-		assertEquals(habits, result.activeHabits());
+		assertEquals(habits.stream().map(HabitResponse::from).toList(), result.activeHabits());
 		assertEquals(1, result.completedHabitCount());
 		assertEquals(2, result.totalHabitCount());
 		assertEquals(0.5, result.completionRatio());

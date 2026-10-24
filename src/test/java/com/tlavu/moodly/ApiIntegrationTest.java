@@ -157,6 +157,9 @@ class ApiIntegrationTest {
 				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
 				.andExpect(jsonPath("$.data.todayEntry.date").value(entryDate.toString()))
 				.andExpect(jsonPath("$.data.activeHabits.length()").value(1))
+				.andExpect(jsonPath("$.data.activeHabits[0].id").value(habitId))
+				.andExpect(jsonPath("$.data.activeHabits[0].userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.activeHabits[0].targetFrequency").value("DAILY"))
 				.andExpect(jsonPath("$.data.completedHabitCount").value(1))
 				.andExpect(jsonPath("$.data.totalHabitCount").value(1))
 				.andExpect(jsonPath("$.data.completionRatio").value(1.0))
@@ -201,7 +204,7 @@ class ApiIntegrationTest {
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
 		var document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.Habit").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
 				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())

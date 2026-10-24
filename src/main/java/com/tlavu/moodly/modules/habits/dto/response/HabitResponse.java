@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.habits.dto.response;
 
-import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(
@@ -24,15 +24,15 @@ public record HabitResponse(
 		Long version
 ) {
 
-	public static HabitResponse from(Habit habit) {
+	public static HabitResponse from(HabitView habit) {
 		return new HabitResponse(
-				habit.getId(),
-				habit.getUserId(),
-				habit.getName(),
-				habit.getIcon(),
-				habit.getTargetFrequency(),
-				habit.isActive(),
-				habit.getVersion()
+				habit.id(),
+				habit.userId(),
+				habit.name(),
+				habit.icon(),
+				habit.targetFrequency(),
+				habit.active(),
+				habit.version()
 		);
 	}
 }

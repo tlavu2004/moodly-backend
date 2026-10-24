@@ -5,6 +5,7 @@ import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.service.filter.HabitStatusFilter;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
+import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.util.List;
@@ -20,8 +21,8 @@ public class HabitService {
 		this.habitRepository = habitRepository;
 	}
 
-	public Habit create(String userId, CreateHabitInput input) {
-		var habit = new Habit(
+	public HabitView create(String userId, CreateHabitInput input) {
+		Habit habit = new Habit(
 				UUID.randomUUID().toString(),
 				userId,
 				input.name(),
@@ -29,40 +30,46 @@ public class HabitService {
 				input.targetFrequency(),
 				true
 		);
-		return habitRepository.save(habit);
+		return HabitView.from(habitRepository.save(habit));
 	}
 
-	public List<Habit> findActive(String userId) {
-		return habitRepository.findByUserIdAndActiveTrue(userId);
+	public List<HabitView> findActive(String userId) {
+		return habitRepository.findByUserIdAndActiveTrue(userId).stream()
+				.map(HabitView::from)
+				.toList();
 	}
 
-	public List<Habit> findByStatus(String userId, HabitStatusFilter filter) {
-		return switch (filter) {
+	public List<HabitView> findByStatus(String userId, HabitStatusFilter filter) {
+		List<Habit> habits = switch (filter) {
 			case ACTIVE -> habitRepository.findByUserIdAndActiveTrue(userId);
 			case ARCHIVED -> habitRepository.findByUserIdAndActiveFalse(userId);
 			case ALL -> habitRepository.findByUserId(userId);
 		};
+		return habits.stream().map(HabitView::from).toList();
 	}
 
-	public Habit update(String userId, String habitId, UpdateHabitInput input) {
-		var habit = ownedHabit(userId, habitId);
+	public HabitView update(String userId, String habitId, UpdateHabitInput input) {
+		Habit habit = ownedHabit(userId, habitId);
 		verifyVersion(habit, input.version());
 		habit.update(input.name(), input.icon());
-		return habitRepository.save(habit);
+
+		return HabitView.from(habitRepository.save(habit));
 	}
 
-	public Habit archive(String userId, String habitId, long version) {
-		var habit = ownedHabit(userId, habitId);
+	public HabitView archive(String userId, String habitId, long version) {
+		Habit habit = ownedHabit(userId, habitId);
 		verifyVersion(habit, version);
 		habit.archive();
-		return habitRepository.save(habit);
+
+		return HabitView.from(habitRepository.save(habit));
 	}
 
-	public Habit restore(String userId, String habitId, long version) {
-		var habit = ownedHabit(userId, habitId);
+	public HabitView restore(String userId, String habitId, long version) {
+		Habit habit = ownedHabit(userId, habitId);
 		verifyVersion(habit, version);
 		habit.restore();
-		return habitRepository.save(habit);
+
+		return HabitView.from(habitRepository.save(habit));
 	}
 
 	private Habit ownedHabit(String userId, String habitId) {
@@ -71,7 +78,10 @@ public class HabitService {
 	}
 
 	private void verifyVersion(Habit habit, long requestedVersion) {
-		long currentVersion = habit.getVersion() == null ? 0 : habit.getVersion();
+		long currentVersion = habit.getVersion() == null
+				? 0
+				: habit.getVersion();
+
 		if (currentVersion != requestedVersion) {
 			throw new ConflictException();
 		}
