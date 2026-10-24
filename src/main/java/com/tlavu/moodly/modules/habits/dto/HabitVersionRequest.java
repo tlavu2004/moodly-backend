@@ -7,5 +7,4 @@ import jakarta.validation.constraints.PositiveOrZero;
 public record HabitVersionRequest(
 		@Schema(description = "Version returned by the latest read", example = "0")
 		@NotNull @PositiveOrZero Long version
-) {
-}
+) {}

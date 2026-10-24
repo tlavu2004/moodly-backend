@@ -16,5 +16,4 @@ public record CreateHabitRequest(
 		@NotNull
 		@Pattern(regexp = "DAILY", message = "must be DAILY")
 		String targetFrequency
-) {
-}
+) {}

@@ -10,5 +10,4 @@ public record UpdateHabitRequest(
 		@Schema(description = "Optional icon or emoji", example = "🚶") String icon,
 		@Schema(description = "Version returned by the latest read", example = "0")
 		@NotNull @PositiveOrZero Long version
-) {
-}
+) {}

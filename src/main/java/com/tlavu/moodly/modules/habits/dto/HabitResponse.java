@@ -4,7 +4,16 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(requiredProperties = {"id", "userId", "name", "targetFrequency", "active", "version"})
+@Schema(
+		requiredProperties = {
+			"id",
+			"userId",
+			"name",
+			"targetFrequency",
+			"active",
+			"version"
+		}
+)
 public record HabitResponse(
 		String id,
 		String userId,
