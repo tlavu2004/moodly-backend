@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.auth.security;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.tlavu.moodly.modules.auth.exception.Auth0HttpConfigurationException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 import javax.net.ssl.SSLHandshakeException;
@@ -66,8 +67,8 @@ class Auth0HttpClientTest {
 	@Test
 	void rejectsUnboundedOrInvalidConfiguration() {
 		assertThatThrownBy(() -> Auth0HttpClient.create(Duration.ZERO, Duration.ofSeconds(10), 3, Duration.ZERO))
-				.isInstanceOf(IllegalArgumentException.class);
+				.isInstanceOf(Auth0HttpConfigurationException.class);
 		assertThatThrownBy(() -> Auth0HttpClient.create(Duration.ofSeconds(10), Duration.ofSeconds(10), 6, Duration.ZERO))
-				.isInstanceOf(IllegalArgumentException.class);
+				.isInstanceOf(Auth0HttpConfigurationException.class);
 	}
 }

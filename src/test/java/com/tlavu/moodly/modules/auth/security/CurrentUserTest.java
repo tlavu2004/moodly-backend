@@ -1,10 +1,12 @@
 package com.tlavu.moodly.modules.auth.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -12,6 +14,12 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 class CurrentUserTest {
 
 	private final CurrentUser currentUser = new CurrentUser();
+
+	@Test
+	void rejectsMissingJwtAsUnauthenticated() {
+		assertThatThrownBy(currentUser::id)
+				.isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+	}
 
 	@AfterEach
 	void clearSecurityContext() {

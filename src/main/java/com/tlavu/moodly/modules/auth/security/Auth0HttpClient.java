@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.security;
 
+import com.tlavu.moodly.modules.auth.exception.Auth0HttpConfigurationException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ConnectException;
@@ -29,9 +30,7 @@ final class Auth0HttpClient {
 				attempts > 5 ||
 				delay.isNegative()
 		) {
-			throw new IllegalArgumentException(
-					"Auth0 HTTP timeouts must be positive, attempts 1..5, delay non-negative"
-			);
+			throw new Auth0HttpConfigurationException();
 		}
 
 		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
