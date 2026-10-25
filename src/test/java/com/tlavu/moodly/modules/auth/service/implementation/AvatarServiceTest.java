@@ -1,27 +1,30 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
-import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
-import com.tlavu.moodly.modules.auth.model.UserProfile;
+import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
-import com.tlavu.moodly.modules.auth.dto.result.Avatar;
-import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
-import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
+import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
+import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
+import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
+import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.service.UserProfileService;
 import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
+import com.tlavu.moodly.modules.auth.service.view.AvatarView;
+import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -30,12 +33,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.tlavu.moodly.modules.auth.exception.AvatarException;
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
 
 @ExtendWith(MockitoExtension.class)
 class AvatarServiceTest {
@@ -60,7 +61,7 @@ class AvatarServiceTest {
 	@Test
 	void createsAnOwnerScopedSignedUploadPayload() throws Exception {
 		when(currentUser.id()).thenReturn(SUBJECT);
-		UploadSignature payload = service.createSignature(new CreateUploadSignatureInput("image/png", 1024));
+		UploadSignatureView payload = service.createSignature(new CreateUploadSignatureInput("image/png", 1024));
 
 		assertThat(payload.publicId()).startsWith(NAMESPACE);
 		assertThat(payload.uploadUrl()).isEqualTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload");
@@ -110,7 +111,7 @@ class AvatarServiceTest {
 				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
-		Avatar avatar = service.confirm(new ConfirmAvatarInput(publicId, 4));
+		AvatarView avatar = service.confirm(new ConfirmAvatarInput(publicId, 4));
 
 		assertThat(avatar.publicId()).isEqualTo(publicId);
 		assertThat(avatar.deliveryUrl()).contains("/v4/" + publicId);
@@ -203,7 +204,7 @@ class AvatarServiceTest {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.empty());
 
-		assertThat(service.current()).isEqualTo(new Avatar(null, null, null, null));
+		assertThat(service.current()).isEqualTo(new AvatarView(null, null, null, null));
 	}
 
 	@Test
@@ -233,7 +234,7 @@ class AvatarServiceTest {
 		profile.replaceAvatar(NAMESPACE + "old-avatar", 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 
-		assertThat(service.delete()).isEqualTo(new Avatar(null, null, null, null));
+		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));
 		assertThat(profile.getAvatarPublicId()).isNull();
 		InOrder ordered = inOrder(profiles, cloudinary);
 		ordered.verify(profiles).save(profile);
@@ -249,7 +250,7 @@ class AvatarServiceTest {
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 
-		assertThat(service.delete()).isEqualTo(new Avatar(null, null, null, null));
+		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));
 		assertThat(profile.getAvatarPublicId()).isNull();
 		verify(profiles).save(profile);
 		verify(pendingDeletions).save(any(PendingAssetDeletion.class));
@@ -265,7 +266,7 @@ class AvatarServiceTest {
 		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 		doThrow(new IllegalStateException("Mongo unavailable")).when(pendingDeletions).save(any(PendingAssetDeletion.class));
 
-		assertThat(service.delete()).isEqualTo(new Avatar(null, null, null, null));
+		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));
 		assertThat(profile.getAvatarPublicId()).isNull();
 	}
 

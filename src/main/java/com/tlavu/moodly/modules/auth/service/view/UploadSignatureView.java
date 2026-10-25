@@ -1,8 +1,8 @@
-package com.tlavu.moodly.modules.auth.dto.result;
+package com.tlavu.moodly.modules.auth.service.view;
 
 import java.time.Instant;
 
-public record UploadSignature(
+public record UploadSignatureView(
 		String cloudName,
 		String apiKey,
 		String uploadPreset,

@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.contract;
 
-import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
 
 public interface CloudinaryAssetClient {
 

@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.dto.response;
 
-import com.tlavu.moodly.modules.auth.dto.result.Avatar;
+import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 
 public record AvatarResponse(
 		String publicId,
@@ -9,7 +9,7 @@ public record AvatarResponse(
 		String deliveryUrl
 ) {
 
-	public static AvatarResponse from(Avatar avatar) {
+	public static AvatarResponse from(AvatarView avatar) {
 		return new AvatarResponse(
 			avatar.publicId(),
 			avatar.contentType(),

@@ -1,10 +1,8 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.service.implementation;
 
-import com.tlavu.moodly.modules.auth.dto.result.Avatar;
-import com.tlavu.moodly.modules.auth.dto.result.ConfirmedAsset;
-import com.tlavu.moodly.modules.auth.dto.result.UploadSignature;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
@@ -12,8 +10,11 @@ import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.service.UserProfileService;
 import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
+import com.tlavu.moodly.modules.auth.service.view.AvatarView;
+import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -70,7 +71,7 @@ public class AvatarService {
 		this.folder = trimSlash(folder);
 	}
 
-	public UploadSignature createSignature(CreateUploadSignatureInput input) {
+	public UploadSignatureView createSignature(CreateUploadSignatureInput input) {
 		String contentType = input.contentType();
 		long sizeBytes = input.sizeBytes();
 		if (!ALLOWED_TYPES.contains(contentType)) {
@@ -96,7 +97,7 @@ public class AvatarService {
 
 		String toSign = "public_id=" + publicId + "&timestamp=" + timestamp + "&upload_preset=" + uploadPreset;
 
-		return new UploadSignature(
+		return new UploadSignatureView(
 				cloudName,
 				apiKey,
 				uploadPreset,
@@ -108,7 +109,7 @@ public class AvatarService {
 		);
 	}
 
-	public Avatar confirm(ConfirmAvatarInput input) {
+	public AvatarView confirm(ConfirmAvatarInput input) {
 		String publicId = input.publicId();
 		long version = input.version();
 		String subject = currentUser.id();
@@ -158,17 +159,17 @@ public class AvatarService {
 		return avatar(profile);
 	}
 
-	public Avatar current() {
+	public AvatarView current() {
 		return profiles.findByAuth0Subject(currentUser.id())
 				.map(this::avatar)
-				.orElse(new Avatar(null, null, null, null));
+				.orElse(new AvatarView(null, null, null, null));
 	}
 
-	public Avatar delete() {
+	public AvatarView delete() {
 		UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
 
 		if (profile == null || profile.getAvatarPublicId() == null) {
-			return new Avatar(
+			return new AvatarView(
 					null,
 					null,
 					null,
@@ -181,7 +182,7 @@ public class AvatarService {
 		profiles.save(profile);
 		deleteObsoleteAsset(previousPublicId);
 
-		return new Avatar(null, null, null, null);
+		return new AvatarView(null, null, null, null);
 	}
 
 	private void deleteObsoleteAsset(String publicId) {
@@ -210,10 +211,10 @@ public class AvatarService {
 		}
 	}
 
-	private Avatar avatar(UserProfile profile) {
+	private AvatarView avatar(UserProfile profile) {
 
 		if (profile.getAvatarPublicId() == null || profile.getAvatarVersion() == null) {
-				return new Avatar(
+			return new AvatarView(
 						null,
 						null,
 						null,
@@ -221,7 +222,7 @@ public class AvatarService {
 				);
 		}
 
-		return new Avatar(
+		return new AvatarView(
 				profile.getAvatarPublicId(),
 				profile.getAvatarContentType(),
 				profile.getAvatarSizeBytes(),
