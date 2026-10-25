@@ -5,7 +5,7 @@ import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;

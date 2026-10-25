@@ -206,6 +206,8 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.components.schemas.Habit").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.type").value("string"))
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.enum[0]").value("DAILY"))
 				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())

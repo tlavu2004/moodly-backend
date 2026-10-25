@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.habits.dto.response;
 
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -19,7 +18,7 @@ public record HabitResponse(
 		String userId,
 		String name,
 		@Schema(nullable = true) String icon,
-		TargetFrequency targetFrequency,
+		@Schema(allowableValues = "DAILY") String targetFrequency,
 		boolean active,
 		Long version
 ) {
@@ -30,7 +29,7 @@ public record HabitResponse(
 				habit.userId(),
 				habit.name(),
 				habit.icon(),
-				habit.targetFrequency(),
+				habit.targetFrequency().name(),
 				habit.active(),
 				habit.version()
 		);

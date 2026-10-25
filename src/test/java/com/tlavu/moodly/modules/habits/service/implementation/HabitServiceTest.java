@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;

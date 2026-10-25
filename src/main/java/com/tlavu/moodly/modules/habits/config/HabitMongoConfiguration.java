@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.habits.config;
 
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;

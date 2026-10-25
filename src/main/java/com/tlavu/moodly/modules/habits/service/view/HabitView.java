@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.habits.service.view;
 
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 
 public record HabitView(
 		String id,

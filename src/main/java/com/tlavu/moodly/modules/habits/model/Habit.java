@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.habits.model;
 
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import lombok.Getter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;

@@ -1,11 +1,11 @@
 package com.tlavu.moodly.modules.habits.controller;
 
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.dto.request.CreateHabitRequest;
 import com.tlavu.moodly.modules.habits.dto.request.HabitVersionRequest;
 import com.tlavu.moodly.modules.habits.dto.request.UpdateHabitRequest;
 import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
 import com.tlavu.moodly.modules.habits.service.filter.HabitStatusFilter;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;

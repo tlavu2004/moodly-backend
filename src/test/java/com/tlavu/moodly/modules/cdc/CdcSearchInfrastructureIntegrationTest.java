@@ -23,7 +23,7 @@ import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;

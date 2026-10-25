@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.entries.service.EntryReadService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
-import com.tlavu.moodly.modules.habits.model.Habit;
-import com.tlavu.moodly.modules.habits.model.TargetFrequency;
+import com.tlavu.moodly.modules.entries.service.EntryReadService;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
+import com.tlavu.moodly.modules.habits.model.Habit;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
