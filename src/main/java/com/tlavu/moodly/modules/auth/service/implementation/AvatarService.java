@@ -83,7 +83,7 @@ public class AvatarService {
 		userProfileService.synchronizeCurrent();
 
 		long timestamp = Instant.now().getEpochSecond();
-		String publicId = folder + "/users/" + subjectPath() + "/avatar/" + UUID.randomUUID();
+		String publicId = folder + "/users/" + subjectPath(currentUser.id()) + "/avatar/" + UUID.randomUUID();
 		Instant expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
 
 		pendingUploads.save(
@@ -227,10 +227,6 @@ public class AvatarService {
 				profile.getAvatarSizeBytes(),
 				"https://res.cloudinary.com/" + cloudName + "/image/upload/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v" + profile.getAvatarVersion() + "/" + profile.getAvatarPublicId()
 		);
-	}
-
-	private String subjectPath() {
-		return subjectPath(currentUser.id());
 	}
 
 	private static String subjectPath(String subject) {
