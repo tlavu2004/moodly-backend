@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class CurrentUser {
-
 	public String id() {
 		return authenticatedJwt().getSubject();
 	}

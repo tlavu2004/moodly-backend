@@ -22,7 +22,6 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
-
 	private final HttpClient httpClient;
 	private final Duration requestTimeout;
 	private final ObjectMapper objectMapper;
@@ -84,10 +83,10 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 					: "image/" + format.toLowerCase();
 
 			return new ConfirmedAsset(
-				asset.path("public_id").asString(),
-				asset.path("version").asLong(),
-				contentType,
-				asset.path("bytes").asLong()
+					asset.path("public_id").asString(),
+					asset.path("version").asLong(),
+					contentType,
+					asset.path("bytes").asLong()
 			);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
@@ -105,14 +104,14 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 		// Deletion is intentionally performed only after the replacement has been persisted.
 		long timestamp = Instant.now().getEpochSecond();
 		String signature = sha1(
-				"public_id=" + publicId
-						+ "&timestamp=" + timestamp
-						+ apiSecret
+					"public_id=" + publicId +
+					"&timestamp=" + timestamp +
+					apiSecret
 		);
-		String body = "public_id=" + encode(publicId)
-				+ "&timestamp=" + timestamp
-				+ "&api_key=" + encode(apiKey)
-				+ "&signature=" + encode(signature);
+		String body = "public_id=" + encode(publicId) +
+				"&timestamp=" + timestamp +
+				"&api_key=" + encode(apiKey) +
+				"&signature=" + encode(signature);
 		URI uri = URI.create("https://api.cloudinary.com/v1_1/" + cloudName + "/image/destroy");
 		HttpRequest request = HttpRequest.newBuilder(uri)
 				.timeout(requestTimeout)

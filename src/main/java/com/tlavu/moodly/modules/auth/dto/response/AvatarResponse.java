@@ -8,7 +8,6 @@ public record AvatarResponse(
 		Long sizeBytes,
 		String deliveryUrl
 ) {
-
 	public static AvatarResponse from(AvatarView avatar) {
 		return new AvatarResponse(
 			avatar.publicId(),

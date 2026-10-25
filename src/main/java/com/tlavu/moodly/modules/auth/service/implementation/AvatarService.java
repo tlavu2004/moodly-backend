@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class AvatarService {
-
 	private static final long MAX_BYTES = 5L * 1024 * 1024;
 	private static final long SIGNATURE_TTL_SECONDS = 3600;
 	private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
@@ -73,6 +72,7 @@ public class AvatarService {
 	public UploadSignatureView createSignature(CreateUploadSignatureInput input) {
 		String contentType = input.contentType();
 		long sizeBytes = input.sizeBytes();
+
 		if (!ALLOWED_TYPES.contains(contentType)) {
 			throw AvatarException.unsupportedContentType();
 		}
@@ -94,7 +94,9 @@ public class AvatarService {
 				)
 		);
 
-		String toSign = "public_id=" + publicId + "&timestamp=" + timestamp + "&upload_preset=" + uploadPreset;
+		String toSign = "public_id=" + publicId +
+				"&timestamp=" + timestamp +
+				"&upload_preset=" + uploadPreset;
 
 		return new UploadSignatureView(
 				cloudName,
@@ -112,6 +114,7 @@ public class AvatarService {
 		String publicId = input.publicId();
 		long version = input.version();
 		String subject = currentUser.id();
+
 		if (!publicId.startsWith(folder + "/users/" + subjectPath(subject) + "/avatar/")) {
 			throw AvatarException.uploadNotFound();
 		}
@@ -185,11 +188,9 @@ public class AvatarService {
 	}
 
 	private void deleteObsoleteAsset(String publicId) {
-
 		try {
 			cloudinary.deleteImage(publicId);
 		} catch (RuntimeException exception) {
-
 			try {
 				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
 						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
@@ -211,7 +212,6 @@ public class AvatarService {
 	}
 
 	private AvatarView avatar(UserProfile profile) {
-
 		if (profile.getAvatarPublicId() == null || profile.getAvatarVersion() == null) {
 			return new AvatarView(
 						null,
@@ -230,22 +230,18 @@ public class AvatarService {
 	}
 
 	private String subjectPath() {
-
 		return subjectPath(currentUser.id());
 	}
 
 	private static String subjectPath(String subject) {
-
 		return subject.replaceAll("[^A-Za-z0-9_-]", "_");
 	}
 
 	private static String trimSlash(String value) {
-
 		return value.replaceAll("^/+|/+$", "");
 	}
 
 	private static String sha1(String value) {
-
 		try {
 			return HexFormat.of()
 					.formatHex(MessageDigest.getInstance("SHA-1")

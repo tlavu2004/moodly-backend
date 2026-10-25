@@ -12,7 +12,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @NoArgsConstructor
 public class PendingAssetDeletion {
-
 	private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
 
 	@Id

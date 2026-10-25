@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface PendingAvatarUploadRepository
 		extends MongoRepository<PendingAvatarUpload, String> {
-
 	List<PendingAvatarUpload> findByExpiresAtBefore(Instant instant);
 
 	Optional<PendingAvatarUpload> findByPublicIdAndAuth0Subject(String publicId, String auth0Subject);

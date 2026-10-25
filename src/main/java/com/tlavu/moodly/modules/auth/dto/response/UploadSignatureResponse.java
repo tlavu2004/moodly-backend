@@ -13,7 +13,6 @@ public record UploadSignatureResponse(
 		String signature,
 		String uploadUrl
 ) {
-
 	public static UploadSignatureResponse from(UploadSignatureView signature) {
 		return new UploadSignatureResponse(
 			signature.cloudName(),

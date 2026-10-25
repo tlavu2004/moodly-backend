@@ -11,7 +11,6 @@ public record ProfileResponse(
 		Instant createdAt,
 		Instant updatedAt
 ) {
-
 	public static ProfileResponse from(ProfileView profile) {
 		return new ProfileResponse(
 			profile.userId(),

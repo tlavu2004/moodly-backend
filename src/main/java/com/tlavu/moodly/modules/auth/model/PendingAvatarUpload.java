@@ -11,7 +11,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @NoArgsConstructor
 public class PendingAvatarUpload {
-
 	@Id
 	@SuppressWarnings("unused") // Assigned by Spring Data MongoDB after persistence.
 	private String id;

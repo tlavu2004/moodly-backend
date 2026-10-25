@@ -12,7 +12,6 @@ import org.springframework.web.client.RestTemplate;
 
 /** Bounded retries for transient discovery/JWKS network failures, never token validation. */
 final class Auth0HttpClient {
-
 	private Auth0HttpClient() {}
 
 	static RestTemplate create(
@@ -30,7 +29,9 @@ final class Auth0HttpClient {
 				attempts > 5 ||
 				delay.isNegative()
 		) {
-			throw new IllegalArgumentException("Auth0 HTTP timeouts must be positive, attempts 1..5, delay non-negative");
+			throw new IllegalArgumentException(
+					"Auth0 HTTP timeouts must be positive, attempts 1..5, delay non-negative"
+			);
 		}
 
 		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();

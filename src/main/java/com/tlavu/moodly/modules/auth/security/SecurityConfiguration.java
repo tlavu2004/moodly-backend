@@ -39,7 +39,6 @@ import static java.util.Objects.requireNonNullElse;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
-
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) {
 		http.csrf(AbstractHttpConfigurer::disable)

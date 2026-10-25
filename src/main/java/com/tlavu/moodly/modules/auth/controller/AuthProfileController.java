@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Authentication", description = "Authenticated user profile operations")
 @RequiredArgsConstructor
 public class AuthProfileController {
-
 	private final UserProfileService profiles;
 
 	/** Idempotent post-authentication bootstrap; credentials and tokens remain owned by Auth0. */

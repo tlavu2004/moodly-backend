@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "moodly.cloudinary.pending-cleanup.enabled", havingValue = "true", matchIfMissing = true)
 public class PendingAssetDeletionCleanup {
-
 	private final PendingAssetDeletionRepository pendingDeletions;
 	private final CloudinaryAssetClient cloudinary;
 

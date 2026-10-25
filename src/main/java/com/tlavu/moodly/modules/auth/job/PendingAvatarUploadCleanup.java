@@ -19,7 +19,6 @@ import org.springframework.stereotype.Component;
 		matchIfMissing = true
 )
 public class PendingAvatarUploadCleanup {
-
 	private final PendingAvatarUploadRepository pendingUploads;
 	private final CloudinaryAssetClient cloudinary;
 
@@ -33,11 +32,16 @@ public class PendingAvatarUploadCleanup {
 				pending.recordCleanupFailure();
 				try {
 					pendingUploads.save(pending);
-					log.warn("Avatar cleanup retry {} failed ({})",
-							pending.getCleanupAttempts(), exception.getClass().getSimpleName());
+					log.warn(
+							"Avatar cleanup retry {} failed ({})",
+							pending.getCleanupAttempts(),
+							exception.getClass().getSimpleName()
+					);
 				} catch (RuntimeException persistenceException) {
-					log.error("Avatar cleanup retry state could not be persisted ({})",
-							persistenceException.getClass().getSimpleName());
+					log.error(
+							"Avatar cleanup retry state could not be persisted ({})",
+							persistenceException.getClass().getSimpleName()
+					);
 				}
 			}
 		}

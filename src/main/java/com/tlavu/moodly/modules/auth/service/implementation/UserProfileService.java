@@ -14,13 +14,16 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class UserProfileService {
-
 	private final CurrentUser currentUser;
 	private final UserProfileRepository profiles;
 
 	public ProfileView synchronizeCurrent() {
 		CurrentUserIdentity identity = currentUser.identity();
-		return ProfileView.from(profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity)));
+
+		return ProfileView.from(
+				profiles.findByAuth0Subject(identity.subject())
+						.orElseGet(() -> create(identity))
+		);
 	}
 
 	private UserProfile create(CurrentUserIdentity identity) {
@@ -33,7 +36,8 @@ public class UserProfileService {
 				)
 			);
 		} catch (DuplicateKeyException exception) {
-			return profiles.findByAuth0Subject(identity.subject()).orElseThrow(() -> exception);
+			return profiles.findByAuth0Subject(identity.subject())
+					.orElseThrow(() -> exception);
 		}
 	}
 }

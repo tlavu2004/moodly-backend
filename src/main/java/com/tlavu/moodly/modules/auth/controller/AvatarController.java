@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Avatar", description = "Avatar upload and retrieval for the authenticated user")
 @RequiredArgsConstructor
 public class AvatarController {
-
 	private final AvatarService avatarService;
 
 	@PostMapping("/upload-signature")
@@ -35,12 +34,13 @@ public class AvatarController {
 			description = "Creates a signed upload payload for Cloudinary after validating the image content type and size."
 	)
 	public ApiResponse<UploadSignatureResponse> signature(@Valid @RequestBody UploadRequest request) {
-
 		CreateUploadSignatureInput input = new CreateUploadSignatureInput(
 			request.contentType(),
 			request.sizeBytes()
 		);
+
 		UploadSignatureView signature = avatarService.createSignature(input);
+
 		return ApiResponse.success(UploadSignatureResponse.from(signature));
 	}
 
@@ -50,12 +50,13 @@ public class AvatarController {
 			description = "Verifies the uploaded Cloudinary asset and saves it as the current user's avatar."
 	)
 	public ApiResponse<AvatarResponse> confirm(@Valid @RequestBody ConfirmRequest request) {
-
 		ConfirmAvatarInput input = new ConfirmAvatarInput(
 			request.publicId(),
 			request.version()
 		);
+
 		AvatarView avatar = avatarService.confirm(input);
+
 		return ApiResponse.success(AvatarResponse.from(avatar));
 	}
 
@@ -65,7 +66,6 @@ public class AvatarController {
 			description = "Returns the authenticated user's current avatar metadata."
 	)
 	public ApiResponse<AvatarResponse> current() {
-
 		return ApiResponse.success(AvatarResponse.from(avatarService.current()));
 	}
 
@@ -75,8 +75,6 @@ public class AvatarController {
 			description = "Resets the avatar to the default and deletes the previous Cloudinary asset."
 	)
 	public ApiResponse<AvatarResponse> delete() {
-
 		return ApiResponse.success(AvatarResponse.from(avatarService.delete()));
 	}
-
 }
