@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.dashboard.service;
 
 import com.tlavu.moodly.modules.dashboard.controller.DashboardResponse;
+import com.tlavu.moodly.modules.entries.dto.response.DailyEntryResponse;
 import com.tlavu.moodly.modules.entries.service.EntryReadService;
 import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
@@ -31,8 +32,8 @@ public class DashboardService {
 	public DashboardResponse getDashboard(String userId, LocalDate today) {
 		List<HabitView> habits = habitService.findActive(userId);
 		var todayEntry = entryReadService.findByDate(userId, today).orElse(null);
-		var completedHabitCount = todayEntry == null ? 0 : (int) todayEntry.getHabits().stream()
-				.filter(log -> log.isDone() && habits.stream().anyMatch(habit -> habit.id().equals(log.getHabitId())))
+		var completedHabitCount = todayEntry == null ? 0 : (int) todayEntry.habits().stream()
+				.filter(log -> log.done() && habits.stream().anyMatch(habit -> habit.id().equals(log.habitId())))
 				.count();
 		var totalHabitCount = habits.size();
 		var completionRatio = totalHabitCount == 0 ? 0.0 : (double) completedHabitCount / totalHabitCount;
@@ -49,7 +50,7 @@ public class DashboardService {
 		var bestCurrentStreak = statsService.calculateBestCurrentStreak(userId, habitIds, today);
 
 		return new DashboardResponse(
-				todayEntry,
+				todayEntry == null ? null : DailyEntryResponse.from(todayEntry),
 				habits.stream().map(HabitResponse::from).toList(),
 				completedHabitCount,
 				totalHabitCount,

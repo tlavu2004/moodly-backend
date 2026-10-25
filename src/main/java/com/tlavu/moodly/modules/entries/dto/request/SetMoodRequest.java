@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.entries.controller;
+package com.tlavu.moodly.modules.entries.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

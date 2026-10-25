@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.entries.service.view.EntryView;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ class EntryReadServiceTest {
 		var entries = List.of(new DailyEntry("user-1", date));
 		when(dailyEntryRepository.findByUserIdAndDateLessThanEqualOrderByDateDesc("user-1", date)).thenReturn(entries);
 
-		assertEquals(entries, entryReadService.findOnOrBefore("user-1", date));
+		assertEquals(entries.stream().map(EntryView::from).toList(), entryReadService.findOnOrBefore("user-1", date));
 		verify(dailyEntryRepository).findByUserIdAndDateLessThanEqualOrderByDateDesc("user-1", date);
 	}
 }

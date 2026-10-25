@@ -10,7 +10,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 @Document(collection = "#{@environment.getProperty('moodly.entries.collection-name')}")
 @CompoundIndexes({
@@ -22,19 +21,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class DailyEntry {
 
 	@Id
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private String id;
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private String userId;
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private LocalDate date;
-	@Schema(nullable = true)
 	private Mood mood;
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private List<HabitLog> habits = new ArrayList<>();
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private Instant createdAt;
-	@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
 	private Instant updatedAt;
 
 	public DailyEntry() {
@@ -48,10 +40,8 @@ public class DailyEntry {
 	@Getter
 	public static class Mood {
 
-		@Schema(requiredMode = Schema.RequiredMode.REQUIRED) private int score;
-		@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+		private int score;
 		private List<String> tags = new ArrayList<>();
-		@Schema(nullable = true)
 		private String note;
 
 		public Mood() {
@@ -72,9 +62,8 @@ public class DailyEntry {
 	@Setter
 	public static class HabitLog {
 
-		@Schema(requiredMode = Schema.RequiredMode.REQUIRED) private String habitId;
-		@Schema(requiredMode = Schema.RequiredMode.REQUIRED) private boolean done;
-		@Schema(nullable = true)
+		private String habitId;
+		private boolean done;
 		private String note;
 
 		public HabitLog() {

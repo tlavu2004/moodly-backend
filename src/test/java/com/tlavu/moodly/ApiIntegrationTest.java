@@ -101,6 +101,9 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"habitId\":\"" + habitId + "\",\"done\":true,\"note\":\"Completed\"}"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.date").value(MoodlyTime.today(clock).toString()))
+				.andExpect(jsonPath("$.data.habits[0].habitId").value(habitId))
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
 		mockMvc.perform(patch("/entries/today")
@@ -115,7 +118,9 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"score\":4,\"tags\":[\"calm\"],\"note\":\"Good day\"}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.mood.score").value(4));
+				.andExpect(jsonPath("$.data.mood.score").value(4))
+				.andExpect(jsonPath("$.data.mood.tags[0]").value("calm"))
+				.andExpect(jsonPath("$.data.mood.note").value("Good day"));
 
 		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -156,6 +161,9 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
 				.andExpect(jsonPath("$.data.todayEntry.date").value(entryDate.toString()))
+				.andExpect(jsonPath("$.data.todayEntry.userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.todayEntry.habits[0].habitId").value(habitId))
+				.andExpect(jsonPath("$.data.todayEntry.mood.score").value(4))
 				.andExpect(jsonPath("$.data.activeHabits.length()").value(1))
 				.andExpect(jsonPath("$.data.activeHabits[0].id").value(habitId))
 				.andExpect(jsonPath("$.data.activeHabits[0].userId").value(USER_ID))
@@ -208,7 +216,8 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.type").value("string"))
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.enum[0]").value("DAILY"))
-				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
+				.andExpect(jsonPath("$.components.schemas.DailyEntry").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.DailyEntryResponse.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())

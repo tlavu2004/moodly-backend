@@ -8,14 +8,16 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
-import com.tlavu.moodly.modules.entries.controller.SetMoodRequest;
-import com.tlavu.moodly.modules.entries.controller.UpdateHabitLogRequest;
+import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
+import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
+import com.tlavu.moodly.modules.entries.service.view.EntryView;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -37,14 +39,16 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.save(org.mockito.ArgumentMatchers.any(DailyEntry.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		var result = dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogRequest("exercise", true, "Done"));
+		EntryView result = dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogInput("exercise", true, "Done"));
 
-		assertEquals(1, result.getHabits().size());
-		assertEquals("exercise", result.getHabits().getFirst().getHabitId());
-		assertTrue(result.getHabits().getFirst().isDone());
-		assertNotNull(result.getCreatedAt());
-		assertNotNull(result.getUpdatedAt());
-		verify(dailyEntryRepository).save(result);
+		assertEquals(1, result.habits().size());
+		assertEquals("exercise", result.habits().getFirst().habitId());
+		assertTrue(result.habits().getFirst().done());
+		assertNotNull(result.createdAt());
+		assertNotNull(result.updatedAt());
+		ArgumentCaptor<DailyEntry> savedEntry = ArgumentCaptor.forClass(DailyEntry.class);
+		verify(dailyEntryRepository).save(savedEntry.capture());
+		assertEquals(result.habits().getFirst().habitId(), savedEntry.getValue().getHabits().getFirst().getHabitId());
 	}
 
 	@Test
@@ -56,7 +60,7 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.findByUserIdAndDate("user-1", DATE)).thenReturn(Optional.of(entry));
 		when(dailyEntryRepository.save(entry)).thenReturn(entry);
 
-		dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogRequest("exercise", true, "New"));
+		dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogInput("exercise", true, "New"));
 
 		assertEquals(1, entry.getHabits().size());
 		assertTrue(entry.getHabits().getFirst().isDone());
@@ -71,7 +75,7 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.findByUserIdAndDate("user-1", DATE)).thenReturn(Optional.of(entry));
 		when(dailyEntryRepository.save(entry)).thenReturn(entry);
 
-		dailyEntryService.setMood("user-1", DATE, new SetMoodRequest(4, List.of("calm"), "Good"));
+		dailyEntryService.setMood("user-1", DATE, new SetMoodInput(4, List.of("calm"), "Good"));
 
 		assertEquals(4, entry.getMood().getScore());
 		assertEquals(List.of("calm"), entry.getMood().getTags());
@@ -84,6 +88,6 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.findByUserIdAndDateRange("user-1", DATE.minusDays(1), DATE))
 				.thenReturn(entries);
 
-		assertEquals(entries, dailyEntryService.findBetween("user-1", DATE.minusDays(1), DATE));
+		assertEquals(entries.stream().map(EntryView::from).toList(), dailyEntryService.findBetween("user-1", DATE.minusDays(1), DATE));
 	}
 }

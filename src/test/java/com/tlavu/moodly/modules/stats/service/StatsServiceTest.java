@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.service.EntryReadService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.service.view.EntryView;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.controller.MostMissedHabitResponse;
@@ -84,7 +85,7 @@ class StatsServiceTest {
 		var today = LocalDate.of(2026, 8, 5);
 		var entry = new DailyEntry("user-1", today);
 		entry.getHabits().add(new DailyEntry.HabitLog("reading", true, null));
-		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(entry));
+		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(EntryView.from(entry)));
 
 		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
 	}
@@ -102,7 +103,8 @@ class StatsServiceTest {
 				new DailyEntry.HabitLog("exercise", false, null),
 				new DailyEntry.HabitLog("reading", true, null)
 		));
-		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(todayEntry, yesterdayEntry));
+		when(entryReadService.findOnOrBefore("user-1", today))
+				.thenReturn(List.of(EntryView.from(todayEntry), EntryView.from(yesterdayEntry)));
 
 		assertEquals(2, statsService.calculateBestCurrentStreak(
 				"user-1",
@@ -112,9 +114,9 @@ class StatsServiceTest {
 		verify(entryReadService).findOnOrBefore("user-1", today);
 	}
 
-	private DailyEntry entry(LocalDate date, boolean done) {
+	private EntryView entry(LocalDate date, boolean done) {
 		var entry = new DailyEntry("user-1", date);
 		entry.getHabits().add(new DailyEntry.HabitLog("exercise", done, null));
-		return entry;
+		return EntryView.from(entry);
 	}
 }

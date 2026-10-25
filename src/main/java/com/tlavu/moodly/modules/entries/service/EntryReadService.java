@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.entries.service;
 
-import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.entries.service.view.EntryView;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -16,11 +16,13 @@ public class EntryReadService {
 		this.dailyEntryRepository = dailyEntryRepository;
 	}
 
-	public List<DailyEntry> findOnOrBefore(String userId, LocalDate date) {
-		return dailyEntryRepository.findByUserIdAndDateLessThanEqualOrderByDateDesc(userId, date);
+	public List<EntryView> findOnOrBefore(String userId, LocalDate date) {
+		return dailyEntryRepository.findByUserIdAndDateLessThanEqualOrderByDateDesc(userId, date).stream()
+				.map(EntryView::from)
+				.toList();
 	}
 
-	public Optional<DailyEntry> findByDate(String userId, LocalDate date) {
-		return dailyEntryRepository.findByUserIdAndDate(userId, date);
+	public Optional<EntryView> findByDate(String userId, LocalDate date) {
+		return dailyEntryRepository.findByUserIdAndDate(userId, date).map(EntryView::from);
 	}
 }
