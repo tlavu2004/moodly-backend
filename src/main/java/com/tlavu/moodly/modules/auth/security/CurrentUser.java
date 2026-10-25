@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.auth.security;
 
-import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import java.util.Locale;
 
 import org.springframework.security.access.AccessDeniedException;

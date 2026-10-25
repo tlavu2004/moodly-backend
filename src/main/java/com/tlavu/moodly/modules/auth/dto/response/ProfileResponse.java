@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.dto.response;
 
-import com.tlavu.moodly.modules.auth.model.UserProfile;
+import com.tlavu.moodly.modules.auth.service.view.ProfileView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
@@ -12,12 +12,12 @@ public record ProfileResponse(
 		Instant updatedAt
 ) {
 
-	public static ProfileResponse from(UserProfile profile) {
+	public static ProfileResponse from(ProfileView profile) {
 		return new ProfileResponse(
-			profile.getAuth0Subject(),
-			profile.getEmail(),
-			profile.getCreatedAt(),
-			profile.getUpdatedAt()
+			profile.userId(),
+			profile.email(),
+			profile.createdAt(),
+			profile.updatedAt()
 		);
 	}
 }

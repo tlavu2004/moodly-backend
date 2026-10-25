@@ -1,9 +1,10 @@
-package com.tlavu.moodly.modules.auth.service;
+package com.tlavu.moodly.modules.auth.service.implementation;
 
-import com.tlavu.moodly.modules.auth.dto.result.CurrentUserIdentity;
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.CurrentUserIdentity;
+import com.tlavu.moodly.modules.auth.service.view.ProfileView;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -17,9 +18,9 @@ public class UserProfileService {
 	private final CurrentUser currentUser;
 	private final UserProfileRepository profiles;
 
-	public UserProfile synchronizeCurrent() {
+	public ProfileView synchronizeCurrent() {
 		CurrentUserIdentity identity = currentUser.identity();
-		return profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity));
+		return ProfileView.from(profiles.findByAuth0Subject(identity.subject()).orElseGet(() -> create(identity)));
 	}
 
 	private UserProfile create(CurrentUserIdentity identity) {
