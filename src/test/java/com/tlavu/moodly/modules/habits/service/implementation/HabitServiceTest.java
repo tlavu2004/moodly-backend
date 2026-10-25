@@ -40,7 +40,7 @@ class HabitServiceTest {
 
 		HabitView result = habitService.create("user-1", new CreateHabitInput("Exercise", "🏃", TargetFrequency.DAILY));
 
-		var captor = ArgumentCaptor.forClass(Habit.class);
+		ArgumentCaptor<Habit> captor = ArgumentCaptor.forClass(Habit.class);
 		verify(habitRepository).save(captor.capture());
 		assertNotNull(result.id());
 		assertEquals("user-1", result.userId());
@@ -51,7 +51,7 @@ class HabitServiceTest {
 
 	@Test
 	void findsOnlyActiveHabitsForTheUser() {
-		var habits = List.of(new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true));
+		List<Habit> habits = List.of(new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true));
 		when(habitRepository.findByUserIdAndActiveTrue("user-1")).thenReturn(habits);
 
 		List<HabitView> result = habitService.findActive("user-1");
@@ -64,27 +64,27 @@ class HabitServiceTest {
 
 	@Test
 	void updatesAndArchivesOnlyAnOwnedHabitAtTheExpectedVersion() {
-		var habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
+		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
 		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
 		when(habitRepository.save(habit)).thenReturn(habit);
 
-		var updated = habitService.update(
+		HabitView updated = habitService.update(
 				"user-1",
 				"habit-1",
 				new UpdateHabitInput("Read more", "📖", 0L)
 		);
 		assertEquals("Read more", updated.name());
 
-		var archived = habitService.archive("user-1", "habit-1", 0L);
+		HabitView archived = habitService.archive("user-1", "habit-1", 0L);
 		assertFalse(archived.active());
 	}
 
 	@Test
 	void rejectsAStaleHabitVersionWithTheSharedConflictCode() {
-		var habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
+		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
 		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
 
-		var exception = assertThrows(ConflictException.class, () -> habitService.archive("user-1", "habit-1", 1L));
+		ConflictException exception = assertThrows(ConflictException.class, () -> habitService.archive("user-1", "habit-1", 1L));
 
 		assertEquals("CONFLICT", exception.getCode().getCode());
 		verify(habitRepository, org.mockito.Mockito.never()).save(habit);

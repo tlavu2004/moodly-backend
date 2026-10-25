@@ -12,7 +12,6 @@ public record HabitView(
 		boolean active,
 		Long version
 ) {
-
 	public static HabitView from(Habit habit) {
 		return new HabitView(
 				habit.getId(),

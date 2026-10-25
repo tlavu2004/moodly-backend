@@ -10,16 +10,13 @@ import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class HabitService {
-
 	private final HabitRepository habitRepository;
-
-	public HabitService(HabitRepository habitRepository) {
-		this.habitRepository = habitRepository;
-	}
 
 	public HabitView create(String userId, CreateHabitInput input) {
 		Habit habit = new Habit(
