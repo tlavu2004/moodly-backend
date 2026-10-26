@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.security;
+package com.tlavu.moodly.modules.auth.security.config;
 
 import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;

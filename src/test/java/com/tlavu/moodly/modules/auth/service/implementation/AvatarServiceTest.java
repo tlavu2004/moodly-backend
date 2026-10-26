@@ -19,7 +19,7 @@ import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.modules.auth.service.view.AvatarView;

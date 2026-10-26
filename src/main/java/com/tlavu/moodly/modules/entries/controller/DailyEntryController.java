@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.entries.controller;
 
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.modules.entries.dto.request.SetMoodRequest;
 import com.tlavu.moodly.modules.entries.dto.request.UpdateHabitLogRequest;
 import com.tlavu.moodly.modules.entries.dto.response.DailyEntryResponse;

@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
-import com.tlavu.moodly.modules.auth.security.CurrentUserIdentity;
+import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
+import com.tlavu.moodly.modules.auth.identity.CurrentUserIdentity;
 import com.tlavu.moodly.modules.auth.service.view.ProfileView;
 import java.time.Instant;
 import java.util.Optional;

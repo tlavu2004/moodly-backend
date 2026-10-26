@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.habits.controller;
 
-import com.tlavu.moodly.modules.auth.security.CurrentUser;
+import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.dto.request.CreateHabitRequest;
 import com.tlavu.moodly.modules.habits.dto.request.HabitVersionRequest;

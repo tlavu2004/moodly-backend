@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.security;
+package com.tlavu.moodly.modules.auth.security.config;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;

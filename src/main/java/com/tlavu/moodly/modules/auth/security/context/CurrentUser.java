@@ -1,5 +1,6 @@
-package com.tlavu.moodly.modules.auth.security;
+package com.tlavu.moodly.modules.auth.security.context;
 
+import com.tlavu.moodly.modules.auth.identity.CurrentUserIdentity;
 import java.util.Locale;
 
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;

@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.security;
+package com.tlavu.moodly.modules.auth.security.config;
 
 import com.tlavu.moodly.modules.auth.exception.Auth0HttpConfigurationException;
 import java.io.IOException;

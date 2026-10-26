@@ -1,8 +1,9 @@
-package com.tlavu.moodly.modules.auth.security;
+package com.tlavu.moodly.modules.auth.security.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.tlavu.moodly.modules.auth.identity.CurrentUserIdentity;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
