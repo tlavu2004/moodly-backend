@@ -6,16 +6,18 @@ import java.io.InterruptedIOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 /** Bounded retries for transient discovery/JWKS network failures, never token validation. */
-final class Auth0HttpClient {
-	private Auth0HttpClient() {}
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class Auth0HttpClient {
 
-	static RestTemplate create(
+	public static RestTemplate create(
 			Duration connectTimeout,
 			Duration readTimeout,
 			int attempts,
@@ -43,7 +45,7 @@ final class Auth0HttpClient {
 		return client;
 	}
 
-	static ClientHttpRequestInterceptor retry(int attempts, Duration delay) {
+	public static ClientHttpRequestInterceptor retry(int attempts, Duration delay) {
 		return (request, body, execution) -> {
 			for (int attempt = 1; ; attempt++) {
 				try {
