@@ -1,8 +1,9 @@
-package com.tlavu.moodly.modules.habits.config;
+package com.tlavu.moodly.modules.habits.config.mongodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.tlavu.moodly.modules.habits.config.converter.TargetFrequencyReader;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import org.bson.Document;
@@ -32,7 +33,7 @@ class HabitMongoConfigurationTest {
 
     @Test
     void rejectsUnknownFrequencies() {
-        var reader = new HabitMongoConfiguration.TargetFrequencyReader();
+        var reader = new TargetFrequencyReader();
         assertThatThrownBy(() -> reader.convert("weekly")).isInstanceOf(IllegalArgumentException.class);
     }
 }

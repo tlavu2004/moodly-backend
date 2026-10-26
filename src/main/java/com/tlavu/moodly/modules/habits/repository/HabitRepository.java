@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface HabitRepository extends MongoRepository<Habit, String> {
-
 	List<Habit> findByUserIdAndActiveTrue(String userId);
 
 	List<Habit> findByUserId(String userId);
