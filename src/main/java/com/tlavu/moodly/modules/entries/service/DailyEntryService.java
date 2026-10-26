@@ -9,19 +9,17 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class DailyEntryService {
 
 	private final DailyEntryRepository dailyEntryRepository;
-
-	public DailyEntryService(DailyEntryRepository dailyEntryRepository) {
-		this.dailyEntryRepository = dailyEntryRepository;
-	}
 
 	public EntryView updateHabitLog(String userId, LocalDate date, UpdateHabitLogInput input) {
 		var entry = getOrCreate(userId, date);

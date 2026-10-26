@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,17 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/entries")
 @Tag(name = "Daily entries", description = "Daily mood and habit-log entries for the authenticated user")
+@RequiredArgsConstructor
 public class DailyEntryController {
 
 	private final DailyEntryService dailyEntryService;
 	private final CurrentUser currentUser;
 	private final Clock clock;
-
-	public DailyEntryController(DailyEntryService dailyEntryService, CurrentUser currentUser, Clock clock) {
-		this.dailyEntryService = dailyEntryService;
-		this.currentUser = currentUser;
-		this.clock = clock;
-	}
 
 	@PatchMapping("/today")
 	@Operation(summary = "Update today's habit log", description = "Marks or unmarks a habit in the authenticated user's entry for today.")
