@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.service.view.EntryView;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,7 +19,7 @@ class DailyEntryResponseTest {
 		entry.setId("entry-1");
 		entry.setCreatedAt(Instant.parse("2026-08-05T08:00:00Z"));
 		entry.setUpdatedAt(Instant.parse("2026-08-05T09:00:00Z"));
-		entry.setMood(new DailyEntry.Mood(4, List.of("calm"), "Good day"));
+		entry.setMood(new Mood(4, List.of("calm"), "Good day"));
 		entry.getHabits().add(new DailyEntry.HabitLog("habit-1", true, "Done"));
 
 		DailyEntryResponse response = DailyEntryResponse.from(EntryView.from(entry));

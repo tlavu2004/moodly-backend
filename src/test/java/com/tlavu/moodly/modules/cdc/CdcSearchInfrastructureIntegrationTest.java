@@ -21,6 +21,7 @@ import com.tlavu.moodly.modules.cdc.listener.DailyEntryChangeStreamListener;
 import com.tlavu.moodly.modules.search.service.EntrySearchService;
 import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
@@ -181,7 +182,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(insertedDocument.mood().tags()).containsExactly("old");
 		assertThat(insertedDocument.habits()).extracting(DailyEntrySearchDocument.Habit::note).containsExactly("old habit");
 
-		entry.setMood(new DailyEntry.Mood(5, List.of("new"), "updated note"));
+		entry.setMood(new Mood(5, List.of("new"), "updated note"));
 		entry.setHabits(List.of(new DailyEntry.HabitLog("habit-1", true, "new habit")));
 		cdcSearchTestSupport.save(entry);
 		awaitDocument(entry.getId(), document -> "updated note".equals(document.mood().note()));
@@ -270,7 +271,7 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {
 		var entry = new DailyEntry(userId, LocalDate.of(2026, 8, 6));
-		entry.setMood(new DailyEntry.Mood(score, tags, note));
+		entry.setMood(new Mood(score, tags, note));
 		entry.setHabits(List.of(new DailyEntry.HabitLog("habit-1", true, habitNote)));
 		return entry;
 	}

@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.stats.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -83,7 +84,7 @@ class StatsServiceIntegrationTest {
 
 	private DailyEntry entry(LocalDate date, int moodScore, DailyEntry.HabitLog... habitLogs) {
 		var entry = new DailyEntry(TEST_USER_ID, date);
-		entry.setMood(new DailyEntry.Mood(moodScore, List.of("test"), null));
+		entry.setMood(new Mood(moodScore, List.of("test"), null));
 		entry.getHabits().addAll(List.of(habitLogs));
 		return entry;
 	}

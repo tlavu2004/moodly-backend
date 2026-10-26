@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.entries.service;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
@@ -38,7 +39,7 @@ public class DailyEntryService {
 
 	public EntryView setMood(String userId, LocalDate date, SetMoodInput input) {
 		var entry = getOrCreate(userId, date);
-		entry.setMood(new DailyEntry.Mood(input.score(), input.tags(), input.note()));
+		entry.setMood(new Mood(input.score(), input.tags(), input.note()));
 		return EntryView.from(save(entry));
 	}
 

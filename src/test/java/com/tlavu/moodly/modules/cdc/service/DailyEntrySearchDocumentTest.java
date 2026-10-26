@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.cdc.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ class DailyEntrySearchDocumentTest {
 	void denormalizesSearchableMoodAndHabitContent() {
 		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
-		entry.setMood(new DailyEntry.Mood(4, List.of("calm", "focused"), "A productive day"));
+		entry.setMood(new Mood(4, List.of("calm", "focused"), "A productive day"));
 		entry.setHabits(List.of(
 				new DailyEntry.HabitLog("exercise", true, "Morning run"),
 				new DailyEntry.HabitLog("reading", false, "Too tired")
@@ -43,7 +44,7 @@ class DailyEntrySearchDocumentTest {
 	@Test
 	void handlesEmptyTagsAndNullHabitCollection() {
 		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
-		entry.setMood(new DailyEntry.Mood(3, null, null));
+		entry.setMood(new Mood(3, null, null));
 		entry.setHabits(null);
 
 		var document = DailyEntrySearchDocument.from(entry);

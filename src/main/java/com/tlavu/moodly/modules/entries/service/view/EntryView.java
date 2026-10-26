@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.entries.service.view;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.Mood;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,7 +38,7 @@ public record EntryView(
 			tags = List.copyOf(tags);
 		}
 
-		private static MoodView from(DailyEntry.Mood mood) {
+		private static MoodView from(Mood mood) {
 			return new MoodView(mood.getScore(), mood.getTags(), mood.getNote());
 		}
 	}
