@@ -79,7 +79,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseDailyEntry"
+                  "$ref": "#/components/schemas/ApiResponseDailyEntryResponse"
                 }
               }
             }
@@ -758,7 +758,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseDailyEntry"
+                  "$ref": "#/components/schemas/ApiResponseDailyEntryResponse"
                 }
               }
             }
@@ -1083,7 +1083,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponsePageResponseDailyEntry"
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDailyEntryResponse"
                 }
               }
             }
@@ -1317,7 +1317,7 @@
           "status"
         ]
       },
-      "ApiResponseDailyEntry": {
+      "ApiResponseDailyEntryResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1325,7 +1325,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/DailyEntry",
+            "$ref": "#/components/schemas/DailyEntryResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -1343,7 +1343,7 @@
           "timestamp"
         ]
       },
-      "DailyEntry": {
+      "DailyEntryResponse": {
         "type": "object",
         "properties": {
           "id": {
@@ -1358,12 +1358,12 @@
           },
           "mood": {
             "type": "null",
-            "$ref": "#/components/schemas/Mood"
+            "$ref": "#/components/schemas/MoodResponse"
           },
           "habits": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HabitLog"
+              "$ref": "#/components/schemas/HabitLogResponse"
             }
           },
           "createdAt": {
@@ -1395,7 +1395,7 @@
           }
         }
       },
-      "HabitLog": {
+      "HabitLogResponse": {
         "type": "object",
         "properties": {
           "habitId": {
@@ -1416,7 +1416,7 @@
           "habitId"
         ]
       },
-      "Mood": {
+      "MoodResponse": {
         "type": "object",
         "properties": {
           "score": {
@@ -2004,7 +2004,7 @@
           "habitId"
         ]
       },
-      "ApiResponsePageResponseDailyEntry": {
+      "ApiResponsePageResponseDailyEntryResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -2012,7 +2012,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/PageResponseDailyEntry",
+            "$ref": "#/components/schemas/PageResponseDailyEntryResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -2030,13 +2030,13 @@
           "timestamp"
         ]
       },
-      "PageResponseDailyEntry": {
+      "PageResponseDailyEntryResponse": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DailyEntry"
+              "$ref": "#/components/schemas/DailyEntryResponse"
             }
           },
           "page": {
@@ -2106,7 +2106,7 @@
           },
           "entry": {
             "type": "null",
-            "$ref": "#/components/schemas/DailyEntry",
+            "$ref": "#/components/schemas/DailyEntryResponse",
             "description": "The complete entry, or null when the user has not checked in today."
           }
         },
@@ -2272,12 +2272,12 @@
         "properties": {
           "todayEntry": {
             "type": "null",
-            "$ref": "#/components/schemas/DailyEntry"
+            "$ref": "#/components/schemas/DailyEntryResponse"
           },
           "activeHabits": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Habit"
+              "$ref": "#/components/schemas/HabitResponse"
             }
           },
           "completedHabitCount": {
@@ -2307,47 +2307,6 @@
           "completionRatio",
           "totalHabitCount",
           "weeklyMood"
-        ]
-      },
-      "Habit": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "icon": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "targetFrequency": {
-            "type": "string",
-            "enum": [
-              "DAILY"
-            ]
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "version": {
-            "type": "integer",
-            "format": "int64"
-          }
-        },
-        "required": [
-          "active",
-          "id",
-          "name",
-          "targetFrequency",
-          "userId",
-          "version"
         ]
       },
       "WeeklyMoodSummary": {
