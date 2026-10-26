@@ -9,7 +9,7 @@ import org.springframework.data.convert.ReadingConverter;
 public class TargetFrequencyReader implements Converter<String, TargetFrequency> {
 	@Override
 	public TargetFrequency convert(@NonNull String source) {
-		if ("daily".equals(source)) {
+		if (source.equals("daily")) {
 			return TargetFrequency.DAILY;
 		}
 
