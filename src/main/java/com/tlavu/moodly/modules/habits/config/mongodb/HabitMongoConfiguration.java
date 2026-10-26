@@ -7,12 +7,10 @@ import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 
 @Configuration
 public class HabitMongoConfiguration {
-    @Bean
-    public MongoCustomConversions habitMongoConversions() {
-        return MongoCustomConversions.create(
-			adapter -> adapter.registerConverter(
-					new TargetFrequencyReader()
-			)
+	@Bean
+	public MongoCustomConversions habitMongoConversions() {
+		return MongoCustomConversions.create(
+				adapter -> adapter.registerConverter(new TargetFrequencyReader())
 		);
-    }
+	}
 }
