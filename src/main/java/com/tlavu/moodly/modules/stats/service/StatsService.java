@@ -12,21 +12,15 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class StatsService {
 
 	private final EntryReadService entryReadService;
 	private final StatsAggregationRepository statsAggregationRepository;
-
-	public StatsService(
-			EntryReadService entryReadService,
-			StatsAggregationRepository statsAggregationRepository
-	) {
-		this.entryReadService = entryReadService;
-		this.statsAggregationRepository = statsAggregationRepository;
-	}
 
 	public List<MoodTrendResponse> findMoodTrend(String userId, MoodTrendPeriod period, LocalDate today) {
 		return statsAggregationRepository.findMoodTrend(

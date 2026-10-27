@@ -13,6 +13,7 @@ import java.util.List;
 import java.time.LocalDate;
 import java.time.Clock;
 import com.tlavu.moodly.shared.time.MoodlyTime;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,17 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/stats")
 @Tag(name = "Statistics", description = "Mood and habit statistics for the authenticated user")
+@RequiredArgsConstructor
 public class StatsController {
 
 	private final StatsService statsService;
 	private final CurrentUser currentUser;
 	private final Clock clock;
-
-	public StatsController(StatsService statsService, CurrentUser currentUser, Clock clock) {
-		this.statsService = statsService;
-		this.currentUser = currentUser;
-		this.clock = clock;
-	}
 
 	@GetMapping("/mood-trend")
 	@Operation(summary = "Get current-week mood trend", description = "Returns daily mood buckets for the current Monday-through-Sunday week in the Asia/Ho_Chi_Minh timezone. Only `period=week` is supported.")
