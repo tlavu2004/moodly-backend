@@ -1,7 +1,8 @@
-package com.tlavu.moodly.modules.stats.repository;
+package com.tlavu.moodly.modules.stats.repository.implementation;
 
 import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
@@ -16,14 +17,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class StatsAggregationRepository {
+public class MongoStatsAggregationRepository implements StatsAggregationRepository {
 
 	private static final ZoneId HO_CHI_MINH_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private final MongoTemplate mongoTemplate;
 	private final String dailyEntriesCollection;
 
-	public StatsAggregationRepository(
+	public MongoStatsAggregationRepository(
 			MongoTemplate mongoTemplate,
 			@Value("${moodly.entries.collection-name}") String dailyEntriesCollection
 	) {
@@ -31,6 +32,7 @@ public class StatsAggregationRepository {
 		this.dailyEntriesCollection = dailyEntriesCollection;
 	}
 
+	@Override
 	public List<MoodTrendResponse> findMoodTrend(String userId, LocalDate from, LocalDate to) {
 		Document dayStart = new Document("$dateTrunc", new Document("date", "$date")
 				.append("unit", "day")
@@ -54,6 +56,7 @@ public class StatsAggregationRepository {
 				.toList();
 	}
 
+	@Override
 	public List<MostMissedHabitResponse> findMostMissedHabits(String userId) {
 		Aggregation aggregation = Aggregation.newAggregation(
 				Aggregation.match(Criteria.where("userId").is(userId)),

@@ -11,7 +11,7 @@ import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
-import com.tlavu.moodly.modules.stats.repository.StatsAggregationRepository;
+import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
