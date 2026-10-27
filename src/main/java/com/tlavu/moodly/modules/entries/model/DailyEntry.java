@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,14 +14,20 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "#{@environment.getProperty('moodly.entries.collection-name')}")
 @CompoundIndexes({
-		@CompoundIndex(name = "user_date_unique", def = "{ 'userId': 1, 'date': 1 }", unique = true),
-		@CompoundIndex(name = "user_habit_done_idx", def = "{ 'userId': 1, 'habits.done': 1, 'habits.habitId': 1 }")
+		@CompoundIndex(
+				name = "user_date_unique",
+				def = "{ 'userId': 1, 'date': 1 }",
+				unique = true
+		),
+		@CompoundIndex(
+				name = "user_habit_done_idx",
+				def = "{ 'userId': 1, 'habits.done': 1, 'habits.habitId': 1 }"
+		)
 })
 @Getter
 @Setter
 @NoArgsConstructor
 public class DailyEntry {
-
 	@Id
 	private String id;
 	private String userId;
@@ -35,17 +40,5 @@ public class DailyEntry {
 	public DailyEntry(String userId, LocalDate date) {
 		this.userId = userId;
 		this.date = date;
-	}
-
-	@Getter
-	@Setter
-	@NoArgsConstructor
-	@AllArgsConstructor
-	public static class HabitLog {
-
-		private String habitId;
-		private boolean done;
-		private String note;
-
 	}
 }

@@ -7,10 +7,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.entries.service.implementation.DailyEntryService;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
-import com.tlavu.moodly.modules.entries.service.view.EntryView;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -39,7 +41,7 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.save(org.mockito.ArgumentMatchers.any(DailyEntry.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		EntryView result = dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogInput("exercise", true, "Done"));
+		DailyEntryView result = dailyEntryService.updateHabitLog("user-1", DATE, new UpdateHabitLogInput("exercise", true, "Done"));
 
 		assertEquals(1, result.habits().size());
 		assertEquals("exercise", result.habits().getFirst().habitId());
@@ -56,7 +58,7 @@ class DailyEntryServiceTest {
 		var entry = new DailyEntry("user-1", DATE);
 		var createdAt = Instant.parse("2026-08-05T00:00:00Z");
 		entry.setCreatedAt(createdAt);
-		entry.getHabits().add(new DailyEntry.HabitLog("exercise", false, "Old"));
+		entry.getHabits().add(new HabitLog("exercise", false, "Old"));
 		when(dailyEntryRepository.findByUserIdAndDate("user-1", DATE)).thenReturn(Optional.of(entry));
 		when(dailyEntryRepository.save(entry)).thenReturn(entry);
 
@@ -88,6 +90,6 @@ class DailyEntryServiceTest {
 		when(dailyEntryRepository.findByUserIdAndDateRange("user-1", DATE.minusDays(1), DATE))
 				.thenReturn(entries);
 
-		assertEquals(entries.stream().map(EntryView::from).toList(), dailyEntryService.findBetween("user-1", DATE.minusDays(1), DATE));
+		assertEquals(entries.stream().map(DailyEntryView::from).toList(), dailyEntryService.findBetween("user-1", DATE.minusDays(1), DATE));
 	}
 }

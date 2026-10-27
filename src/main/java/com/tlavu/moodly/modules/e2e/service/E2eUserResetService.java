@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.e2e.service;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.model.Habit;
@@ -93,7 +94,7 @@ public class E2eUserResetService {
 		var entry = new DailyEntry(userId, date);
 		entry.setId(id);
 		entry.setMood(new Mood(score, tags, note));
-		entry.setHabits(List.of(new DailyEntry.HabitLog(habitId, done, null)));
+		entry.setHabits(List.of(new HabitLog(habitId, done, null)));
 		var timestamp = Instant.parse(date + "T12:00:00Z");
 		entry.setCreatedAt(timestamp);
 		entry.setUpdatedAt(timestamp);

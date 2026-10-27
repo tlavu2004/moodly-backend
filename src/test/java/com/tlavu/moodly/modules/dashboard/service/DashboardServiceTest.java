@@ -6,8 +6,9 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.dto.response.DailyEntryResponse;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.entries.service.EntryReadService;
-import com.tlavu.moodly.modules.entries.service.view.EntryView;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
+import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.model.Habit;
@@ -46,11 +47,11 @@ class DashboardServiceTest {
 		);
 		var entry = new DailyEntry("user-1", today);
 		entry.getHabits().addAll(List.of(
-				new DailyEntry.HabitLog("exercise", true, null),
-				new DailyEntry.HabitLog("reading", false, null)
+				new HabitLog("exercise", true, null),
+				new HabitLog("reading", false, null)
 		));
 		when(habitService.findActive("user-1")).thenReturn(habits);
-		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.of(EntryView.from(entry)));
+		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.of(DailyEntryView.from(entry)));
 		when(statsService.findMoodTrend("user-1", MoodTrendPeriod.WEEK, today)).thenReturn(List.of(
 				new MoodTrendResponse(today.minusDays(1), 3.0, 1),
 				new MoodTrendResponse(today, 5.0, 1)
@@ -60,7 +61,7 @@ class DashboardServiceTest {
 
 		var result = dashboardService.getDashboard("user-1", today);
 
-		assertEquals(DailyEntryResponse.from(EntryView.from(entry)), result.todayEntry());
+		assertEquals(DailyEntryResponse.from(DailyEntryView.from(entry)), result.todayEntry());
 		assertEquals(habits.stream().map(HabitResponse::from).toList(), result.activeHabits());
 		assertEquals(1, result.completedHabitCount());
 		assertEquals(2, result.totalHabitCount());

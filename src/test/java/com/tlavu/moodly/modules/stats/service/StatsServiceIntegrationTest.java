@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.stats.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
@@ -35,19 +36,19 @@ class StatsServiceIntegrationTest {
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 1),
 				3,
-				new DailyEntry.HabitLog("exercise", true, null),
-				new DailyEntry.HabitLog("reading", false, null)
+				new HabitLog("exercise", true, null),
+				new HabitLog("reading", false, null)
 		));
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 2),
 				2,
-				new DailyEntry.HabitLog("exercise", true, null),
-				new DailyEntry.HabitLog("reading", false, null)
+				new HabitLog("exercise", true, null),
+				new HabitLog("reading", false, null)
 		));
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 3),
 				4,
-				new DailyEntry.HabitLog("exercise", false, null)
+				new HabitLog("exercise", false, null)
 		));
 	}
 
@@ -82,7 +83,7 @@ class StatsServiceIntegrationTest {
 		assertEquals(2, streak.currentStreak());
 	}
 
-	private DailyEntry entry(LocalDate date, int moodScore, DailyEntry.HabitLog... habitLogs) {
+	private DailyEntry entry(LocalDate date, int moodScore, HabitLog... habitLogs) {
 		var entry = new DailyEntry(TEST_USER_ID, date);
 		entry.setMood(new Mood(moodScore, List.of("test"), null));
 		entry.getHabits().addAll(List.of(habitLogs));

@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.cdc.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import java.time.LocalDate;
 import java.util.List;
@@ -16,8 +17,8 @@ class DailyEntrySearchDocumentTest {
 		entry.setId("entry-1");
 		entry.setMood(new Mood(4, List.of("calm", "focused"), "A productive day"));
 		entry.setHabits(List.of(
-				new DailyEntry.HabitLog("exercise", true, "Morning run"),
-				new DailyEntry.HabitLog("reading", false, "Too tired")
+				new HabitLog("exercise", true, "Morning run"),
+				new HabitLog("reading", false, "Too tired")
 		));
 
 		var document = DailyEntrySearchDocument.from(entry);

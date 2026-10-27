@@ -4,8 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
-import com.tlavu.moodly.modules.entries.service.view.EntryView;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,11 +21,11 @@ class DailyEntryResponseTest {
 		entry.setCreatedAt(Instant.parse("2026-08-05T08:00:00Z"));
 		entry.setUpdatedAt(Instant.parse("2026-08-05T09:00:00Z"));
 		entry.setMood(new Mood(4, List.of("calm"), "Good day"));
-		entry.getHabits().add(new DailyEntry.HabitLog("habit-1", true, "Done"));
+		entry.getHabits().add(new HabitLog("habit-1", true, "Done"));
 
-		DailyEntryResponse response = DailyEntryResponse.from(EntryView.from(entry));
+		DailyEntryResponse response = DailyEntryResponse.from(DailyEntryView.from(entry));
 		entry.getHabits().getFirst().setNote("Changed later");
-		entry.getHabits().add(new DailyEntry.HabitLog("habit-2", false, null));
+		entry.getHabits().add(new HabitLog("habit-2", false, null));
 
 		assertEquals("entry-1", response.id());
 		assertEquals("user-1", response.userId());

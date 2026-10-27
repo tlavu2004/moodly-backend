@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.dashboard.service;
 
 import com.tlavu.moodly.modules.dashboard.controller.DashboardResponse;
 import com.tlavu.moodly.modules.entries.dto.response.DailyEntryResponse;
-import com.tlavu.moodly.modules.entries.service.EntryReadService;
+import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;

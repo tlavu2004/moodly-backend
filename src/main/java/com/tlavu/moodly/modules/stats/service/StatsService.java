@@ -1,7 +1,8 @@
 package com.tlavu.moodly.modules.stats.service;
 
-import com.tlavu.moodly.modules.entries.service.view.EntryView;
-import com.tlavu.moodly.modules.entries.service.EntryReadService;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
+import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
+import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.stats.controller.HabitStreakResponse;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
@@ -53,7 +54,7 @@ public class StatsService {
 	}
 
 	private java.util.Map<String, Integer> calculateCurrentStreaks(
-			List<EntryView> entries,
+			List<DailyEntryView> entries,
 			List<String> habitIds,
 			LocalDate today
 	) {
@@ -66,8 +67,8 @@ public class StatsService {
 				break;
 			}
 			var completedHabitIds = entry.habits().stream()
-					.filter(EntryView.HabitLogView::done)
-					.map(EntryView.HabitLogView::habitId)
+					.filter(HabitLogView::done)
+					.map(HabitLogView::habitId)
 					.collect(java.util.stream.Collectors.toSet());
 			var iterator = activeHabitIds.iterator();
 			while (iterator.hasNext()) {

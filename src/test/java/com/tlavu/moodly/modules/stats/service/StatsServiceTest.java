@@ -4,9 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.entries.service.EntryReadService;
+import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.entries.service.view.EntryView;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.controller.MostMissedHabitResponse;
@@ -84,8 +85,8 @@ class StatsServiceTest {
 	void returnsZeroStreakWhenTodayDoesNotContainTheHabitLog() {
 		var today = LocalDate.of(2026, 8, 5);
 		var entry = new DailyEntry("user-1", today);
-		entry.getHabits().add(new DailyEntry.HabitLog("reading", true, null));
-		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(EntryView.from(entry)));
+		entry.getHabits().add(new HabitLog("reading", true, null));
+		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(DailyEntryView.from(entry)));
 
 		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
 	}
@@ -95,16 +96,16 @@ class StatsServiceTest {
 		var today = LocalDate.of(2026, 8, 5);
 		var todayEntry = new DailyEntry("user-1", today);
 		todayEntry.getHabits().addAll(List.of(
-				new DailyEntry.HabitLog("exercise", true, null),
-				new DailyEntry.HabitLog("reading", true, null)
+				new HabitLog("exercise", true, null),
+				new HabitLog("reading", true, null)
 		));
 		var yesterdayEntry = new DailyEntry("user-1", today.minusDays(1));
 		yesterdayEntry.getHabits().addAll(List.of(
-				new DailyEntry.HabitLog("exercise", false, null),
-				new DailyEntry.HabitLog("reading", true, null)
+				new HabitLog("exercise", false, null),
+				new HabitLog("reading", true, null)
 		));
 		when(entryReadService.findOnOrBefore("user-1", today))
-				.thenReturn(List.of(EntryView.from(todayEntry), EntryView.from(yesterdayEntry)));
+				.thenReturn(List.of(DailyEntryView.from(todayEntry), DailyEntryView.from(yesterdayEntry)));
 
 		assertEquals(2, statsService.calculateBestCurrentStreak(
 				"user-1",
@@ -114,9 +115,9 @@ class StatsServiceTest {
 		verify(entryReadService).findOnOrBefore("user-1", today);
 	}
 
-	private EntryView entry(LocalDate date, boolean done) {
+	private DailyEntryView entry(LocalDate date, boolean done) {
 		var entry = new DailyEntry("user-1", date);
-		entry.getHabits().add(new DailyEntry.HabitLog("exercise", done, null));
-		return EntryView.from(entry);
+		entry.getHabits().add(new HabitLog("exercise", done, null));
+		return DailyEntryView.from(entry);
 	}
 }
