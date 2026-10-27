@@ -7,9 +7,9 @@ import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.dto.response.HabitStreakResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
+import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.LocalDate;
 import java.util.List;
@@ -62,12 +62,12 @@ class StatsServiceIntegrationTest {
 
 	@Test
 	void groupsMoodByWeekAndFindsMostMissedHabit() {
-		List<MoodTrendResponse> trend = statsService.findMoodTrend(
+		List<MoodTrendView> trend = statsService.findMoodTrend(
 				TEST_USER_ID,
 				MoodTrendPeriod.WEEK,
 				LocalDate.of(2026, 8, 3)
 		);
-		List<MostMissedHabitResponse> missedHabits = statsService.findMostMissedHabits(TEST_USER_ID);
+		List<MostMissedHabitView> missedHabits = statsService.findMostMissedHabits(TEST_USER_ID);
 
 		assertEquals(1, trend.size());
 		assertEquals(LocalDate.of(2026, 8, 3), trend.getFirst().date());
@@ -77,7 +77,7 @@ class StatsServiceIntegrationTest {
 
 	@Test
 	void calculatesOnlyConsecutiveCompletedDays() {
-		HabitStreakResponse streak = statsService.calculateCurrentStreak(
+		HabitStreakView streak = statsService.calculateCurrentStreak(
 				TEST_USER_ID,
 				"exercise",
 				LocalDate.of(2026, 8, 2)

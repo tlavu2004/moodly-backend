@@ -1,14 +1,14 @@
 package com.tlavu.moodly.modules.stats.controller;
 
-import com.tlavu.moodly.modules.stats.service.StatsService;
-import com.tlavu.moodly.modules.stats.dto.response.HabitStreakResponse;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
+import com.tlavu.moodly.modules.stats.dto.response.HabitStreakResponse;
+import com.tlavu.moodly.modules.stats.service.StatsService;
+import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.time.MoodlyTime;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.time.LocalDate;
 import java.time.Clock;
-import com.tlavu.moodly.shared.time.MoodlyTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,10 +26,14 @@ public class HabitStreakController {
 	private final Clock clock;
 
 	@GetMapping("/{habitId}/streak")
-	@Operation(summary = "Get a habit's current streak", description = "Calculates the current consecutive-completion streak for one of the authenticated user's habits.")
+	@Operation(
+			summary = "Get a habit's current streak",
+			description = "Calculates the current consecutive-completion streak for one of the authenticated user's habits."
+	)
 	public ApiResponse<HabitStreakResponse> currentStreak(
 			@PathVariable String habitId
 	) {
-		return ApiResponse.success(statsService.calculateCurrentStreak(currentUser.id(), habitId, MoodlyTime.today(clock)));
+		HabitStreakView streak = statsService.calculateCurrentStreak(currentUser.id(), habitId, MoodlyTime.today(clock));
+		return ApiResponse.success(HabitStreakResponse.from(streak));
 	}
 }

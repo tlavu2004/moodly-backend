@@ -4,9 +4,9 @@ import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.dto.response.HabitStreakResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
+import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -25,21 +25,23 @@ public class StatsService {
 	private final EntryReadService entryReadService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
-	public List<MoodTrendResponse> findMoodTrend(String userId, MoodTrendPeriod period, LocalDate today) {
+	public List<MoodTrendView> findMoodTrend(String userId, MoodTrendPeriod period, LocalDate today) {
 		return statsAggregationRepository.findMoodTrend(
 				userId,
 				period.startDate(today),
 				period.endDate(today)
-		);
+		).stream().map(MoodTrendView::from).toList();
 	}
 
-	public List<MostMissedHabitResponse> findMostMissedHabits(String userId) {
-		return statsAggregationRepository.findMostMissedHabits(userId);
+	public List<MostMissedHabitView> findMostMissedHabits(String userId) {
+		return statsAggregationRepository.findMostMissedHabits(userId).stream()
+				.map(MostMissedHabitView::from)
+				.toList();
 	}
 
-	public HabitStreakResponse calculateCurrentStreak(String userId, String habitId, LocalDate today) {
+	public HabitStreakView calculateCurrentStreak(String userId, String habitId, LocalDate today) {
 		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, today);
-		return new HabitStreakResponse(habitId, calculateCurrentStreaks(entries, List.of(habitId), today).get(habitId));
+		return new HabitStreakView(habitId, calculateCurrentStreaks(entries, List.of(habitId), today).get(habitId));
 	}
 
 	public int calculateBestCurrentStreak(String userId, List<String> habitIds, LocalDate today) {

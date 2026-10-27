@@ -9,9 +9,11 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
+import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
+import com.tlavu.moodly.modules.stats.repository.projection.MoodTrendProjection;
+import com.tlavu.moodly.modules.stats.repository.projection.MostMissedHabitProjection;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -32,14 +34,15 @@ class StatsServiceTest {
 
 	@Test
 	void delegatesAggregateQueries() {
-		List<MoodTrendResponse> trend = List.of(new MoodTrendResponse(LocalDate.of(2026, 8, 3), 4.0, 2));
-		List<MostMissedHabitResponse> missed = List.of(new MostMissedHabitResponse("reading", 3));
+		List<MoodTrendView> trend = List.of(new MoodTrendView(LocalDate.of(2026, 8, 3), 4.0, 2));
+		List<MostMissedHabitView> missed = List.of(new MostMissedHabitView("reading", 3));
 		when(statsAggregationRepository.findMoodTrend(
 				"user-1",
 				LocalDate.of(2026, 8, 3),
 				LocalDate.of(2026, 8, 9)
-		)).thenReturn(trend);
-		when(statsAggregationRepository.findMostMissedHabits("user-1")).thenReturn(missed);
+		)).thenReturn(List.of(new MoodTrendProjection(LocalDate.of(2026, 8, 3), 4.0, 2)));
+		when(statsAggregationRepository.findMostMissedHabits("user-1"))
+				.thenReturn(List.of(new MostMissedHabitProjection("reading", 3)));
 
 		assertEquals(trend, statsService.findMoodTrend(
 				"user-1",

@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.stats.repository.implementation;
 
-import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
-import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.repository.projection.MoodTrendProjection;
+import com.tlavu.moodly.modules.stats.repository.projection.MostMissedHabitProjection;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -33,7 +33,7 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 	}
 
 	@Override
-	public List<MoodTrendResponse> findMoodTrend(String userId, LocalDate from, LocalDate to) {
+	public List<MoodTrendProjection> findMoodTrend(String userId, LocalDate from, LocalDate to) {
 		Document dayStart = new Document("$dateTrunc", new Document("date", "$date")
 				.append("unit", "day")
 				.append("timezone", HO_CHI_MINH_ZONE.getId()));
@@ -52,12 +52,12 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 
 		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
 		return results.getMappedResults().stream()
-				.map(this::toMoodTrendResponse)
+				.map(this::toMoodTrendProjection)
 				.toList();
 	}
 
 	@Override
-	public List<MostMissedHabitResponse> findMostMissedHabits(String userId) {
+	public List<MostMissedHabitProjection> findMostMissedHabits(String userId) {
 		Aggregation aggregation = Aggregation.newAggregation(
 				Aggregation.match(Criteria.where("userId").is(userId)),
 				Aggregation.unwind("habits"),
@@ -68,20 +68,20 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 
 		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
 		return results.getMappedResults().stream()
-				.map(this::toMostMissedHabitResponse)
+				.map(this::toMostMissedHabitProjection)
 				.toList();
 	}
 
-	private MoodTrendResponse toMoodTrendResponse(Document result) {
-		return new MoodTrendResponse(
+	private MoodTrendProjection toMoodTrendProjection(Document result) {
+		return new MoodTrendProjection(
 				toLocalDate(result.getDate("_id")),
 				result.getDouble("averageScore"),
 				((Number) result.get("entryCount")).longValue()
 		);
 	}
 
-	private MostMissedHabitResponse toMostMissedHabitResponse(Document result) {
-		return new MostMissedHabitResponse(
+	private MostMissedHabitProjection toMostMissedHabitProjection(Document result) {
+		return new MostMissedHabitProjection(
 				result.getString("_id"),
 				((Number) result.get("missedCount")).longValue()
 		);

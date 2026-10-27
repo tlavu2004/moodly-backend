@@ -15,7 +15,7 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.StatsService;
 import java.time.LocalDate;
 import java.util.List;
@@ -53,8 +53,8 @@ class DashboardServiceTest {
 		when(habitService.findActive("user-1")).thenReturn(habits);
 		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.of(DailyEntryView.from(entry)));
 		when(statsService.findMoodTrend("user-1", MoodTrendPeriod.WEEK, today)).thenReturn(List.of(
-				new MoodTrendResponse(today.minusDays(1), 3.0, 1),
-				new MoodTrendResponse(today, 5.0, 1)
+				new MoodTrendView(today.minusDays(1), 3.0, 1),
+				new MoodTrendView(today, 5.0, 1)
 		));
 		when(statsService.calculateBestCurrentStreak("user-1", List.of("exercise", "reading"), today))
 				.thenReturn(4);
