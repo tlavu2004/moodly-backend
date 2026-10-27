@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class Mood {
-
 	private int score;
 	private List<String> tags = new ArrayList<>();
 	private String note;

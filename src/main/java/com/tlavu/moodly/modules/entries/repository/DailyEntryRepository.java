@@ -10,12 +10,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface DailyEntryRepository extends MongoRepository<DailyEntry, String> {
-
 	Optional<DailyEntry> findByUserIdAndDate(String userId, LocalDate date);
 
 	List<DailyEntry> findByUserId(String userId);
 
-	@Query(value = "{ 'userId': ?0, 'date': { $gte: ?1, $lte: ?2 } }", sort = "{ 'date': 1 }")
+	@Query(
+			value = "{ 'userId': ?0, 'date': { $gte: ?1, $lte: ?2 } }",
+			sort = "{ 'date': 1 }"
+	)
 	List<DailyEntry> findByUserIdAndDateRange(
 			String userId,
 			LocalDate from,
