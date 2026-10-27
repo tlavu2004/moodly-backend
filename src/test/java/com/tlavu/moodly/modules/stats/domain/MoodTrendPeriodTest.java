@@ -10,7 +10,7 @@ class MoodTrendPeriodTest {
 
 	@Test
 	void definesTheCurrentMondayThroughSundayWeek() {
-		var date = LocalDate.of(2026, 8, 5);
+		LocalDate date = LocalDate.of(2026, 8, 5);
 
 		assertEquals(LocalDate.of(2026, 8, 3), MoodTrendPeriod.WEEK.startDate(date));
 		assertEquals(LocalDate.of(2026, 8, 9), MoodTrendPeriod.WEEK.endDate(date));

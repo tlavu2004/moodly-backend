@@ -12,6 +12,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +38,7 @@ public class StatsService {
 	}
 
 	public HabitStreakResponse calculateCurrentStreak(String userId, String habitId, LocalDate today) {
-		var entries = entryReadService.findOnOrBefore(userId, today);
+		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, today);
 		return new HabitStreakResponse(habitId, calculateCurrentStreaks(entries, List.of(habitId), today).get(habitId));
 	}
 
@@ -43,30 +46,30 @@ public class StatsService {
 		if (habitIds.isEmpty()) {
 			return 0;
 		}
-		var streaks = calculateCurrentStreaks(entryReadService.findOnOrBefore(userId, today), habitIds, today);
+		Map<String, Integer> streaks = calculateCurrentStreaks(entryReadService.findOnOrBefore(userId, today), habitIds, today);
 		return streaks.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 	}
 
-	private java.util.Map<String, Integer> calculateCurrentStreaks(
+	private Map<String, Integer> calculateCurrentStreaks(
 			List<DailyEntryView> entries,
 			List<String> habitIds,
 			LocalDate today
 	) {
-		var streaks = new HashMap<String, Integer>();
-		var activeHabitIds = new HashSet<>(habitIds);
+		Map<String, Integer> streaks = new HashMap<>();
+		Set<String> activeHabitIds = new HashSet<>(habitIds);
 		activeHabitIds.forEach(habitId -> streaks.put(habitId, 0));
-		var expectedDate = today;
-		for (var entry : entries) {
+		LocalDate expectedDate = today;
+		for (DailyEntryView entry : entries) {
 			if (entry.date().isBefore(expectedDate)) {
 				break;
 			}
-			var completedHabitIds = entry.habits().stream()
+			Set<String> completedHabitIds = entry.habits().stream()
 					.filter(HabitLogView::done)
 					.map(HabitLogView::habitId)
 					.collect(java.util.stream.Collectors.toSet());
-			var iterator = activeHabitIds.iterator();
+			Iterator<String> iterator = activeHabitIds.iterator();
 			while (iterator.hasNext()) {
-				var habitId = iterator.next();
+				String habitId = iterator.next();
 				if (completedHabitIds.contains(habitId)) {
 					streaks.computeIfPresent(habitId, (ignored, streak) -> streak + 1);
 				} else {

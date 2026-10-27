@@ -28,7 +28,7 @@ public enum MoodTrendPeriod {
 
 	@JsonCreator
 	public static MoodTrendPeriod fromValue(String value) {
-		for (var period : values()) {
+		for (MoodTrendPeriod period : values()) {
 			if (period.value.equals(value)) {
 				return period;
 			}

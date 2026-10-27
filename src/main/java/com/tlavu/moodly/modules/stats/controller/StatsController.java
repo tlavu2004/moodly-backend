@@ -35,8 +35,8 @@ public class StatsController {
 			@Parameter(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = MoodTrendPeriod.class))
 			@RequestParam(defaultValue = "week") String period
 	) {
-		var requestedPeriod = MoodTrendPeriod.fromValue(period);
-		var today = MoodlyTime.today(clock);
+		MoodTrendPeriod requestedPeriod = MoodTrendPeriod.fromValue(period);
+		LocalDate today = MoodlyTime.today(clock);
 		return ApiResponse.success(statsService.findMoodTrend(currentUser.id(), requestedPeriod, today));
 	}
 
