@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.stats.controller;
+package com.tlavu.moodly.modules.stats.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

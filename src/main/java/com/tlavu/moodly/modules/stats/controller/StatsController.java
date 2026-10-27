@@ -1,6 +1,9 @@
 package com.tlavu.moodly.modules.stats.controller;
 
 import com.tlavu.moodly.modules.stats.service.StatsService;
+import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
+import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
+import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

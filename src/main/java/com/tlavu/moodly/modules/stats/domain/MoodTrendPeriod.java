@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.stats.controller;
+package com.tlavu.moodly.modules.stats.domain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

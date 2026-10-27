@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.stats.repository;
 
-import com.tlavu.moodly.modules.stats.controller.MoodTrendResponse;
-import com.tlavu.moodly.modules.stats.controller.MostMissedHabitResponse;
+import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
+import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;

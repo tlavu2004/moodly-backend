@@ -6,7 +6,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
-import com.tlavu.moodly.modules.stats.controller.MoodTrendPeriod;
+import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.LocalDate;
 import java.util.List;
