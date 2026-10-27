@@ -36,7 +36,7 @@ class DailyEntryRepositoryIntegrationTest {
 
 	@Test
 	void rejectsDuplicateEntryForTheSameUserAndDate() {
-		var date = LocalDate.of(2026, 8, 4);
+		LocalDate date = LocalDate.of(2026, 8, 4);
 		dailyEntryRepository.save(new DailyEntry(TEST_USER_ID, date));
 
 		assertThrows(
@@ -47,9 +47,9 @@ class DailyEntryRepositoryIntegrationTest {
 
 	@Test
 	void returnsBothDateBoundariesInAscendingOrder() {
-		var from = LocalDate.of(2026, 8, 1);
-		var middle = LocalDate.of(2026, 8, 2);
-		var to = LocalDate.of(2026, 8, 3);
+		LocalDate from = LocalDate.of(2026, 8, 1);
+		LocalDate middle = LocalDate.of(2026, 8, 2);
+		LocalDate to = LocalDate.of(2026, 8, 3);
 		dailyEntryRepository.saveAll(List.of(
 				new DailyEntry(RANGE_USER_ID, to),
 				new DailyEntry(RANGE_USER_ID, from),
@@ -58,18 +58,18 @@ class DailyEntryRepositoryIntegrationTest {
 				new DailyEntry(RANGE_USER_ID, to.plusDays(1))
 		));
 
-		var entries = dailyEntryRepository.findByUserIdAndDateRange(RANGE_USER_ID, from, to);
+		List<DailyEntry> entries = dailyEntryRepository.findByUserIdAndDateRange(RANGE_USER_ID, from, to);
 
 		assertEquals(List.of(from, middle, to), entries.stream().map(DailyEntry::getDate).toList());
 	}
 
 	@Test
 	void doesNotReturnEntriesFromAnotherUserInTheSameDateRange() {
-		var date = LocalDate.of(2026, 8, 2);
+		LocalDate date = LocalDate.of(2026, 8, 2);
 		dailyEntryRepository.save(new DailyEntry(RANGE_USER_ID, date));
 		dailyEntryRepository.save(new DailyEntry(OTHER_USER_ID, date));
 
-		var entries = dailyEntryRepository.findByUserIdAndDateRange(RANGE_USER_ID, date, date);
+		List<DailyEntry> entries = dailyEntryRepository.findByUserIdAndDateRange(RANGE_USER_ID, date, date);
 
 		assertEquals(List.of(RANGE_USER_ID), entries.stream().map(DailyEntry::getUserId).toList());
 	}

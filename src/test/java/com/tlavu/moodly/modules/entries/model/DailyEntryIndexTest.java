@@ -9,7 +9,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 class DailyEntryIndexTest {
 	@Test
 	void declaresIndexesForDateAndMissedHabitQueries() {
-		var indexes = DailyEntry.class.getAnnotation(CompoundIndexes.class);
+		CompoundIndexes indexes = DailyEntry.class.getAnnotation(CompoundIndexes.class);
 		assertThat(indexes).isNotNull();
 		assertThat(Arrays.stream(indexes.value()).map(index -> index.name()))
 				.contains("user_date_unique", "user_habit_done_idx");

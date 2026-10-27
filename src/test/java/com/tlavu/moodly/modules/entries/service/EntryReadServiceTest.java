@@ -27,8 +27,8 @@ class EntryReadServiceTest {
 
 	@Test
 	void delegatesDescendingLookupToRepository() {
-		var date = LocalDate.of(2026, 8, 5);
-		var entries = List.of(new DailyEntry("user-1", date));
+		LocalDate date = LocalDate.of(2026, 8, 5);
+		List<DailyEntry> entries = List.of(new DailyEntry("user-1", date));
 		when(dailyEntryRepository.findByUserIdAndDateLessThanEqualOrderByDateDesc("user-1", date)).thenReturn(entries);
 
 		assertEquals(entries.stream().map(DailyEntryView::from).toList(), entryReadService.findOnOrBefore("user-1", date));

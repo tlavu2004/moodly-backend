@@ -55,8 +55,8 @@ class DailyEntryServiceTest {
 
 	@Test
 	void updatesExistingHabitLogWithoutReplacingCreatedAt() {
-		var entry = new DailyEntry("user-1", DATE);
-		var createdAt = Instant.parse("2026-08-05T00:00:00Z");
+		DailyEntry entry = new DailyEntry("user-1", DATE);
+		Instant createdAt = Instant.parse("2026-08-05T00:00:00Z");
 		entry.setCreatedAt(createdAt);
 		entry.getHabits().add(new HabitLog("exercise", false, "Old"));
 		when(dailyEntryRepository.findByUserIdAndDate("user-1", DATE)).thenReturn(Optional.of(entry));
@@ -73,7 +73,7 @@ class DailyEntryServiceTest {
 
 	@Test
 	void setsMoodOnExistingEntry() {
-		var entry = new DailyEntry("user-1", DATE);
+		DailyEntry entry = new DailyEntry("user-1", DATE);
 		when(dailyEntryRepository.findByUserIdAndDate("user-1", DATE)).thenReturn(Optional.of(entry));
 		when(dailyEntryRepository.save(entry)).thenReturn(entry);
 
@@ -86,7 +86,7 @@ class DailyEntryServiceTest {
 
 	@Test
 	void delegatesRangeLookupToRepository() {
-		var entries = List.of(new DailyEntry("user-1", DATE));
+		List<DailyEntry> entries = List.of(new DailyEntry("user-1", DATE));
 		when(dailyEntryRepository.findByUserIdAndDateRange("user-1", DATE.minusDays(1), DATE))
 				.thenReturn(entries);
 

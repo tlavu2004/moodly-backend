@@ -127,7 +127,7 @@ public class DailyEntryController {
 			description = "Returns a structured empty state when the authenticated user has not checked in today."
 	)
 	public ApiResponse<TodayEntryResponse> today() {
-		var today = MoodlyTime.today(clock);
+		LocalDate today = MoodlyTime.today(clock);
 		Optional<DailyEntryView> view = dailyEntryService.findByDate(currentUser.id(), today);
 
 		TodayEntryResponse response = view.map(

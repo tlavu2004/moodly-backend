@@ -27,13 +27,13 @@ public class DailyEntryService {
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		var entry = getOrCreate(userId, date);
-		var existing = entry.getHabits().stream()
+		DailyEntry entry = getOrCreate(userId, date);
+		Optional<HabitLog> existing = entry.getHabits().stream()
 				.filter(log -> log.getHabitId().equals(input.habitId()))
 				.findFirst();
 
 		if (existing.isPresent()) {
-			var log = existing.get();
+			HabitLog log = existing.get();
 			log.setDone(input.done());
 			log.setNote(input.note());
 		} else {
@@ -54,7 +54,7 @@ public class DailyEntryService {
 			LocalDate date,
 			SetMoodInput input
 	) {
-		var entry = getOrCreate(userId, date);
+		DailyEntry entry = getOrCreate(userId, date);
 		entry.setMood(
 				new Mood(
 						input.score(),
@@ -107,7 +107,7 @@ public class DailyEntryService {
 	}
 
 	private DailyEntry save(DailyEntry entry) {
-		var now = Instant.now();
+		Instant now = Instant.now();
 
 		if (entry.getCreatedAt() == null) {
 			entry.setCreatedAt(now);
