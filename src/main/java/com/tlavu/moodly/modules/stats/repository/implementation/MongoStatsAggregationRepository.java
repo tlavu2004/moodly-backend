@@ -18,7 +18,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class MongoStatsAggregationRepository implements StatsAggregationRepository {
-
 	private static final ZoneId HO_CHI_MINH_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private final MongoTemplate mongoTemplate;
@@ -34,13 +33,19 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 
 	@Override
 	public List<MoodTrendProjection> findMoodTrend(String userId, LocalDate from, LocalDate to) {
-		Document dayStart = new Document("$dateTrunc", new Document("date", "$date")
-				.append("unit", "day")
-				.append("timezone", HO_CHI_MINH_ZONE.getId()));
+		Document dayStart = new Document(
+				"$dateTrunc",
+				new Document("date", "$date")
+						.append("unit", "day")
+						.append("timezone", HO_CHI_MINH_ZONE.getId())
+		);
 
-		Document group = new Document("$group", new Document("_id", dayStart)
-				.append("averageScore", new Document("$avg", "$mood.score"))
-				.append("entryCount", new Document("$sum", 1)));
+		Document group = new Document(
+				"$group",
+				new Document("_id", dayStart)
+						.append("averageScore", new Document("$avg", "$mood.score"))
+						.append("entryCount", new Document("$sum", 1))
+		);
 
 		Aggregation aggregation = Aggregation.newAggregation(
 				Aggregation.match(Criteria.where("userId").is(userId)
@@ -50,7 +55,12 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 				Aggregation.sort(Sort.Direction.ASC, "_id")
 		);
 
-		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
+		AggregationResults<Document> results = mongoTemplate.aggregate(
+				aggregation,
+				dailyEntriesCollection,
+				Document.class
+		);
+
 		return results.getMappedResults().stream()
 				.map(this::toMoodTrendProjection)
 				.toList();
@@ -66,7 +76,12 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 				Aggregation.sort(Sort.Direction.DESC, "missedCount")
 		);
 
-		AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, dailyEntriesCollection, Document.class);
+		AggregationResults<Document> results = mongoTemplate.aggregate(
+				aggregation,
+				dailyEntriesCollection,
+				Document.class
+		);
+
 		return results.getMappedResults().stream()
 				.map(this::toMostMissedHabitProjection)
 				.toList();
@@ -88,6 +103,8 @@ public class MongoStatsAggregationRepository implements StatsAggregationReposito
 	}
 
 	private LocalDate toLocalDate(Date date) {
-		return date.toInstant().atZone(HO_CHI_MINH_ZONE).toLocalDate();
+		return date.toInstant()
+				.atZone(HO_CHI_MINH_ZONE)
+				.toLocalDate();
 	}
 }

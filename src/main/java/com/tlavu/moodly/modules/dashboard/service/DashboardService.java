@@ -7,7 +7,7 @@ import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.service.StatsService;
+import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;

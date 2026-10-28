@@ -1,4 +1,6 @@
 package com.tlavu.moodly.modules.stats.service.view;
 
-public record HabitStreakView(String habitId, int currentStreak) {
-}
+public record HabitStreakView(
+		String habitId,
+		int currentStreak
+) {}

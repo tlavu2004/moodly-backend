@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.stats.service;
+package com.tlavu.moodly.modules.stats.service.implementation;
 
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
@@ -25,12 +25,17 @@ public class StatsService {
 	private final EntryReadService entryReadService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
-	public List<MoodTrendView> findMoodTrend(String userId, MoodTrendPeriod period, LocalDate today) {
-		return statsAggregationRepository.findMoodTrend(
-				userId,
-				period.startDate(today),
-				period.endDate(today)
-		).stream().map(MoodTrendView::from).toList();
+	public List<MoodTrendView> findMoodTrend(
+			String userId,
+			MoodTrendPeriod period,
+			LocalDate today
+	) {
+		LocalDate from = period.startDate(today);
+		LocalDate to = period.endDate(today);
+
+		return statsAggregationRepository.findMoodTrend(userId, from, to).stream()
+				.map(MoodTrendView::from)
+				.toList();
 	}
 
 	public List<MostMissedHabitView> findMostMissedHabits(String userId) {

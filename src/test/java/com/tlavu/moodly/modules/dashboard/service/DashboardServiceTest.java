@@ -16,7 +16,7 @@ import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
-import com.tlavu.moodly.modules.stats.service.StatsService;
+import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

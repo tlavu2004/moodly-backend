@@ -1,4 +1,6 @@
 package com.tlavu.moodly.modules.stats.repository.projection;
 
-public record MostMissedHabitProjection(String habitId, long missedCount) {
-}
+public record MostMissedHabitProjection(
+		String habitId,
+		long missedCount
+) {}

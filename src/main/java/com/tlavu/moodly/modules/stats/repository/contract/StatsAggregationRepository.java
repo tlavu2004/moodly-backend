@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface StatsAggregationRepository {
-
 	List<MoodTrendProjection> findMoodTrend(String userId, LocalDate from, LocalDate to);
 
 	List<MostMissedHabitProjection> findMostMissedHabits(String userId);

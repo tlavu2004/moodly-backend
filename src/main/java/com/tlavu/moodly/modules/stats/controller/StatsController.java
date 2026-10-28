@@ -4,7 +4,7 @@ import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
-import com.tlavu.moodly.modules.stats.service.StatsService;
+import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Statistics", description = "Mood and habit statistics for the authenticated user")
 @RequiredArgsConstructor
 public class StatsController {
-
 	private final StatsService statsService;
 	private final CurrentUser currentUser;
 	private final Clock clock;
@@ -44,7 +43,12 @@ public class StatsController {
 		MoodTrendPeriod requestedPeriod = MoodTrendPeriod.fromValue(period);
 		LocalDate today = MoodlyTime.today(clock);
 
-		List<MoodTrendView> trend = statsService.findMoodTrend(currentUser.id(), requestedPeriod, today);
+		List<MoodTrendView> trend = statsService.findMoodTrend(
+				currentUser.id(),
+				requestedPeriod,
+				today
+		);
+
 		return ApiResponse.success(trend.stream().map(MoodTrendResponse::from).toList());
 	}
 
@@ -55,6 +59,11 @@ public class StatsController {
 	)
 	public ApiResponse<List<MostMissedHabitResponse>> mostMissedHabits() {
 		List<MostMissedHabitView> missedHabits = statsService.findMostMissedHabits(currentUser.id());
-		return ApiResponse.success(missedHabits.stream().map(MostMissedHabitResponse::from).toList());
+
+		return ApiResponse.success(
+				missedHabits.stream()
+						.map(MostMissedHabitResponse::from)
+						.toList()
+		);
 	}
 }
