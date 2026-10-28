@@ -17,6 +17,8 @@ import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -52,11 +54,17 @@ class DashboardServiceTest {
 		));
 		when(habitService.findActive("user-1")).thenReturn(habits);
 		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.of(DailyEntryView.from(entry)));
-		when(statsService.findMoodTrend("user-1", MoodTrendPeriod.WEEK, today)).thenReturn(List.of(
+		when(statsService.findMoodTrend(
+				"user-1",
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, today)
+		)).thenReturn(List.of(
 				new MoodTrendView(today.minusDays(1), 3.0, 1),
 				new MoodTrendView(today, 5.0, 1)
 		));
-		when(statsService.calculateBestCurrentStreak("user-1", List.of("exercise", "reading"), today))
+		when(statsService.calculateBestCurrentStreak(
+				"user-1",
+				new CalculateBestCurrentStreakInput(List.of("exercise", "reading"), today)
+		))
 				.thenReturn(4);
 
 		var result = dashboardService.getDashboard("user-1", today);
@@ -76,8 +84,14 @@ class DashboardServiceTest {
 		var today = LocalDate.of(2026, 8, 5);
 		when(habitService.findActive("user-1")).thenReturn(List.of());
 		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.empty());
-		when(statsService.findMoodTrend("user-1", MoodTrendPeriod.WEEK, today)).thenReturn(List.of());
-		when(statsService.calculateBestCurrentStreak("user-1", List.of(), today)).thenReturn(0);
+		when(statsService.findMoodTrend(
+				"user-1",
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, today)
+		)).thenReturn(List.of());
+		when(statsService.calculateBestCurrentStreak(
+				"user-1",
+				new CalculateBestCurrentStreakInput(List.of(), today)
+		)).thenReturn(0);
 
 		var result = dashboardService.getDashboard("user-1", today);
 

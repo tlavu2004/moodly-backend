@@ -10,6 +10,9 @@ import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
@@ -47,8 +50,7 @@ class StatsServiceTest {
 
 		assertEquals(trend, statsService.findMoodTrend(
 				"user-1",
-				MoodTrendPeriod.WEEK,
-				LocalDate.of(2026, 8, 5)
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, LocalDate.of(2026, 8, 5))
 		));
 		assertEquals(missed, statsService.findMostMissedHabits("user-1"));
 	}
@@ -62,7 +64,10 @@ class StatsServiceTest {
 				entry(today.minusDays(2), false)
 		));
 
-		assertEquals(2, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+		assertEquals(2, statsService.calculateCurrentStreak(
+				"user-1",
+				new CalculateCurrentStreakInput("exercise", today)
+		).currentStreak());
 	}
 
 	@Test
@@ -73,7 +78,10 @@ class StatsServiceTest {
 				entry(today.minusDays(2), true)
 		));
 
-		assertEquals(1, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+		assertEquals(1, statsService.calculateCurrentStreak(
+				"user-1",
+				new CalculateCurrentStreakInput("exercise", today)
+		).currentStreak());
 		verify(entryReadService).findOnOrBefore("user-1", today);
 	}
 
@@ -82,7 +90,10 @@ class StatsServiceTest {
 		LocalDate today = LocalDate.of(2026, 8, 5);
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of());
 
-		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+		assertEquals(0, statsService.calculateCurrentStreak(
+				"user-1",
+				new CalculateCurrentStreakInput("exercise", today)
+		).currentStreak());
 	}
 
 	@Test
@@ -92,7 +103,10 @@ class StatsServiceTest {
 		entry.getHabits().add(new HabitLog("reading", true, null));
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(DailyEntryView.from(entry)));
 
-		assertEquals(0, statsService.calculateCurrentStreak("user-1", "exercise", today).currentStreak());
+		assertEquals(0, statsService.calculateCurrentStreak(
+				"user-1",
+				new CalculateCurrentStreakInput("exercise", today)
+		).currentStreak());
 	}
 
 	@Test
@@ -113,8 +127,7 @@ class StatsServiceTest {
 
 		assertEquals(2, statsService.calculateBestCurrentStreak(
 				"user-1",
-				List.of("exercise", "reading"),
-				today
+				new CalculateBestCurrentStreakInput(List.of("exercise", "reading"), today)
 		));
 		verify(entryReadService).findOnOrBefore("user-1", today);
 	}

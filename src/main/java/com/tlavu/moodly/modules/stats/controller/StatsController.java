@@ -5,6 +5,7 @@ import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.dto.response.MoodTrendResponse;
 import com.tlavu.moodly.modules.stats.dto.response.MostMissedHabitResponse;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
@@ -42,12 +43,9 @@ public class StatsController {
 	) {
 		MoodTrendPeriod requestedPeriod = MoodTrendPeriod.fromValue(period);
 		LocalDate today = MoodlyTime.today(clock);
+		FindMoodTrendInput input = new FindMoodTrendInput(requestedPeriod, today);
 
-		List<MoodTrendView> trend = statsService.findMoodTrend(
-				currentUser.id(),
-				requestedPeriod,
-				today
-		);
+		List<MoodTrendView> trend = statsService.findMoodTrend(currentUser.id(), input);
 
 		return ApiResponse.success(trend.stream().map(MoodTrendResponse::from).toList());
 	}

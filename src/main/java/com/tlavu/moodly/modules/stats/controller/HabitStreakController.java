@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.stats.controller;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.modules.stats.dto.response.HabitStreakResponse;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.time.MoodlyTime;
@@ -32,11 +33,11 @@ public class HabitStreakController {
 	public ApiResponse<HabitStreakResponse> currentStreak(
 			@PathVariable String habitId
 	) {
-		HabitStreakView streak = statsService.calculateCurrentStreak(
-				currentUser.id(),
+		CalculateCurrentStreakInput input = new CalculateCurrentStreakInput(
 				habitId,
 				MoodlyTime.today(clock)
 		);
+		HabitStreakView streak = statsService.calculateCurrentStreak(currentUser.id(), input);
 
 		return ApiResponse.success(HabitStreakResponse.from(streak));
 	}

@@ -8,6 +8,8 @@ import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -37,7 +39,7 @@ public class DashboardService {
 				.count();
 		var totalHabitCount = habits.size();
 		var completionRatio = totalHabitCount == 0 ? 0.0 : (double) completedHabitCount / totalHabitCount;
-		var moodTrend = statsService.findMoodTrend(userId, MoodTrendPeriod.WEEK, today);
+		var moodTrend = statsService.findMoodTrend(userId, new FindMoodTrendInput(MoodTrendPeriod.WEEK, today));
 		var moodEntryCount = moodTrend.stream().mapToLong(point -> point.entryCount()).sum();
 		var moodScoreTotal = moodTrend.stream()
 				.mapToDouble(point -> point.averageScore() * point.entryCount())
@@ -47,7 +49,10 @@ public class DashboardService {
 				moodEntryCount
 		);
 		var habitIds = habits.stream().map(HabitView::id).toList();
-		var bestCurrentStreak = statsService.calculateBestCurrentStreak(userId, habitIds, today);
+		var bestCurrentStreak = statsService.calculateBestCurrentStreak(
+				userId,
+				new CalculateBestCurrentStreakInput(habitIds, today)
+		);
 
 		return new DashboardResponse(
 				todayEntry == null ? null : DailyEntryResponse.from(todayEntry),

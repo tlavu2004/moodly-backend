@@ -3,7 +3,9 @@ package com.tlavu.moodly.modules.stats.service.implementation;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
-import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
+import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
@@ -25,13 +27,9 @@ public class StatsService {
 	private final EntryReadService entryReadService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
-	public List<MoodTrendView> findMoodTrend(
-			String userId,
-			MoodTrendPeriod period,
-			LocalDate today
-	) {
-		LocalDate from = period.startDate(today);
-		LocalDate to = period.endDate(today);
+	public List<MoodTrendView> findMoodTrend(String userId, FindMoodTrendInput input) {
+		LocalDate from = input.period().startDate(input.today());
+		LocalDate to = input.period().endDate(input.today());
 
 		return statsAggregationRepository.findMoodTrend(userId, from, to).stream()
 				.map(MoodTrendView::from)
@@ -44,16 +42,22 @@ public class StatsService {
 				.toList();
 	}
 
-	public HabitStreakView calculateCurrentStreak(String userId, String habitId, LocalDate today) {
-		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, today);
-		return new HabitStreakView(habitId, calculateCurrentStreaks(entries, List.of(habitId), today).get(habitId));
+	public HabitStreakView calculateCurrentStreak(String userId, CalculateCurrentStreakInput input) {
+		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, input.today());
+		String habitId = input.habitId();
+		int streak = calculateCurrentStreaks(entries, List.of(habitId), input.today()).get(habitId);
+		return new HabitStreakView(habitId, streak);
 	}
 
-	public int calculateBestCurrentStreak(String userId, List<String> habitIds, LocalDate today) {
-		if (habitIds.isEmpty()) {
+	public int calculateBestCurrentStreak(String userId, CalculateBestCurrentStreakInput input) {
+		if (input.habitIds().isEmpty()) {
 			return 0;
 		}
-		Map<String, Integer> streaks = calculateCurrentStreaks(entryReadService.findOnOrBefore(userId, today), habitIds, today);
+		Map<String, Integer> streaks = calculateCurrentStreaks(
+				entryReadService.findOnOrBefore(userId, input.today()),
+				input.habitIds(),
+				input.today()
+		);
 		return streaks.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 	}
 

@@ -8,6 +8,8 @@ import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
@@ -65,8 +67,7 @@ class StatsServiceIntegrationTest {
 	void groupsMoodByWeekAndFindsMostMissedHabit() {
 		List<MoodTrendView> trend = statsService.findMoodTrend(
 				TEST_USER_ID,
-				MoodTrendPeriod.WEEK,
-				LocalDate.of(2026, 8, 3)
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, LocalDate.of(2026, 8, 3))
 		);
 		List<MostMissedHabitView> missedHabits = statsService.findMostMissedHabits(TEST_USER_ID);
 
@@ -80,8 +81,7 @@ class StatsServiceIntegrationTest {
 	void calculatesOnlyConsecutiveCompletedDays() {
 		HabitStreakView streak = statsService.calculateCurrentStreak(
 				TEST_USER_ID,
-				"exercise",
-				LocalDate.of(2026, 8, 2)
+				new CalculateCurrentStreakInput("exercise", LocalDate.of(2026, 8, 2))
 		);
 
 		assertEquals(2, streak.currentStreak());
