@@ -94,7 +94,10 @@ public class HabitController {
 				request.icon(),
 				request.version()
 		);
-		HabitResponse response = HabitResponse.from(habitService.update(currentUser.id(), habitId, input));
+		HabitResponse response = HabitResponse.from(
+				habitService.update(currentUser.id(), habitId, input)
+		);
+
 		return ApiResponse.success(response);
 	}
 

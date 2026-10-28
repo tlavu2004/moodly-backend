@@ -84,16 +84,10 @@ public class DailyEntryService {
 			int page,
 			int size
 	) {
-		return dailyEntryRepository.findPageByUserIdAndDateRange(
-				userId,
-				from,
-				to,
-				PageRequest.of(
-						page,
-						size,
-						Sort.by(Sort.Direction.DESC, "date")
-				)
-		).map(DailyEntryView::from);
+		PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"));
+
+		return dailyEntryRepository.findPageByUserIdAndDateRange(userId, from, to, pageRequest)
+				.map(DailyEntryView::from);
 	}
 
 	public Optional<DailyEntryView> findByDate(String userId, LocalDate date) {
