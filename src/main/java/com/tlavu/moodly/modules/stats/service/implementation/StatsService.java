@@ -17,13 +17,14 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class StatsService {
-
 	private final EntryReadService entryReadService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
@@ -42,23 +43,39 @@ public class StatsService {
 				.toList();
 	}
 
-	public HabitStreakView calculateCurrentStreak(String userId, CalculateCurrentStreakInput input) {
+	public HabitStreakView calculateCurrentStreak(
+			String userId,
+			CalculateCurrentStreakInput input
+	) {
 		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, input.today());
 		String habitId = input.habitId();
-		int streak = calculateCurrentStreaks(entries, List.of(habitId), input.today()).get(habitId);
-		return new HabitStreakView(habitId, streak);
+		Map<String, Integer> streaks = calculateCurrentStreaks(
+				entries,
+				List.of(habitId),
+				input.today()
+		);
+
+		return new HabitStreakView(habitId, streaks.get(habitId));
 	}
 
-	public int calculateBestCurrentStreak(String userId, CalculateBestCurrentStreakInput input) {
+	public int calculateBestCurrentStreak(
+			String userId,
+			CalculateBestCurrentStreakInput input
+	) {
 		if (input.habitIds().isEmpty()) {
 			return 0;
 		}
+
 		Map<String, Integer> streaks = calculateCurrentStreaks(
 				entryReadService.findOnOrBefore(userId, input.today()),
 				input.habitIds(),
 				input.today()
 		);
-		return streaks.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+
+		return streaks.values().stream()
+				.mapToInt(Integer::intValue)
+				.max()
+				.orElse(0);
 	}
 
 	private Map<String, Integer> calculateCurrentStreaks(
@@ -69,29 +86,41 @@ public class StatsService {
 		Map<String, Integer> streaks = new HashMap<>();
 		Set<String> activeHabitIds = new HashSet<>(habitIds);
 		activeHabitIds.forEach(habitId -> streaks.put(habitId, 0));
+
 		LocalDate expectedDate = today;
+
 		for (DailyEntryView entry : entries) {
 			if (entry.date().isBefore(expectedDate)) {
 				break;
 			}
+
 			Set<String> completedHabitIds = entry.habits().stream()
 					.filter(HabitLogView::done)
 					.map(HabitLogView::habitId)
-					.collect(java.util.stream.Collectors.toSet());
+					.collect(Collectors.toSet());
+
 			Iterator<String> iterator = activeHabitIds.iterator();
+
 			while (iterator.hasNext()) {
 				String habitId = iterator.next();
+
 				if (completedHabitIds.contains(habitId)) {
-					streaks.computeIfPresent(habitId, (ignored, streak) -> streak + 1);
+					streaks.computeIfPresent(
+							habitId,
+							(ignored, streak) -> streak + 1
+					);
 				} else {
 					iterator.remove();
 				}
 			}
+
 			if (activeHabitIds.isEmpty()) {
 				break;
 			}
+
 			expectedDate = expectedDate.minusDays(1);
 		}
+
 		return streaks;
 	}
 }

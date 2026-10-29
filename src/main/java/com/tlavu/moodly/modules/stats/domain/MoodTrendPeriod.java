@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 
 public enum MoodTrendPeriod {
-
 	WEEK("week");
 
 	private final String value;
@@ -37,5 +36,4 @@ public enum MoodTrendPeriod {
 	public LocalDate endDate(LocalDate date) {
 		return startDate(date).plusDays(6);
 	}
-
 }

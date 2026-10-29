@@ -10,8 +10,8 @@ public record HabitStreakResponse(
 ) {
 	public static HabitStreakResponse from(HabitStreakView view) {
 		return new HabitStreakResponse(
-			view.habitId(),
-			view.currentStreak()
+				view.habitId(),
+				view.currentStreak()
 		);
 	}
 }
