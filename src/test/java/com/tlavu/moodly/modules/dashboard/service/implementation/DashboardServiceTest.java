@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.dashboard.service.implementation.DashboardService;
+import com.tlavu.moodly.modules.dashboard.service.view.DashboardView;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
@@ -14,10 +14,10 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -41,12 +41,12 @@ class DashboardServiceTest {
 
 	@Test
 	void buildsTheAuthenticatedUsersDashboardSummary() {
-		var today = LocalDate.of(2026, 8, 5);
-		var habits = List.of(
+		LocalDate today = LocalDate.of(2026, 8, 5);
+		List<HabitView> habits = List.of(
 				HabitView.from(new Habit("exercise", "user-1", "Exercise", null, TargetFrequency.DAILY, true)),
 				HabitView.from(new Habit("reading", "user-1", "Read", null, TargetFrequency.DAILY, true))
 		);
-		var entry = new DailyEntry("user-1", today);
+		DailyEntry entry = new DailyEntry("user-1", today);
 		entry.getHabits().addAll(List.of(
 				new HabitLog("exercise", true, null),
 				new HabitLog("reading", false, null),
@@ -67,7 +67,7 @@ class DashboardServiceTest {
 		))
 				.thenReturn(4);
 
-		var result = dashboardService.getDashboard("user-1", today);
+		DashboardView result = dashboardService.getDashboard("user-1", today);
 
 		assertEquals(DailyEntryView.from(entry), result.todayEntry());
 		assertEquals(habits, result.activeHabits());
@@ -81,7 +81,7 @@ class DashboardServiceTest {
 
 	@Test
 	void returnsAnEmptySummaryWhenTheUserHasNoDashboardData() {
-		var today = LocalDate.of(2026, 8, 5);
+		LocalDate today = LocalDate.of(2026, 8, 5);
 		when(habitService.findActive("user-1")).thenReturn(List.of());
 		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.empty());
 		when(statsService.findMoodTrend(
@@ -93,7 +93,7 @@ class DashboardServiceTest {
 				new CalculateBestCurrentStreakInput(List.of(), today)
 		)).thenReturn(0);
 
-		var result = dashboardService.getDashboard("user-1", today);
+		DashboardView result = dashboardService.getDashboard("user-1", today);
 
 		assertNull(result.todayEntry());
 		assertEquals(List.of(), result.activeHabits());
