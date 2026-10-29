@@ -4,13 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.entries.dto.response.DailyEntryResponse;
+import com.tlavu.moodly.modules.dashboard.service.implementation.DashboardService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
-import com.tlavu.moodly.modules.habits.dto.response.HabitResponse;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
@@ -70,8 +69,8 @@ class DashboardServiceTest {
 
 		var result = dashboardService.getDashboard("user-1", today);
 
-		assertEquals(DailyEntryResponse.from(DailyEntryView.from(entry)), result.todayEntry());
-		assertEquals(habits.stream().map(HabitResponse::from).toList(), result.activeHabits());
+		assertEquals(DailyEntryView.from(entry), result.todayEntry());
+		assertEquals(habits, result.activeHabits());
 		assertEquals(1, result.completedHabitCount());
 		assertEquals(2, result.totalHabitCount());
 		assertEquals(0.5, result.completionRatio());
