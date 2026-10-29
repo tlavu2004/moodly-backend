@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.stats.service;
+package com.tlavu.moodly.modules.stats.service.implementation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

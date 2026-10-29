@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.dashboard.service;
+package com.tlavu.moodly.modules.dashboard.service.implementation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
