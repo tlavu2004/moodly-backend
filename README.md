@@ -2,6 +2,8 @@
 
 Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and Auth0-validated JWT authentication.
 
+Planned BE + FE work: [mood trend period navigation](docs/roadmap/mood-trend-periods.md).
+
 ## Local setup
 
 Requirements: Java 25, Maven, and Docker Desktop.
