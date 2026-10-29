@@ -50,7 +50,8 @@ class DashboardServiceTest {
 		var entry = new DailyEntry("user-1", today);
 		entry.getHabits().addAll(List.of(
 				new HabitLog("exercise", true, null),
-				new HabitLog("reading", false, null)
+				new HabitLog("reading", false, null),
+				new HabitLog("archived", true, null)
 		));
 		when(habitService.findActive("user-1")).thenReturn(habits);
 		when(entryReadService.findByDate("user-1", today)).thenReturn(Optional.of(DailyEntryView.from(entry)));
@@ -59,7 +60,7 @@ class DashboardServiceTest {
 				new FindMoodTrendInput(MoodTrendPeriod.WEEK, today)
 		)).thenReturn(List.of(
 				new MoodTrendView(today.minusDays(1), 3.0, 1),
-				new MoodTrendView(today, 5.0, 1)
+				new MoodTrendView(today, 5.0, 3)
 		));
 		when(statsService.calculateBestCurrentStreak(
 				"user-1",
@@ -74,8 +75,8 @@ class DashboardServiceTest {
 		assertEquals(1, result.completedHabitCount());
 		assertEquals(2, result.totalHabitCount());
 		assertEquals(0.5, result.completionRatio());
-		assertEquals(4.0, result.weeklyMood().averageScore());
-		assertEquals(2, result.weeklyMood().entryCount());
+		assertEquals(4.5, result.weeklyMood().averageScore());
+		assertEquals(4, result.weeklyMood().entryCount());
 		assertEquals(4, result.bestCurrentStreak());
 	}
 
@@ -96,6 +97,9 @@ class DashboardServiceTest {
 		var result = dashboardService.getDashboard("user-1", today);
 
 		assertNull(result.todayEntry());
+		assertEquals(List.of(), result.activeHabits());
+		assertEquals(0, result.completedHabitCount());
+		assertEquals(0, result.totalHabitCount());
 		assertEquals(0.0, result.completionRatio());
 		assertNull(result.weeklyMood().averageScore());
 		assertEquals(0, result.weeklyMood().entryCount());

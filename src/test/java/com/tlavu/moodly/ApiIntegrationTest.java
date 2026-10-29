@@ -448,9 +448,15 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.items.length()").value(0));
 		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
 				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.todayEntry").doesNotExist())
 				.andExpect(jsonPath("$.data.activeHabits.length()").value(0))
+				.andExpect(jsonPath("$.data.completedHabitCount").value(0))
 				.andExpect(jsonPath("$.data.totalHabitCount").value(0))
+				.andExpect(jsonPath("$.data.completionRatio").value(0.0))
+				.andExpect(jsonPath("$.data.weeklyMood.averageScore").doesNotExist())
+				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(0))
 				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
 	}
 
