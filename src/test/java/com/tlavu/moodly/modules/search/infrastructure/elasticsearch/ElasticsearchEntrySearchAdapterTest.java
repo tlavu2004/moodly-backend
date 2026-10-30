@@ -49,9 +49,9 @@ class ElasticsearchEntrySearchAdapterTest {
 		when(hit.id()).thenReturn("entry-1");
 		when(hit.source()).thenReturn(new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, List.of()));
 		when(hit.highlight()).thenReturn(java.util.Map.of("mood.note", List.of("I felt <em>tired</em>.")));
-		var adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
-		var result = adapter.search("user-1", new EntrySearchInput(
+		List<EntrySearchView> result = adapter.search("user-1", new EntrySearchInput(
 				"tired", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), 0, 50
 		), 0).items();
 
@@ -63,7 +63,7 @@ class ElasticsearchEntrySearchAdapterTest {
 			});
 		});
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		var builtRequest = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
+		SearchRequest builtRequest = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
 		assertThat(builtRequest.index()).containsExactly("entries-test");
 		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired", "_score", "date");
 	}
@@ -72,7 +72,7 @@ class ElasticsearchEntrySearchAdapterTest {
 	void mapsElasticsearchIoFailureToUnavailableError() throws Exception {
 		doThrow(new IOException("down"))
 				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
-		var adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
@@ -83,36 +83,36 @@ class ElasticsearchEntrySearchAdapterTest {
 	@Test
 	void appliesOnlyTheFromDateBoundWhenToIsAbsent() throws Exception {
 		stubEmptyResponse();
-		var adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		adapter.search("user-1", new EntrySearchInput("tired", LocalDate.of(2026, 8, 1), null, 0, 50), 0);
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		String request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
 		assertThat(request).contains("2026-08-01", "\"gte\"").doesNotContain("\"lte\"");
 	}
 
 	@Test
 	void appliesOnlyTheToDateBoundWhenFromIsAbsent() throws Exception {
 		stubEmptyResponse();
-		var adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		adapter.search("user-1", new EntrySearchInput("tired", null, LocalDate.of(2026, 8, 31), 0, 50), 0);
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		String request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
 		assertThat(request).contains("2026-08-31", "\"lte\"").doesNotContain("\"gte\"");
 	}
 
 	@Test
 	void calculatesTheLargestSupportedOffsetWithoutOverflow() throws Exception {
 		stubEmptyResponse();
-		var adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		adapter.search("user-1", new EntrySearchInput("tired", null, null, 99, 100), 9_900);
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
+		SearchRequest request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
 		assertThat(request.from()).isEqualTo(9_900);
 		assertThat(request.size()).isEqualTo(100);
 	}

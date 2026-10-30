@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.service.view.ReindexView;
@@ -8,6 +9,7 @@ import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavai
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,11 +35,11 @@ public class DailyEntryReindexService {
 	public ReindexView reindex() {
 		try {
 			indexManager.recreate();
-			var pageRequest = PageRequest.of(0, batchSize);
-			var page = dailyEntryRepository.findAll(pageRequest);
+			PageRequest pageRequest = PageRequest.of(0, batchSize);
+			Page<DailyEntry> page = dailyEntryRepository.findAll(pageRequest);
 			long indexed = 0;
 			while (true) {
-				for (var entry : page.getContent()) {
+				for (DailyEntry entry : page.getContent()) {
 					searchWriter.index(entry);
 					indexed++;
 				}

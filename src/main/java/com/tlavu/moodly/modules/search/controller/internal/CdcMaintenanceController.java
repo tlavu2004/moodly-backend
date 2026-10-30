@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.dto.response.CdcReindexResponse;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
@@ -83,7 +84,7 @@ public class CdcMaintenanceController {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}
-		var deadLetter = deadLetterRepository.findById(id)
+		CdcDeadLetter deadLetter = deadLetterRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
 		deliveryService.replay(deadLetter);
 		return ResponseEntity.noContent().build();

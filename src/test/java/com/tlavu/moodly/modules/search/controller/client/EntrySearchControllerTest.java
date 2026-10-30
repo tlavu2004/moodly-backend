@@ -49,9 +49,9 @@ class EntrySearchControllerTest {
 
 	@Test
 	void searchesWithDateFiltersAndPassesAuthenticatedUserScopeToTheService() throws Exception {
-		var from = LocalDate.of(2026, 8, 1);
-		var to = LocalDate.of(2026, 8, 31);
-		var result = new EntrySearchView(
+		LocalDate from = LocalDate.of(2026, 8, 1);
+		LocalDate to = LocalDate.of(2026, 8, 31);
+		EntrySearchView result = new EntrySearchView(
 				"entry-1",
 				LocalDate.of(2026, 8, 6),
 				Map.of("mood.note", List.of(new EntrySearchView.HighlightFragment(

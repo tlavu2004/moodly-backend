@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
@@ -42,7 +43,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		int page = input.page();
 		int size = input.size();
 		try {
-			var response = elasticsearchClient.search(request -> request
+			SearchResponse<DailyEntrySearchDocument> response = elasticsearchClient.search(request -> request
 					.index(indexManager.getIndexName())
 					.from(offset)
 					.size(size)
@@ -76,10 +77,10 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 							.fields(HIGHLIGHT_FIELDS)),
 					DailyEntrySearchDocument.class);
 
-			var items = response.hits().hits().stream()
+			List<EntrySearchView> items = response.hits().hits().stream()
 					.filter(hit -> hit.source() != null)
 					.map(hit -> {
-						var highlights = normalizeHighlights(hit.highlight());
+						Map<String, List<HighlightFragment>> highlights = normalizeHighlights(hit.highlight());
 						return new EntrySearchView(hit.id(), hit.source().date(), highlights);
 					})
 					.toList();
@@ -92,14 +93,14 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
 	private Map<String, List<HighlightFragment>> normalizeHighlights(Map<String, List<String>> raw) {
 		if (raw == null || raw.isEmpty()) return Map.of();
-		var normalized = new LinkedHashMap<String, List<HighlightFragment>>();
+		Map<String, List<HighlightFragment>> normalized = new LinkedHashMap<>();
 		raw.forEach((field, fragments) -> normalized.put(field, fragments.stream().map(this::plainFragment).toList()));
 		return Map.copyOf(normalized);
 	}
 
 	private HighlightFragment plainFragment(String marked) {
-		var text = new StringBuilder();
-		var ranges = new ArrayList<HighlightRange>();
+		StringBuilder text = new StringBuilder();
+		List<HighlightRange> ranges = new ArrayList<>();
 		int cursor = 0;
 		while (cursor < marked.length()) {
 			int startTag = marked.indexOf("<em>", cursor);

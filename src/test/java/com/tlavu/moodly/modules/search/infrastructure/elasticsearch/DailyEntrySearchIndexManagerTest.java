@@ -32,7 +32,7 @@ class DailyEntrySearchIndexManagerTest {
 	void doesNotCreateAnExistingIndex() throws Exception {
 		when(elasticsearchClient.indices()).thenReturn(indicesClient);
 		when(indicesClient.exists(any(Function.class))).thenReturn(new BooleanResponse(true));
-		var manager = manager();
+		DailyEntrySearchIndexManager manager = manager();
 
 		manager.createIfMissing();
 
@@ -43,7 +43,7 @@ class DailyEntrySearchIndexManagerTest {
 	void createsMissingIndexFromConfiguredMapping() throws Exception {
 		when(elasticsearchClient.indices()).thenReturn(indicesClient);
 		when(indicesClient.exists(any(Function.class))).thenReturn(new BooleanResponse(false));
-		var manager = manager();
+		DailyEntrySearchIndexManager manager = manager();
 
 		manager.createIfMissing();
 
@@ -57,7 +57,7 @@ class DailyEntrySearchIndexManagerTest {
 	void recreatesExistingIndex() throws Exception {
 		when(elasticsearchClient.indices()).thenReturn(indicesClient);
 		when(indicesClient.exists(any(Function.class))).thenReturn(new BooleanResponse(true));
-		var manager = manager();
+		DailyEntrySearchIndexManager manager = manager();
 
 		manager.recreate();
 

@@ -29,15 +29,15 @@ class DailyEntrySearchWriterTest {
 	@Test
 	void indexesWithConfiguredIndexAndDeterministicEntryId() throws Exception {
 		when(indexManager.getIndexName()).thenReturn("entries-test");
-		var writer = new DailyEntrySearchWriter(elasticsearchClient, indexManager);
-		var document = new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, java.util.List.of());
+		DailyEntrySearchWriter writer = new DailyEntrySearchWriter(elasticsearchClient, indexManager);
+		DailyEntrySearchDocument document = new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, java.util.List.of());
 
 		writer.index("entry-1", document);
 
 		@SuppressWarnings("rawtypes")
 		ArgumentCaptor<Function> request = ArgumentCaptor.forClass((Class) Function.class);
 		verify(elasticsearchClient).index(request.capture());
-		var builtRequest = buildIndexRequest(request.getValue());
+		IndexRequest<?> builtRequest = buildIndexRequest(request.getValue());
 		assertThat(builtRequest.index()).isEqualTo("entries-test");
 		assertThat(builtRequest.id()).isEqualTo("entry-1");
 		assertThat(builtRequest.document()).isEqualTo(document);
@@ -46,14 +46,14 @@ class DailyEntrySearchWriterTest {
 	@Test
 	void deletesFromConfiguredIndexUsingEntryId() throws Exception {
 		when(indexManager.getIndexName()).thenReturn("entries-test");
-		var writer = new DailyEntrySearchWriter(elasticsearchClient, indexManager);
+		DailyEntrySearchWriter writer = new DailyEntrySearchWriter(elasticsearchClient, indexManager);
 
 		writer.delete("entry-1");
 
 		@SuppressWarnings("rawtypes")
 		ArgumentCaptor<Function> request = ArgumentCaptor.forClass((Class) Function.class);
 		verify(elasticsearchClient).delete(request.capture());
-		var builtRequest = buildDeleteRequest(request.getValue());
+		DeleteRequest builtRequest = buildDeleteRequest(request.getValue());
 		assertThat(builtRequest.index()).isEqualTo("entries-test");
 		assertThat(builtRequest.id()).isEqualTo("entry-1");
 	}

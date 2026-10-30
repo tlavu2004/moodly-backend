@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.client.model.changestream.OperationType;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
@@ -14,6 +15,8 @@ import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonDocument;
+import org.bson.BsonValue;
+import org.bson.Document;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -103,7 +106,7 @@ public class DailyEntryChangeStreamListener {
 	}
 
 	private void register(String resumeToken) {
-		var builder = ChangeStreamRequest.builder(this::onMessage)
+		ChangeStreamRequest.ChangeStreamRequestBuilder<DailyEntry> builder = ChangeStreamRequest.builder(this::onMessage)
 				.collection(collectionName)
 				.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
 		if (resumeToken != null) {
@@ -115,14 +118,14 @@ public class DailyEntryChangeStreamListener {
 
 	private void onMessage(Message<ChangeStreamDocument<org.bson.Document>, DailyEntry> message) {
 		try {
-			var raw = Objects.requireNonNull(message.getRaw(), "Change Stream message has no raw event");
-			var resumeToken = Objects.requireNonNull(raw.getResumeToken(), "Change Stream event has no resume token");
-			var eventId = resumeToken.toString();
-			var operationType = raw.getOperationType();
+			ChangeStreamDocument<Document> raw = Objects.requireNonNull(message.getRaw(), "Change Stream message has no raw event");
+			BsonDocument resumeToken = Objects.requireNonNull(raw.getResumeToken(), "Change Stream event has no resume token");
+			String eventId = resumeToken.toString();
+			OperationType operationType = raw.getOperationType();
 			if (operationType == com.mongodb.client.model.changestream.OperationType.DELETE) {
-				var documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
-				var id = Objects.requireNonNull(documentKey.get("_id"), "Delete event has no entry ID");
-				var entryId = switch (id.getBsonType()) {
+				BsonDocument documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
+				BsonValue id = Objects.requireNonNull(documentKey.get("_id"), "Delete event has no entry ID");
+				String entryId = switch (id.getBsonType()) {
 					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
 					case STRING -> id.asString().getValue();
 					default -> throw new IllegalStateException("Delete event has an unsupported entry ID type: " + id.getBsonType());
@@ -161,7 +164,7 @@ public class DailyEntryChangeStreamListener {
 	}
 
 	private boolean isExpiredResumeToken(Throwable exception) {
-		var message = exception.getMessage();
+		String message = exception.getMessage();
 		return message != null && (message.contains("ChangeStreamHistoryLost") || message.contains("code 286"));
 	}
 }

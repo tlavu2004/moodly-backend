@@ -65,7 +65,7 @@ class CdcMaintenanceControllerTest {
 
 	@Test
 	void replaysAnExistingDeadLetterAndReturnsNotFoundOtherwise() throws Exception {
-		var deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
 		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
 		when(deadLetterRepository.findById("missing")).thenReturn(Optional.empty());
 

@@ -48,7 +48,7 @@ public class CdcDeliveryService {
 	}
 
 	public void deliverUpsert(String eventId, String operationType, DailyEntry entry) {
-		var document = DailyEntrySearchDocument.from(entry);
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
 		deliver(eventId, operationType, entry.getId(), serialize(document), () -> searchWriter.index(entry.getId(), document));
 	}
 
@@ -61,7 +61,7 @@ public class CdcDeliveryService {
 			if ("delete".equals(deadLetter.getOperationType())) {
 				deliverWithRetry(deadLetter.getEventId(), "delete", deadLetter.getEntryId(), () -> searchWriter.delete(deadLetter.getEntryId()));
 			} else {
-				var document = objectMapper.readValue(deadLetter.getPayload(), DailyEntrySearchDocument.class);
+				DailyEntrySearchDocument document = objectMapper.readValue(deadLetter.getPayload(), DailyEntrySearchDocument.class);
 				deliverWithRetry(deadLetter.getEventId(), deadLetter.getOperationType(), deadLetter.getEntryId(),
 						() -> searchWriter.index(deadLetter.getEntryId(), document));
 			}
@@ -159,7 +159,7 @@ public class CdcDeliveryService {
 
 	private void waitBeforeRetry(String eventId, String operationType, String entryId, int attempt, Exception exception)
 			throws InterruptedException {
-		var delay = initialBackoff.multipliedBy(1L << (attempt - 1));
+		Duration delay = initialBackoff.multipliedBy(1L << (attempt - 1));
 		log.warn("Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, attempt={}, maxAttempts={}, delayMs={}",
 				eventId, operationType, entryId, attempt, maxAttempts, delay.toMillis(), exception);
 		retrySleeper.sleep(delay);

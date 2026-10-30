@@ -14,7 +14,7 @@ public class CdcHealthIndicator implements HealthIndicator {
 
 	@Override
 	public Health health() {
-		var builder = monitor.isListenerHealthy() ? Health.up() : Health.down();
+		Health.Builder builder = monitor.isListenerHealthy() ? Health.up() : Health.down();
 		builder
 				.withDetail("listenerHealthy", monitor.isListenerHealthy())
 				.withDetail("failedEventCount", monitor.getFailedEventCount());

@@ -63,8 +63,8 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void routesInsertAndPersistsResumeTokenAfterSuccessfulDelivery() throws Exception {
-		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
-		var token = BsonDocument.parse("{_data: 'token'}");
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		BsonDocument token = BsonDocument.parse("{_data: 'token'}");
 		when(message.getRaw()).thenReturn(raw);
 		when(message.getBody()).thenReturn(entry);
 		when(raw.getResumeToken()).thenReturn(token);
@@ -73,15 +73,15 @@ class DailyEntryChangeStreamListenerTest {
 		invoke("onMessage", Message.class, message);
 
 		verify(deliveryService).deliverUpsert(token.toString(), "insert", entry);
-		var savedToken = ArgumentCaptor.forClass(CdcResumeToken.class);
+		ArgumentCaptor<CdcResumeToken> savedToken = ArgumentCaptor.forClass(CdcResumeToken.class);
 		verify(resumeTokenRepository).save(savedToken.capture());
 		org.assertj.core.api.Assertions.assertThat(savedToken.getValue().getId()).isEqualTo("stream-test");
 	}
 
 	@Test
 	void routesUpdateAndReplaceToUpsert() throws Exception {
-		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
-		var token = BsonDocument.parse("{_data: 'token'}");
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		BsonDocument token = BsonDocument.parse("{_data: 'token'}");
 		when(message.getRaw()).thenReturn(raw);
 		when(message.getBody()).thenReturn(entry);
 		when(raw.getResumeToken()).thenReturn(token);
@@ -96,7 +96,7 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void routesDeleteAndLeavesUnsupportedOperationWithoutAdvancingToken() throws Exception {
-		var token = BsonDocument.parse("{_data: 'token'}");
+		BsonDocument token = BsonDocument.parse("{_data: 'token'}");
 		when(message.getRaw()).thenReturn(raw);
 		when(raw.getResumeToken()).thenReturn(token);
 		when(raw.getOperationType()).thenReturn(OperationType.DELETE);
@@ -110,7 +110,7 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void routesDeleteForStringEntryId() throws Exception {
-		var token = BsonDocument.parse("{_data: 'token'}");
+		BsonDocument token = BsonDocument.parse("{_data: 'token'}");
 		when(message.getRaw()).thenReturn(raw);
 		when(raw.getResumeToken()).thenReturn(token);
 		when(raw.getOperationType()).thenReturn(OperationType.DELETE);
@@ -135,7 +135,7 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void doesNotAdvanceResumeTokenWhenDeliveryFails() {
-		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
 		when(message.getRaw()).thenReturn(raw);
 		when(message.getBody()).thenReturn(entry);
 		when(raw.getResumeToken()).thenReturn(BsonDocument.parse("{_data: 'token'}"));

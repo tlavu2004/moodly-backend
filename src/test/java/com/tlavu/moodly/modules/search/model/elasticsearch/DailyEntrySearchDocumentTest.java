@@ -13,7 +13,7 @@ class DailyEntrySearchDocumentTest {
 
 	@Test
 	void denormalizesSearchableMoodAndHabitContent() {
-		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
 		entry.setMood(new Mood(4, List.of("calm", "focused"), "A productive day"));
 		entry.setHabits(List.of(
@@ -21,7 +21,7 @@ class DailyEntrySearchDocumentTest {
 				new HabitLog("reading", false, "Too tired")
 		));
 
-		var document = DailyEntrySearchDocument.from(entry);
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
 
 		assertThat(document.userId()).isEqualTo("user-1");
 		assertThat(document.date()).isEqualTo(LocalDate.of(2026, 8, 6));
@@ -34,9 +34,9 @@ class DailyEntrySearchDocumentTest {
 
 	@Test
 	void handlesAnEntryWithoutMood() {
-		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
 
-		var document = DailyEntrySearchDocument.from(entry);
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
 
 		assertThat(document.mood()).isNull();
 		assertThat(document.habits()).isEmpty();
@@ -44,11 +44,11 @@ class DailyEntrySearchDocumentTest {
 
 	@Test
 	void handlesEmptyTagsAndNullHabitCollection() {
-		var entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
 		entry.setMood(new Mood(3, null, null));
 		entry.setHabits(null);
 
-		var document = DailyEntrySearchDocument.from(entry);
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
 
 		assertThat(document.mood().tags()).isEmpty();
 		assertThat(document.habits()).isEmpty();

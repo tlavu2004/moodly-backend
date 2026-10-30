@@ -43,7 +43,7 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void deliversDeleteWithoutCreatingADeadLetter() throws Exception {
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
@@ -53,10 +53,10 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void deliversUpsertWithoutCreatingADeadLetter() throws Exception {
-		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
 		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenReturn("serialized-payload");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverUpsert("event-1", "insert", entry);
 
@@ -70,7 +70,7 @@ class CdcDeliveryServiceTest {
 				.doThrow(new IOException("Elasticsearch unavailable"))
 				.doNothing()
 				.when(searchWriter).delete("entry-1");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
@@ -84,7 +84,7 @@ class CdcDeliveryServiceTest {
 	void preservesTheInterruptFlagAndStoresDeadLetterWhenRetrySleepIsInterrupted() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		doThrow(new InterruptedException("shutdown")).when(retrySleeper).sleep(Duration.ofMillis(1));
-		var service = service();
+		CdcDeliveryService service = service();
 
 		try {
 			service.deliverDelete("event-1", "entry-1");
@@ -98,11 +98,11 @@ class CdcDeliveryServiceTest {
 	@Test
 	void storesDeadLetterAfterTransientRetriesAreExhausted() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
-		var deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		ArgumentCaptor<CdcDeadLetter> deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
 		verify(deadLetterRepository).save(deadLetter.capture());
 		assertThat(deadLetter.getValue().getEventId()).isEqualTo("event-1");
 		assertThat(deadLetter.getValue().getOperationType()).isEqualTo("delete");
@@ -114,16 +114,16 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void storesSerializedUpsertPayloadInTheDeadLetter() throws Exception {
-		var entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
 		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenReturn("serialized-payload");
 		doThrow(new IOException("Elasticsearch unavailable"))
 				.when(searchWriter).index(eq("entry-1"), any(DailyEntrySearchDocument.class));
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverUpsert("event-1", "update", entry);
 
-		var deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		ArgumentCaptor<CdcDeadLetter> deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
 		verify(deadLetterRepository).save(deadLetter.capture());
 		assertThat(deadLetter.getValue().getPayload()).isEqualTo("serialized-payload");
 		assertThat(deadLetter.getValue().getFailedAt()).isNotNull();
@@ -131,10 +131,10 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void doesNotRetryNonTransientFailures() throws Exception {
-		var badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
+		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(badRequest.status()).thenReturn(400);
 		doThrow(badRequest).when(searchWriter).delete("entry-1");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
@@ -144,10 +144,10 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void retriesRateLimitedElasticsearchFailures() throws Exception {
-		var rateLimited = org.mockito.Mockito.mock(ElasticsearchException.class);
+		ElasticsearchException rateLimited = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(rateLimited.status()).thenReturn(429);
 		doThrow(rateLimited).doNothing().when(searchWriter).delete("entry-1");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
@@ -157,10 +157,10 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void retriesServerSideElasticsearchFailures() throws Exception {
-		var serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
+		ElasticsearchException serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(serverFailure.status()).thenReturn(503);
 		doThrow(serverFailure).doNothing().when(searchWriter).delete("entry-1");
-		var service = service();
+		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
 
@@ -170,8 +170,8 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void deletesDeadLetterAfterSuccessfulReplay() throws Exception {
-		var deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
-		var service = service();
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		CdcDeliveryService service = service();
 
 		service.replay(deadLetter);
 
@@ -183,8 +183,8 @@ class CdcDeliveryServiceTest {
 	@Test
 	void retainsDeadLetterAndAddsAttemptsWhenReplayFails() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
-		var deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
-		var service = service();
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay(deadLetter))
 				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException.class)

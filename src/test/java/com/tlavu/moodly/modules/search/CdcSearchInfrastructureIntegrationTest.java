@@ -12,6 +12,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
@@ -30,6 +32,7 @@ import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import org.junit.jupiter.api.Test;
@@ -44,6 +47,7 @@ import com.tlavu.moodly.support.CdcSearchTestSupport;
 import java.time.LocalDate;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -107,12 +111,12 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void resetEndpointRequiresItsTokenAndLeavesOtherUsersDataUntouched() throws Exception {
-		var target = E2eUserResetService.DEFAULT_USER_ID;
-		var other = "synthetic|another-e2e-account";
-		var targetHabit = habitRepository.save(new Habit("before-reset-target", target, "Old target habit", null, TargetFrequency.DAILY, true));
-		var otherHabit = habitRepository.save(new Habit("other-user-habit", other, "Other user habit", null, TargetFrequency.DAILY, true));
-		var targetEntry = cdcSearchTestSupport.save(entry(target, "old target marker", List.of(), "old note", 2));
-		var otherEntry = cdcSearchTestSupport.save(entry(other, "other user marker", List.of(), "private note", 3));
+		String target = E2eUserResetService.DEFAULT_USER_ID;
+		String other = "synthetic|another-e2e-account";
+		Habit targetHabit = habitRepository.save(new Habit("before-reset-target", target, "Old target habit", null, TargetFrequency.DAILY, true));
+		Habit otherHabit = habitRepository.save(new Habit("other-user-habit", other, "Other user habit", null, TargetFrequency.DAILY, true));
+		DailyEntry targetEntry = cdcSearchTestSupport.save(entry(target, "old target marker", List.of(), "old note", 2));
+		DailyEntry otherEntry = cdcSearchTestSupport.save(entry(other, "other user marker", List.of(), "private note", 3));
 		cdcSearchTestSupport.awaitIndexed(targetEntry.getId());
 		cdcSearchTestSupport.awaitIndexed(otherEntry.getId());
 
@@ -137,8 +141,8 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(dailyEntryRepository.findByUserId(target)).hasSize(3);
 		assertThat(habitRepository.findByUserId(target)).hasSize(2);
 
-		var baselineEntryIds = dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList();
-		var baselineHabitIds = habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList();
+		List<String> baselineEntryIds = dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList();
+		List<String> baselineHabitIds = habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList();
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits").value(2))
@@ -147,7 +151,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList()).isEqualTo(baselineHabitIds);
 		assertThat(dailyEntryRepository.findById(otherEntry.getId())).isPresent();
 
-		var postReset = entry(other, "cdc after reset", List.of(), "walk", 4);
+		DailyEntry postReset = entry(other, "cdc after reset", List.of(), "walk", 4);
 		postReset.setDate(otherEntry.getDate().plusDays(1));
 		postReset = cdcSearchTestSupport.save(postReset);
 		cdcSearchTestSupport.awaitIndexed(postReset.getId());
@@ -157,12 +161,12 @@ class CdcSearchInfrastructureIntegrationTest {
 	void createsTheConfiguredSearchIndexAgainstTestcontainers() throws Exception {
 		assertThat(elasticsearchClient.indices().exists(request -> request.index(indexManager.getIndexName())).value())
 				.isTrue();
-		var mapping = Objects.requireNonNull(
+		IndexMappingRecord mapping = Objects.requireNonNull(
 				elasticsearchClient.indices().getMapping(request -> request.index(indexManager.getIndexName()))
 						.get(indexManager.getIndexName()),
 				"Configured Elasticsearch index mapping must be present"
 		);
-		var properties = Objects.requireNonNull(mapping.mappings(), "Configured Elasticsearch mapping must be present").properties();
+		Map<String, Property> properties = Objects.requireNonNull(mapping.mappings(), "Configured Elasticsearch mapping must be present").properties();
 		assertThat(properties).containsKeys("userId", "date", "mood", "habits");
 		assertThat(properties.get("userId").toString()).contains("\"type\":\"keyword\"");
 		assertThat(properties.get("date").toString()).contains("\"type\":\"date\"");
@@ -173,10 +177,10 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void synchronizesInsertUpdateAndDelete() throws Exception {
-		var entry = entry(cdcSearchTestSupport.newUserId(), "first note", List.of("old"), "old habit", 2);
+		DailyEntry entry = entry(cdcSearchTestSupport.newUserId(), "first note", List.of("old"), "old habit", 2);
 		entry = cdcSearchTestSupport.save(entry);
 		cdcSearchTestSupport.awaitIndexed(entry.getId());
-		var insertedDocument = document(entry.getId());
+		DailyEntrySearchDocument insertedDocument = document(entry.getId());
 		assertThat(insertedDocument.userId()).isEqualTo(entry.getUserId());
 		assertThat(insertedDocument.date()).isEqualTo(entry.getDate());
 		assertThat(insertedDocument.mood().score()).isEqualTo(2);
@@ -202,7 +206,7 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void duplicateDeliveryAndReindexRemainIdempotent() throws Exception {
-		var first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "repeatable", List.of("tag"), "habit", 3));
+		DailyEntry first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "repeatable", List.of("tag"), "habit", 3));
 		deliveryService.deliverUpsert("duplicate-1", "insert", first);
 		deliveryService.deliverUpsert("duplicate-1", "insert", first);
 		awaitDocument(first.getId(), document -> "repeatable".equals(document.mood().note()));
@@ -210,10 +214,10 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(elasticsearchClient.count(request -> request.index(indexManager.getIndexName())).count()).isEqualTo(1);
 		assertThat(deadLetterRepository.findAll()).isEmpty();
 
-		var second = entry(first.getUserId(), "second", List.of(), "habit two", 4);
+		DailyEntry second = entry(first.getUserId(), "second", List.of(), "habit two", 4);
 		second.setDate(first.getDate().plusDays(1));
 		second = cdcSearchTestSupport.save(second);
-		var result = reindexService.reindex();
+		ReindexView result = reindexService.reindex();
 		assertThat(result.indexedEntries()).isEqualTo(2);
 		awaitDocument(second.getId(), document -> "second".equals(document.mood().note()));
 		elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
@@ -223,9 +227,9 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void searchesOnlyTheRequestingUsersIndexedEntries() throws Exception {
-		var user = cdcSearchTestSupport.newUserId();
-		var own = cdcSearchTestSupport.save(entry(user, "I feel unique calm", List.of("calm"), "walk", 4));
-		var other = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "I feel unique calm", List.of("calm"), "walk", 4));
+		String user = cdcSearchTestSupport.newUserId();
+		DailyEntry own = cdcSearchTestSupport.save(entry(user, "I feel unique calm", List.of("calm"), "walk", 4));
+		DailyEntry other = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "I feel unique calm", List.of("calm"), "walk", 4));
 		cdcSearchTestSupport.awaitIndexed(own.getId());
 		cdcSearchTestSupport.awaitIndexed(other.getId());
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("search result for " + own.getId(),
@@ -289,15 +293,15 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
-		var first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
+		DailyEntry first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
 		cdcSearchTestSupport.awaitIndexed(first.getId());
-		var tokenBeforeRestart = awaitResumeToken();
+		String tokenBeforeRestart = awaitResumeToken();
 		clearInvocations(reindexService);
 
 		listener.stop();
 		listener.start();
 		awaitChangeStreamRegistration();
-		var second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
+		DailyEntry second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 
 		cdcSearchTestSupport.awaitIndexed(second.getId());
 		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
@@ -308,7 +312,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {
-		var entry = new DailyEntry(userId, LocalDate.of(2026, 8, 6));
+		DailyEntry entry = new DailyEntry(userId, LocalDate.of(2026, 8, 6));
 		entry.setMood(new Mood(score, tags, note));
 		entry.setHabits(List.of(new HabitLog("habit-1", true, habitNote)));
 		return entry;
