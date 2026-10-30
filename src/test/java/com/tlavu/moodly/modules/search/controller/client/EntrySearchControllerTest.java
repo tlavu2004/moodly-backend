@@ -8,11 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
+import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
-import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -50,14 +51,15 @@ class EntrySearchControllerTest {
 	void searchesWithDateFiltersAndPassesAuthenticatedUserScopeToTheService() throws Exception {
 		var from = LocalDate.of(2026, 8, 1);
 		var to = LocalDate.of(2026, 8, 31);
-		var result = new EntrySearchResult(
+		var result = new EntrySearchView(
 				"entry-1",
 				LocalDate.of(2026, 8, 6),
-				Map.of("mood.note", List.of(new EntrySearchResult.HighlightFragment(
-						"I felt tired.", List.of(new EntrySearchResult.HighlightRange(7, 12)))))
+				Map.of("mood.note", List.of(new EntrySearchView.HighlightFragment(
+						"I felt tired.", List.of(new EntrySearchView.HighlightRange(7, 12)))))
 		);
-		when(entrySearchService.search(USER_ID, "tired", from, to, 0, 20))
-				.thenReturn(PageResponse.of(List.of(result), 0, 20, 1));
+		EntrySearchInput input = new EntrySearchInput("tired", from, to, 0, 20);
+		when(entrySearchService.search(USER_ID, input))
+				.thenReturn(new EntrySearchPageView(List.of(result), 0, 20, 1));
 
 		mockMvc.perform(get("/entries/search")
 					.param("q", "  tired  ")
@@ -71,7 +73,7 @@ class EntrySearchControllerTest {
 				.andExpect(jsonPath("$.data.items[0].highlights['mood.note'][0].ranges[0].end").value(12))
 				.andExpect(jsonPath("$.data.totalElements").value(1));
 
-		verify(entrySearchService).search(USER_ID, "tired", from, to, 0, 20);
+		verify(entrySearchService).search(USER_ID, input);
 	}
 
 	@Test
@@ -99,7 +101,7 @@ class EntrySearchControllerTest {
 
 	@Test
 	void returnsServiceUnavailableWhenElasticsearchCannotServeSearch() throws Exception {
-		when(entrySearchService.search(USER_ID, "tired", null, null, 0, 20))
+		when(entrySearchService.search(USER_ID, new EntrySearchInput("tired", null, null, 0, 20)))
 				.thenThrow(SearchInfrastructureUnavailableException.duringSearch(new java.io.IOException("down")));
 
 		mockMvc.perform(get("/entries/search")

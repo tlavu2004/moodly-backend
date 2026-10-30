@@ -6,9 +6,11 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchResult.HighlightFragment;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchResult.HighlightRange;
+import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightFragment;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightRange;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.io.IOException;
@@ -18,7 +20,6 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import org.springframework.stereotype.Service;
-import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 
 @Service
 public class EntrySearchService {
@@ -38,11 +39,12 @@ public class EntrySearchService {
 		this.indexManager = indexManager;
 	}
 
-	public List<EntrySearchResult> search(String userId, String query, LocalDate from, LocalDate to) {
-		return search(userId, query, from, to, 0, 50).items();
-	}
-
-	public PageResponse<EntrySearchResult> search(String userId, String query, LocalDate from, LocalDate to, int page, int size) {
+	public EntrySearchPageView search(String userId, EntrySearchInput input) {
+		String query = input.query();
+		LocalDate from = input.from();
+		LocalDate to = input.to();
+		int page = input.page();
+		int size = input.size();
 		int offset = validatedOffset(page, size);
 		try {
 			var response = elasticsearchClient.search(request -> request
@@ -83,11 +85,11 @@ public class EntrySearchService {
 					.filter(hit -> hit.source() != null)
 					.map(hit -> {
 						var highlights = normalizeHighlights(hit.highlight());
-						return new EntrySearchResult(hit.id(), hit.source().date(), highlights);
+						return new EntrySearchView(hit.id(), hit.source().date(), highlights);
 					})
 					.toList();
 			long total = response.hits().total() == null ? items.size() : response.hits().total().value();
-			return PageResponse.of(items, page, size, total);
+			return new EntrySearchPageView(items, page, size, total);
 		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		}

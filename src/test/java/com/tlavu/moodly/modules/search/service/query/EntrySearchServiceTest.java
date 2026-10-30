@@ -15,7 +15,8 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
+import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
@@ -51,13 +52,15 @@ class EntrySearchServiceTest {
 		when(hit.highlight()).thenReturn(java.util.Map.of("mood.note", List.of("I felt <em>tired</em>.")));
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		var result = service.search("user-1", "tired", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31));
+		var result = service.search("user-1", new EntrySearchInput(
+				"tired", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), 0, 50
+		)).items();
 
 		assertThat(result).singleElement().satisfies(searchResult -> {
 			assertThat(searchResult.entryId()).isEqualTo("entry-1");
 			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
 				assertThat(fragment.text()).isEqualTo("I felt tired.");
-				assertThat(fragment.ranges()).containsExactly(new EntrySearchResult.HighlightRange(7, 12));
+				assertThat(fragment.ranges()).containsExactly(new EntrySearchView.HighlightRange(7, 12));
 			});
 		});
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
@@ -72,7 +75,7 @@ class EntrySearchServiceTest {
 				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		assertThatThrownBy(() -> service.search("user-1", "tired", null, null))
+		assertThatThrownBy(() -> service.search("user-1", new EntrySearchInput("tired", null, null, 0, 50)))
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("Elasticsearch search is unavailable")
 				.hasCauseInstanceOf(IOException.class);
@@ -83,7 +86,7 @@ class EntrySearchServiceTest {
 		stubEmptyResponse();
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		service.search("user-1", "tired", LocalDate.of(2026, 8, 1), null);
+		service.search("user-1", new EntrySearchInput("tired", LocalDate.of(2026, 8, 1), null, 0, 50));
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
@@ -95,7 +98,7 @@ class EntrySearchServiceTest {
 		stubEmptyResponse();
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		service.search("user-1", "tired", null, LocalDate.of(2026, 8, 31));
+		service.search("user-1", new EntrySearchInput("tired", null, LocalDate.of(2026, 8, 31), 0, 50));
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
@@ -107,7 +110,7 @@ class EntrySearchServiceTest {
 		stubEmptyResponse();
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		service.search("user-1", "tired", null, null, 99, 100);
+		service.search("user-1", new EntrySearchInput("tired", null, null, 99, 100));
 
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
 		var request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
@@ -119,7 +122,7 @@ class EntrySearchServiceTest {
 	void rejectsAnOverflowingOrUnsupportedOffsetBeforeCallingElasticsearch() {
 		var service = new EntrySearchService(elasticsearchClient, indexManager);
 
-		assertThatThrownBy(() -> service.search("user-1", "tired", null, null, Integer.MAX_VALUE, 100))
+		assertThatThrownBy(() -> service.search("user-1", new EntrySearchInput("tired", null, null, Integer.MAX_VALUE, 100)))
 				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.InvalidRequestException.class)
 				.hasMessageContaining("result window");
 		verifyNoInteractions(elasticsearchClient, indexManager);

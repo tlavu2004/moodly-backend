@@ -29,6 +29,7 @@ import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import org.junit.jupiter.api.Test;
@@ -228,7 +229,9 @@ class CdcSearchInfrastructureIntegrationTest {
 		cdcSearchTestSupport.awaitIndexed(own.getId());
 		cdcSearchTestSupport.awaitIndexed(other.getId());
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("search result for " + own.getId(),
-				() -> entrySearchService.search(user, "unique", own.getDate(), own.getDate()).stream()
+				() -> entrySearchService.search(user, new EntrySearchInput(
+						"unique", own.getDate(), own.getDate(), 0, 50
+				)).items().stream()
 						.anyMatch(result -> own.getId().equals(result.entryId())), () -> "entryId=" + own.getId());
 
 		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user))).param("q", "unique").param("from", own.getDate().toString()).param("to", own.getDate().toString()))
