@@ -254,6 +254,40 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
+	void paginatesSearchResultsAndReportsTheFullMatchCount() throws Exception {
+		String user = cdcSearchTestSupport.newUserId();
+		DailyEntry older = cdcSearchTestSupport.save(entry(user, "pagination marker older", List.of(), "walk", 3));
+		DailyEntry newer = entry(user, "pagination marker newer", List.of(), "walk", 4);
+		newer.setDate(older.getDate().plusDays(1));
+		newer = cdcSearchTestSupport.save(newer);
+		cdcSearchTestSupport.awaitIndexed(older.getId());
+		cdcSearchTestSupport.awaitIndexed(newer.getId());
+		com.tlavu.moodly.support.AsyncTestAwaiter.until("both search results to become visible",
+				() -> entrySearchService.search(user, new EntrySearchInput("pagination", null, null, 0, 1)).totalElements() == 2,
+				() -> "userId=" + user);
+
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user)))
+				.param("q", "pagination").param("page", "0").param("size", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.items.length()").value(1))
+				.andExpect(jsonPath("$.data.items[0].entryId").value(newer.getId()))
+				.andExpect(jsonPath("$.data.page").value(0))
+				.andExpect(jsonPath("$.data.size").value(1))
+				.andExpect(jsonPath("$.data.totalElements").value(2))
+				.andExpect(jsonPath("$.data.totalPages").value(2))
+				.andExpect(jsonPath("$.data.hasNext").value(true));
+		mockMvc.perform(get("/entries/search").with(jwt().jwt(token -> token.subject(user)))
+				.param("q", "pagination").param("page", "1").param("size", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.items.length()").value(1))
+				.andExpect(jsonPath("$.data.items[0].entryId").value(older.getId()))
+				.andExpect(jsonPath("$.data.page").value(1))
+				.andExpect(jsonPath("$.data.totalElements").value(2))
+				.andExpect(jsonPath("$.data.totalPages").value(2))
+				.andExpect(jsonPath("$.data.hasNext").value(false));
+	}
+
+	@Test
 	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
 		var first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
 		cdcSearchTestSupport.awaitIndexed(first.getId());
