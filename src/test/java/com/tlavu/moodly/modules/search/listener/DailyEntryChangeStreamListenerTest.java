@@ -12,9 +12,9 @@ import static org.mockito.Mockito.when;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
-import com.tlavu.moodly.modules.search.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.search.service.CdcMonitor;
-import com.tlavu.moodly.modules.search.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
+import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.model.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.lang.reflect.Method;

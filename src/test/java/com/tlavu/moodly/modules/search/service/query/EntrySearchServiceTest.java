@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.service;
+package com.tlavu.moodly.modules.search.service.query;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,7 +15,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;

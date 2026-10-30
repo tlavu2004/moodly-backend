@@ -6,7 +6,7 @@ import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
-import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import java.util.UUID;
 import org.springframework.data.mongodb.core.MongoTemplate;
 

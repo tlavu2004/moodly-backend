@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.repository;
+package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;

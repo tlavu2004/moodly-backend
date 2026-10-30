@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.search.controller;
 
-import com.tlavu.moodly.modules.search.service.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;

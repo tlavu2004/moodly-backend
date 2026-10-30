@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.repository;
+package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import java.io.IOException;
