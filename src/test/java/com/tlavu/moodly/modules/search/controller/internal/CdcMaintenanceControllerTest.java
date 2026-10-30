@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.controller.internal;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,11 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.service.view.ReindexView;
-import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
-import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
-import java.time.Instant;
-import java.util.Optional;
+import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -36,8 +34,6 @@ class CdcMaintenanceControllerTest {
 	private MockMvc mockMvc;
 	@MockitoBean
 	private DailyEntryReindexService reindexService;
-	@MockitoBean
-	private CdcDeadLetterRepository deadLetterRepository;
 	@MockitoBean
 	private CdcDeliveryService deliveryService;
 
@@ -65,9 +61,8 @@ class CdcMaintenanceControllerTest {
 
 	@Test
 	void replaysAnExistingDeadLetterAndReturnsNotFoundOtherwise() throws Exception {
-		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
-		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
-		when(deadLetterRepository.findById("missing")).thenReturn(Optional.empty());
+		doThrow(new ResourceNotFoundException("CDC dead letter was not found."))
+				.when(deliveryService).replay("missing");
 
 		mockMvc.perform(post("/internal/cdc/dead-letters/dead-letter-1/replay").header("X-Maintenance-Key", "test-key"))
 				.andExpect(status().isNoContent());
@@ -75,6 +70,6 @@ class CdcMaintenanceControllerTest {
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
 
-		verify(deliveryService).replay(deadLetter);
+		verify(deliveryService).replay("dead-letter-1");
 	}
 }

@@ -8,6 +8,7 @@ import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -56,7 +57,13 @@ public class CdcDeliveryService {
 		deliver(eventId, "delete", entryId, null, () -> searchWriter.delete(entryId));
 	}
 
-	public void replay(CdcDeadLetter deadLetter) {
+	public void replay(String deadLetterId) {
+		CdcDeadLetter deadLetter = deadLetterRepository.findById(deadLetterId)
+				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
+		replayDeadLetter(deadLetter);
+	}
+
+	private void replayDeadLetter(CdcDeadLetter deadLetter) {
 		try {
 			if ("delete".equals(deadLetter.getOperationType())) {
 				deliverWithRetry(deadLetter.getEventId(), "delete", deadLetter.getEntryId(), () -> searchWriter.delete(deadLetter.getEntryId()));

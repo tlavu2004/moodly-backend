@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -171,9 +172,10 @@ class CdcDeliveryServiceTest {
 	@Test
 	void deletesDeadLetterAfterSuccessfulReplay() throws Exception {
 		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
 		CdcDeliveryService service = service();
 
-		service.replay(deadLetter);
+		service.replay("dead-letter-1");
 
 		verify(searchWriter).delete("entry-1");
 		verify(deadLetterRepository).delete(deadLetter);
@@ -184,9 +186,10 @@ class CdcDeliveryServiceTest {
 	void retainsDeadLetterAndAddsAttemptsWhenReplayFails() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
 		CdcDeliveryService service = service();
 
-		assertThatThrownBy(() -> service.replay(deadLetter))
+		assertThatThrownBy(() -> service.replay("dead-letter-1"))
 				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException.class)
 				.hasMessageContaining("CDC dead-letter replay is unavailable");
 
@@ -194,6 +197,17 @@ class CdcDeliveryServiceTest {
 		assertThat(deadLetter.getError()).isEqualTo("Elasticsearch unavailable");
 		verify(deadLetterRepository).save(deadLetter);
 		verify(monitor).deadLettered(any(IOException.class));
+	}
+
+	@Test
+	void reportsMissingDeadLetterBeforeWritingToElasticsearch() {
+		when(deadLetterRepository.findById("missing")).thenReturn(Optional.empty());
+		CdcDeliveryService service = service();
+
+		assertThatThrownBy(() -> service.replay("missing"))
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException.class)
+				.hasMessage("CDC dead letter was not found.");
+		verifyNoInteractions(searchWriter);
 	}
 
 	private CdcDeliveryService service() {

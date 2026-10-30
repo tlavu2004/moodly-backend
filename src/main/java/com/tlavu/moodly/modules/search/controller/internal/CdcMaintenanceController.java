@@ -3,10 +3,7 @@ package com.tlavu.moodly.modules.search.controller.internal;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.dto.response.CdcReindexResponse;
-import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
-import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,18 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class CdcMaintenanceController {
 
 	private final DailyEntryReindexService reindexService;
-	private final CdcDeadLetterRepository deadLetterRepository;
 	private final CdcDeliveryService deliveryService;
 	private final byte[] maintenanceKey;
 
 	public CdcMaintenanceController(
 			DailyEntryReindexService reindexService,
-			CdcDeadLetterRepository deadLetterRepository,
 			CdcDeliveryService deliveryService,
 			@Value("${moodly.cdc.maintenance-key:}") String maintenanceKey
 	) {
 		this.reindexService = reindexService;
-		this.deadLetterRepository = deadLetterRepository;
 		this.deliveryService = deliveryService;
 		this.maintenanceKey = maintenanceKey.getBytes(StandardCharsets.UTF_8);
 	}
@@ -84,9 +78,7 @@ public class CdcMaintenanceController {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}
-		CdcDeadLetter deadLetter = deadLetterRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
-		deliveryService.replay(deadLetter);
+		deliveryService.replay(id);
 		return ResponseEntity.noContent().build();
 	}
 
