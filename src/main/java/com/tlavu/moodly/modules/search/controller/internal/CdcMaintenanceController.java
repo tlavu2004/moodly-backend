@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.search.controller.internal;
 
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.dto.response.CdcReindexResponse;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
@@ -48,14 +49,14 @@ public class CdcMaintenanceController {
 			description = "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
 			security = @SecurityRequirement(name = "maintenanceKey")
 	)
-	public ResponseEntity<ApiResponse<DailyEntryReindexService.ReindexResult>> reindex(
+	public ResponseEntity<ApiResponse<CdcReindexResponse>> reindex(
 			@Parameter(description = "Internal CDC maintenance key.", required = true)
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}
-		return ResponseEntity.ok(ApiResponse.success(reindexService.reindex()));
+		return ResponseEntity.ok(ApiResponse.success(CdcReindexResponse.from(reindexService.reindex())));
 	}
 
 	@PostMapping("/dead-letters/{id}/replay")

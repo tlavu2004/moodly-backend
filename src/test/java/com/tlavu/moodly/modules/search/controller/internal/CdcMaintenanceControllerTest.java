@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
@@ -53,7 +54,7 @@ class CdcMaintenanceControllerTest {
 
 	@Test
 	void reindexesWithAValidMaintenanceKey() throws Exception {
-		when(reindexService.reindex()).thenReturn(new DailyEntryReindexService.ReindexResult(4));
+		when(reindexService.reindex()).thenReturn(new ReindexView(4));
 
 		mockMvc.perform(post("/internal/cdc/reindex").header("X-Maintenance-Key", "test-key"))
 				.andExpect(status().isOk())

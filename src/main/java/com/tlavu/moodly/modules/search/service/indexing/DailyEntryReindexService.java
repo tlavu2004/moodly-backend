@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.service.indexing;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
+import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +30,7 @@ public class DailyEntryReindexService {
 		this.batchSize = batchSize;
 	}
 
-	public ReindexResult reindex() {
+	public ReindexView reindex() {
 		try {
 			indexManager.recreate();
 			var pageRequest = PageRequest.of(0, batchSize);
@@ -41,15 +42,12 @@ public class DailyEntryReindexService {
 					indexed++;
 				}
 				if (!page.hasNext()) {
-					return new ReindexResult(indexed);
+					return new ReindexView(indexed);
 				}
 				page = dailyEntryRepository.findAll(page.nextPageable());
 			}
 		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);
 		}
-	}
-
-	public record ReindexResult(long indexedEntries) {
 	}
 }
