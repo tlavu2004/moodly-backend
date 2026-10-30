@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.cdc.service;
+package com.tlavu.moodly.modules.search.indexing.service;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.LocalDate;

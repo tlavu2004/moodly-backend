@@ -1,8 +1,8 @@
-package com.tlavu.moodly.modules.cdc.controller;
+package com.tlavu.moodly.modules.search.indexing.controller;
 
-import com.tlavu.moodly.modules.cdc.service.DailyEntryReindexService;
-import com.tlavu.moodly.modules.cdc.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.indexing.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.indexing.service.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;

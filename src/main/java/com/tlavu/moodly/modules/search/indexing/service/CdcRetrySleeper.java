@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.cdc.service;
+package com.tlavu.moodly.modules.search.indexing.service;
 
 import java.time.Duration;
 import org.springframework.stereotype.Component;

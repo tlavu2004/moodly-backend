@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.cdc.controller;
+package com.tlavu.moodly.modules.search.indexing.controller;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -7,10 +7,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.tlavu.moodly.modules.cdc.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.cdc.service.DailyEntryReindexService;
-import com.tlavu.moodly.modules.cdc.model.CdcDeadLetter;
-import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.indexing.service.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.indexing.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.indexing.model.CdcDeadLetter;
+import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
 import java.time.Instant;
 import java.util.Optional;

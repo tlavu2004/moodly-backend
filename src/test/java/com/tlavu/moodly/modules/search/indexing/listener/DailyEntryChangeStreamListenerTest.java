@@ -1,6 +1,6 @@
-package com.tlavu.moodly.modules.cdc.listener;
+package com.tlavu.moodly.modules.search.indexing.listener;
 
-import com.tlavu.moodly.modules.cdc.repository.CdcResumeTokenRepository;
+import com.tlavu.moodly.modules.search.indexing.repository.CdcResumeTokenRepository;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,10 +12,10 @@ import static org.mockito.Mockito.when;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
-import com.tlavu.moodly.modules.cdc.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.cdc.service.CdcMonitor;
-import com.tlavu.moodly.modules.cdc.service.DailyEntryReindexService;
-import com.tlavu.moodly.modules.cdc.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.indexing.service.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.indexing.service.CdcMonitor;
+import com.tlavu.moodly.modules.search.indexing.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.indexing.model.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.lang.reflect.Method;
 import java.util.Optional;

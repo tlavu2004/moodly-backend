@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.cdc.service;
+package com.tlavu.moodly.modules.search.indexing.service;
 
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;

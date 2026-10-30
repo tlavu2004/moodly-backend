@@ -4,7 +4,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
-import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.indexing.service.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;

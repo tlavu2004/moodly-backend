@@ -1,6 +1,6 @@
-package com.tlavu.moodly.modules.cdc.monitoring;
+package com.tlavu.moodly.modules.search.indexing.monitoring;
 
-import com.tlavu.moodly.modules.cdc.service.CdcMonitor;
+import com.tlavu.moodly.modules.search.indexing.service.CdcMonitor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;

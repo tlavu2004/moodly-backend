@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.e2e.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.tlavu.moodly.modules.cdc.service.DailyEntrySearchWriter;
+import com.tlavu.moodly.modules.search.indexing.service.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
@@ -78,7 +78,7 @@ public class E2eUserResetService {
 
 			for (var entryId : ENTRY_IDS) {
 				var indexed = elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId),
-						com.tlavu.moodly.modules.cdc.service.DailyEntrySearchDocument.class);
+						com.tlavu.moodly.modules.search.indexing.service.DailyEntrySearchDocument.class);
 				if (!indexed.found() || !userId.equals(indexed.source().userId())) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId));

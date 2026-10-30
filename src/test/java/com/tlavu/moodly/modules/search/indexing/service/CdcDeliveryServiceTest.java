@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.cdc.service;
+package com.tlavu.moodly.modules.search.indexing.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,8 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.tlavu.moodly.modules.cdc.model.CdcDeadLetter;
-import com.tlavu.moodly.modules.cdc.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.indexing.model.CdcDeadLetter;
+import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import java.io.IOException;

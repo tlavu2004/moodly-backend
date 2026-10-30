@@ -61,12 +61,11 @@ com/tlavu/moodly
 │   ├── habits/     # habit lifecycle
 │   ├── entries/    # daily entries and mood logging
 │   ├── stats/      # streak and aggregation-based statistics
-│   ├── search/     # Elasticsearch index model and search API
-│   └── cdc/        # Change Stream listener, retry, DLQ, reindexing
+│   └── search/     # search API and index, including Change Stream indexing
 └── shared/         # small cross-cutting contracts, errors, configuration
 ```
 
-Modules communicate through in-process Java interfaces or explicit application services—not HTTP, message brokers, or independent deployments. Keep MongoDB as the source of truth; the `cdc` module is an internal asynchronous adapter that maintains the Elasticsearch index.
+Modules communicate through in-process Java interfaces or explicit application services—not HTTP, message brokers, or independent deployments. Keep MongoDB as the source of truth; `search.indexing` is an internal asynchronous adapter that maintains the Elasticsearch index.
 
 ### What can a user do?
 
@@ -477,7 +476,7 @@ Elasticsearch is a derived search index only. MongoDB remains the source of trut
 
 #### Change Stream Synchronisation Service
 
-- [x] Create a dedicated internal `cdc` module responsible only for synchronising `daily_entries` into Elasticsearch; it is part of the same deployable modular monolith, not an independently deployed service.
+- [x] Keep `daily_entries` synchronisation with Elasticsearch inside `search.indexing`; it is part of the same deployable modular monolith, not an independently deployed service.
 - [x] Start a Change Stream listener using Spring Data MongoDB (for example, `MongoMessageListenerContainer`) against the `daily_entries` collection.
 - [x] Configure `fullDocument: UPDATE_LOOKUP` so update events can be indexed from the complete current MongoDB document.
 - [x] Handle `insert`, `update`, and `replace` by transforming the full document into one search document and indexing it with a deterministic ID. Handle `delete` by removing the matching Elasticsearch document.
