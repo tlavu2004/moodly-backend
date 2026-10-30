@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,15 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/entries/search")
 @Tag(name = "Entry search", description = "Full-text search over the authenticated user's daily entries")
+@RequiredArgsConstructor
 public class EntrySearchController {
 
 	private final EntrySearchService entrySearchService;
 	private final CurrentUser currentUser;
-
-	public EntrySearchController(EntrySearchService entrySearchService, CurrentUser currentUser) {
-		this.entrySearchService = entrySearchService;
-		this.currentUser = currentUser;
-	}
 
 	@GetMapping
 	@Operation(summary = "Search daily entries", description = "Searches the authenticated user's entries by text, optionally limited to an inclusive date range.")

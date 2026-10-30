@@ -4,18 +4,15 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import java.io.IOException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class DailyEntrySearchWriter {
 
 	private final ElasticsearchClient elasticsearchClient;
 	private final DailyEntrySearchIndexManager indexManager;
-
-	public DailyEntrySearchWriter(ElasticsearchClient elasticsearchClient, DailyEntrySearchIndexManager indexManager) {
-		this.elasticsearchClient = elasticsearchClient;
-		this.indexManager = indexManager;
-	}
 
 	public void index(DailyEntry entry) throws IOException {
 		index(entry.getId(), DailyEntrySearchDocument.from(entry));

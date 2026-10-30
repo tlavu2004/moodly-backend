@@ -1,19 +1,16 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
-import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 /** Exposed at /actuator/health as the "cdc" contributor. */
 @Component("cdc")
+@RequiredArgsConstructor
 public class CdcHealthIndicator implements HealthIndicator {
 
 	private final CdcMonitor monitor;
-
-	public CdcHealthIndicator(CdcMonitor monitor) {
-		this.monitor = monitor;
-	}
 
 	@Override
 	public Health health() {

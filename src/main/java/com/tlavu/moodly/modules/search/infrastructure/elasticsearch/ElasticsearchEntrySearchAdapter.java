@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
 	private static final List<String> SEARCH_FIELDS = List.of("mood.note", "habits.note", "mood.tags");
@@ -31,11 +33,6 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 	);
 	private final ElasticsearchClient elasticsearchClient;
 	private final DailyEntrySearchIndexManager indexManager;
-
-	public ElasticsearchEntrySearchAdapter(ElasticsearchClient elasticsearchClient, DailyEntrySearchIndexManager indexManager) {
-		this.elasticsearchClient = elasticsearchClient;
-		this.indexManager = indexManager;
-	}
 
 	@Override
 	public EntrySearchPageView search(String userId, EntrySearchInput input, int offset) {
