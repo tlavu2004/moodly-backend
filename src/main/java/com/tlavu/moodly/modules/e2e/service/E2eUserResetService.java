@@ -78,7 +78,7 @@ public class E2eUserResetService {
 
 			for (var entryId : ENTRY_IDS) {
 				var indexed = elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId),
-						com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument.class);
+						com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument.class);
 				if (!indexed.found() || !userId.equals(indexed.source().userId())) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId));

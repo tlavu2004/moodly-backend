@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.model;
+package com.tlavu.moodly.modules.search.model.elasticsearch;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.LocalDate;

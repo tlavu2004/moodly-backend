@@ -2,8 +2,8 @@ package com.tlavu.moodly.modules.search.service.indexing;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
-import com.tlavu.moodly.modules.search.model.CdcDeadLetter;
-import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
+import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;

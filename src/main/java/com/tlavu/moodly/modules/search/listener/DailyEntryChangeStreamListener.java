@@ -7,7 +7,7 @@ import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
-import com.tlavu.moodly.modules.search.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.Instant;
 import java.time.Duration;

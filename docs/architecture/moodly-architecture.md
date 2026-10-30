@@ -27,6 +27,9 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.search` owns Elasticsearch index models, the search API, and indexing.
 - Within `modules.search`, `service/query` handles search requests and
   `service/indexing` coordinates Change Stream delivery and reindexing.
+  `controller/internal` exposes maintenance operations. `model/mongodb`
+  contains resume tokens and dead letters; `model/elasticsearch` contains
+  the derived daily-entry search document.
   `infrastructure/elasticsearch` owns index operations, while `repository`
   contains the MongoDB repositories for resume tokens and dead letters.
   `listener` and `monitoring` support the indexing flow.

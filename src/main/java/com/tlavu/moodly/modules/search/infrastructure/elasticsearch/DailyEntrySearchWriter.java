@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import java.io.IOException;
 import org.springframework.stereotype.Component;
 

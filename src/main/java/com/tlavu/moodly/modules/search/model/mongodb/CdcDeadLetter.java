@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.model;
+package com.tlavu.moodly.modules.search.model.mongodb;
 
 import java.time.Instant;
 import lombok.Getter;

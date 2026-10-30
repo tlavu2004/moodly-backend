@@ -13,9 +13,9 @@ import static org.mockito.Mockito.verify;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
-import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
-import com.tlavu.moodly.modules.search.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import com.tlavu.moodly.modules.search.service.query.EntrySearchService;

@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.controller;
+package com.tlavu.moodly.modules.search.controller.internal;
 
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
