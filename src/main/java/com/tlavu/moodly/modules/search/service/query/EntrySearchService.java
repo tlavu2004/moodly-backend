@@ -6,6 +6,9 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchResult.HighlightFragment;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchResult.HighlightRange;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.io.IOException;
@@ -14,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Service;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 
@@ -131,17 +133,4 @@ public class EntrySearchService {
 		}
 		return new HighlightFragment(text.toString(), List.copyOf(ranges));
 	}
-
-	@Schema(requiredProperties = {"entryId", "date", "highlights"})
-	public record EntrySearchResult(
-			String entryId,
-			LocalDate date,
-			@Schema(description = "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets.")
-			Map<String, List<HighlightFragment>> highlights
-	) {
-	}
-	@Schema(requiredProperties = {"text", "ranges"})
-	public record HighlightFragment(String text, List<HighlightRange> ranges) {}
-	@Schema(requiredProperties = {"start", "end"})
-	public record HighlightRange(int start, int end) {}
 }

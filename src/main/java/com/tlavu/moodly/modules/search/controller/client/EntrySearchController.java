@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.controller.client;
 
 import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
@@ -29,7 +30,7 @@ public class EntrySearchController {
 
 	@GetMapping
 	@Operation(summary = "Search daily entries", description = "Searches the authenticated user's entries by text, optionally limited to an inclusive date range.")
-	public ApiResponse<PageResponse<EntrySearchService.EntrySearchResult>> search(
+	public ApiResponse<PageResponse<EntrySearchResult>> search(
 			@RequestParam String q,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

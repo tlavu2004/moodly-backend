@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.view.EntrySearchResult;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
@@ -49,11 +50,11 @@ class EntrySearchControllerTest {
 	void searchesWithDateFiltersAndPassesAuthenticatedUserScopeToTheService() throws Exception {
 		var from = LocalDate.of(2026, 8, 1);
 		var to = LocalDate.of(2026, 8, 31);
-		var result = new EntrySearchService.EntrySearchResult(
+		var result = new EntrySearchResult(
 				"entry-1",
 				LocalDate.of(2026, 8, 6),
-				Map.of("mood.note", List.of(new EntrySearchService.HighlightFragment(
-						"I felt tired.", List.of(new EntrySearchService.HighlightRange(7, 12)))))
+				Map.of("mood.note", List.of(new EntrySearchResult.HighlightFragment(
+						"I felt tired.", List.of(new EntrySearchResult.HighlightRange(7, 12)))))
 		);
 		when(entrySearchService.search(USER_ID, "tired", from, to, 0, 20))
 				.thenReturn(PageResponse.of(List.of(result), 0, 20, 1));
