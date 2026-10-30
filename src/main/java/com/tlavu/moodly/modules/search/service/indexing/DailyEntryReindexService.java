@@ -4,9 +4,11 @@ import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -48,8 +50,13 @@ public class DailyEntryReindexService {
 				}
 				page = dailyEntryRepository.findAll(page.nextPageable());
 			}
-		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
+		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);
+		} catch (ElasticsearchException exception) {
+			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
+				throw SearchInfrastructureUnavailableException.duringReindex(exception);
+			}
+			throw exception;
 		}
 	}
 }

@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
@@ -86,8 +87,13 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 					.toList();
 			long total = response.hits().total() == null ? items.size() : response.hits().total().value();
 			return new EntrySearchPageView(items, page, size, total);
-		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
+		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
+		} catch (ElasticsearchException exception) {
+			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
+				throw SearchInfrastructureUnavailableException.duringSearch(exception);
+			}
+			throw exception;
 		}
 	}
 

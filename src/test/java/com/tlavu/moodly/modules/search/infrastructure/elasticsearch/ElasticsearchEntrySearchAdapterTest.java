@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -78,6 +79,31 @@ class ElasticsearchEntrySearchAdapterTest {
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("Elasticsearch search is unavailable")
 				.hasCauseInstanceOf(IOException.class);
+	}
+
+	@Test
+	void propagatesElasticsearchBadRequestAsAnInternalFailure() throws Exception {
+		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(badRequest.status()).thenReturn(400);
+		doThrow(badRequest)
+				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+
+		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
+				.isSameAs(badRequest);
+	}
+
+	@Test
+	void mapsElasticsearchServerFailureToUnavailableError() throws Exception {
+		ElasticsearchException serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(serverFailure.status()).thenReturn(503);
+		doThrow(serverFailure)
+				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+
+		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
+				.isInstanceOf(SearchInfrastructureUnavailableException.class)
+				.hasCause(serverFailure);
 	}
 
 	@Test

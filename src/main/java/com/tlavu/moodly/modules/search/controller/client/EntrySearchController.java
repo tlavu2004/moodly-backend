@@ -24,12 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Entry search", description = "Full-text search over the authenticated user's daily entries")
 @RequiredArgsConstructor
 public class EntrySearchController {
-
 	private final EntrySearchService entrySearchService;
 	private final CurrentUser currentUser;
 
 	@GetMapping
-	@Operation(summary = "Search daily entries", description = "Searches the authenticated user's entries by text, optionally limited to an inclusive date range.")
+	@Operation(
+			summary = "Search daily entries",
+			description = "Searches the authenticated user's entries by text, optionally limited to an inclusive date range."
+	)
 	public ApiResponse<PageResponse<EntrySearchResponse>> search(
 			@RequestParam String q,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -39,10 +41,24 @@ public class EntrySearchController {
 	) {
 		EntrySearchRequest request = new EntrySearchRequest(q, from, to, page, size);
 		EntrySearchInput input = new EntrySearchInput(
-				request.q(), request.from(), request.to(), request.page(), request.size()
+				request.q(),
+				request.from(),
+				request.to(),
+				request.page(),
+				request.size()
 		);
 		EntrySearchPageView view = entrySearchService.search(currentUser.id(), input);
-		List<EntrySearchResponse> items = view.items().stream().map(EntrySearchResponse::from).toList();
-		return ApiResponse.success(PageResponse.of(items, view.page(), view.size(), view.totalElements()));
+		List<EntrySearchResponse> items = view.items().stream()
+				.map(EntrySearchResponse::from)
+				.toList();
+
+		return ApiResponse.success(
+				PageResponse.of(
+						items,
+						view.page(),
+						view.size(),
+						view.totalElements()
+				)
+		);
 	}
 }

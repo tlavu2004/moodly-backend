@@ -6,6 +6,7 @@ import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
@@ -78,9 +79,15 @@ public class CdcDeliveryService {
 			Thread.currentThread().interrupt();
 			handleReplayFailure(deadLetter, exception);
 			throw new IllegalStateException("CDC dead-letter replay was interrupted " + deadLetter.getId(), exception);
-		} catch (IOException | ElasticsearchException exception) {
+		} catch (IOException exception) {
 			handleReplayFailure(deadLetter, exception);
 			throw SearchInfrastructureUnavailableException.duringReplay(exception);
+		} catch (ElasticsearchException exception) {
+			handleReplayFailure(deadLetter, exception);
+			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
+				throw SearchInfrastructureUnavailableException.duringReplay(exception);
+			}
+			throw new IllegalStateException("Could not replay CDC dead-letter event " + deadLetter.getId(), exception);
 		} catch (RuntimeException exception) {
 			handleReplayFailure(deadLetter, exception);
 			throw new IllegalStateException("Could not replay CDC dead-letter event " + deadLetter.getId(), exception);

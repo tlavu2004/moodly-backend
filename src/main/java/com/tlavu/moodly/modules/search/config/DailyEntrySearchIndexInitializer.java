@@ -1,6 +1,8 @@
 package com.tlavu.moodly.modules.search.config;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
@@ -15,20 +17,24 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(
-	name = "moodly.search.index.initialization-enabled",
-	havingValue = "true",
-	matchIfMissing = true
+		name = "moodly.search.index.initialization-enabled",
+		havingValue = "true",
+		matchIfMissing = true
 )
 public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
-
 	private final DailyEntrySearchIndexManager indexManager;
 
 	@Override
 	public void run(@NonNull ApplicationArguments args) {
 		try {
 			indexManager.createIfMissing();
-		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
+		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringIndexInitialization(exception);
+		} catch (ElasticsearchException exception) {
+			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
+				throw SearchInfrastructureUnavailableException.duringIndexInitialization(exception);
+			}
+			throw exception;
 		}
 	}
 }

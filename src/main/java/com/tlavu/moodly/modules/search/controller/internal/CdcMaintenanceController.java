@@ -7,23 +7,23 @@ import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /** Temporary maintenance guard; replace this header with an admin authority in Phase 3. */
 @RestController
 @RequestMapping("/internal/cdc")
-@Tag(name = "CDC maintenance", description = "Internal operations protected by the X-Maintenance-Key header")
+@Tag(
+		name = "CDC maintenance",
+		description = "Internal operations protected by the X-Maintenance-Key header"
+)
 public class CdcMaintenanceController {
-
 	private final DailyEntryReindexService reindexService;
 	private final CdcDeliveryService deliveryService;
 	private final byte[] maintenanceKey;
@@ -51,6 +51,7 @@ public class CdcMaintenanceController {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
 			throw new ForbiddenException();
 		}
+
 		return ResponseEntity.ok(ApiResponse.success(CdcReindexResponse.from(reindexService.reindex())));
 	}
 
@@ -60,7 +61,7 @@ public class CdcMaintenanceController {
 			description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
 			security = @SecurityRequirement(name = "maintenanceKey")
 	)
-	@io.swagger.v3.oas.annotations.responses.ApiResponses({
+	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "204",
 					description = "CDC dead letter replayed successfully."
@@ -71,7 +72,7 @@ public class CdcMaintenanceController {
 			)
 	})
 	public ResponseEntity<Void> replay(
-			@org.springframework.web.bind.annotation.PathVariable String id,
+			@PathVariable String id,
 			@Parameter(description = "Internal CDC maintenance key.", required = true)
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
@@ -79,13 +80,16 @@ public class CdcMaintenanceController {
 			throw new ForbiddenException();
 		}
 		deliveryService.replay(id);
+
 		return ResponseEntity.noContent().build();
 	}
 
 	private boolean hasInvalidMaintenanceKey(String suppliedKey) {
-		return maintenanceKey.length == 0 || suppliedKey == null || !MessageDigest.isEqual(
-				maintenanceKey,
-				suppliedKey.getBytes(StandardCharsets.UTF_8)
-		);
+		return maintenanceKey.length == 0 ||
+				suppliedKey == null ||
+				!MessageDigest.isEqual(
+						maintenanceKey,
+						suppliedKey.getBytes(StandardCharsets.UTF_8)
+				);
 	}
 }

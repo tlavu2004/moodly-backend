@@ -200,6 +200,21 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void reportsElasticsearchBadRequestAsAnInternalReplayFailure() throws Exception {
+		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(badRequest.status()).thenReturn(400);
+		doThrow(badRequest).when(searchWriter).delete("entry-1");
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(java.util.Optional.of(deadLetter));
+		CdcDeliveryService service = service();
+
+		assertThatThrownBy(() -> service.replay("dead-letter-1"))
+				.isInstanceOf(IllegalStateException.class)
+				.hasCause(badRequest);
+		verify(deadLetterRepository).save(deadLetter);
+	}
+
+	@Test
 	void reportsMissingDeadLetterBeforeWritingToElasticsearch() {
 		when(deadLetterRepository.findById("missing")).thenReturn(Optional.empty());
 		CdcDeliveryService service = service();
