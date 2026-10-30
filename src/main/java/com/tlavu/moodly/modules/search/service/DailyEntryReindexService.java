@@ -1,7 +1,8 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.service;
 
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.repository.DailyEntrySearchWriter;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;

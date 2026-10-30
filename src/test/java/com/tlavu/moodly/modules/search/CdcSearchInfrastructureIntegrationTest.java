@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing;
+package com.tlavu.moodly.modules.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,14 +12,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.tlavu.moodly.modules.search.indexing.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.search.indexing.service.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.indexing.service.DailyEntryReindexService;
-import com.tlavu.moodly.modules.search.indexing.model.CdcResumeToken;
-import com.tlavu.moodly.modules.search.indexing.repository.CdcResumeTokenRepository;
-import com.tlavu.moodly.modules.search.indexing.listener.DailyEntryChangeStreamListener;
+import com.tlavu.moodly.modules.search.service.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
+import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import com.tlavu.moodly.modules.search.service.EntrySearchService;
-import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;

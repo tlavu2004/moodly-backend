@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing.model;
+package com.tlavu.moodly.modules.search.model;
 
 import java.time.Instant;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.service;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;

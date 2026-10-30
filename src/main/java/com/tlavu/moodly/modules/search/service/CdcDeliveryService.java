@@ -1,8 +1,10 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.service;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import com.tlavu.moodly.modules.search.indexing.model.CdcDeadLetter;
-import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.model.CdcDeadLetter;
+import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.repository.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;

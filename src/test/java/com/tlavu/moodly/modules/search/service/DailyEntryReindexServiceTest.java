@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.repository.DailyEntrySearchWriter;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;

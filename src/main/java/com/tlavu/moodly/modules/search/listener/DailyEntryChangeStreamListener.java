@@ -1,13 +1,13 @@
-package com.tlavu.moodly.modules.search.indexing.listener;
+package com.tlavu.moodly.modules.search.listener;
 
-import com.tlavu.moodly.modules.search.indexing.repository.CdcResumeTokenRepository;
+import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
-import com.tlavu.moodly.modules.search.indexing.service.CdcDeliveryService;
-import com.tlavu.moodly.modules.search.indexing.service.CdcMonitor;
-import com.tlavu.moodly.modules.search.indexing.service.DailyEntryReindexService;
-import com.tlavu.moodly.modules.search.indexing.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.service.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.service.CdcMonitor;
+import com.tlavu.moodly.modules.search.service.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.model.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.Instant;
 import java.time.Duration;

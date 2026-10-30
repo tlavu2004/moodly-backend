@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

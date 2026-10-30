@@ -25,7 +25,7 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.
 - `modules.search` owns Elasticsearch index models, the search API, and indexing.
-- Within `modules.search`, `indexing` owns MongoDB Change Stream consumption and MongoDB-to-Elasticsearch synchronization.
+- Within `modules.search`, the `listener`, `service`, `repository`, `model`, and `monitoring` packages also contain the MongoDB-to-Elasticsearch indexing flow.
 - `shared` contains only genuinely cross-cutting contracts, errors, and configuration.
 
 ## Dependency rules
@@ -33,7 +33,7 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - Controllers call their own module's services, never another module's repository.
 - Repositories live in their owning module's `repository` package.
 - Cross-module communication uses explicit application-service interfaces or small contracts.
-- The `search.indexing` package consumes entry change events and updates the search index, but it must not contain entry business rules.
+- Search's Change Stream listener consumes entry change events and updates the search index, but it must not contain entry business rules.
 - The `search` module is a derived read index; MongoDB remains the source of truth.
 - Avoid direct imports from another module's `controller`, `repository`, `config`,
   or `integration` package.

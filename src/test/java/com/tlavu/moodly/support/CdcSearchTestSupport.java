@@ -1,9 +1,9 @@
 package com.tlavu.moodly.support;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.tlavu.moodly.modules.search.indexing.model.CdcResumeToken;
-import com.tlavu.moodly.modules.search.indexing.service.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.indexing.repository.CdcDeadLetterRepository;
+import com.tlavu.moodly.modules.search.model.CdcResumeToken;
+import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;

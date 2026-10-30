@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.indexing.service;
+package com.tlavu.moodly.modules.search.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -8,7 +8,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.DeleteRequest;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.util.ObjectBuilder;
-import com.tlavu.moodly.modules.search.repository.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.model.DailyEntrySearchDocument;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
