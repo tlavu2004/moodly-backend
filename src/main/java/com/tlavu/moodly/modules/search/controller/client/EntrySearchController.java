@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.controller;
+package com.tlavu.moodly.modules.search.controller.client;
 
 import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
@@ -8,7 +8,6 @@ import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
-import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

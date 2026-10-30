@@ -25,9 +25,11 @@ for error contracts and codes, `error/exception` for shared exceptions, and
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.
 - `modules.search` owns Elasticsearch index models, the search API, and indexing.
-- Within `modules.search`, `service/query` handles search requests and
+- Within `modules.search`, `controller/client` exposes the authenticated search
+  endpoint and `controller/internal` exposes maintenance operations.
+  `service/query` handles search requests and
   `service/indexing` coordinates Change Stream delivery and reindexing.
-  `controller/internal` exposes maintenance operations. `model/mongodb`
+  `model/mongodb`
   contains resume tokens and dead letters; `model/elasticsearch` contains
   the derived daily-entry search document.
   `infrastructure/elasticsearch` owns index operations, while `repository`

@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.controller;
+package com.tlavu.moodly.modules.search.controller.client;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
