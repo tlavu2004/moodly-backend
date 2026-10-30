@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.dto.request;
 
+import com.tlavu.moodly.modules.search.validation.EntrySearchPagination;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.time.LocalDate;
 
@@ -11,6 +12,7 @@ public record EntrySearchRequest(
 		int size
 ) {
 	public EntrySearchRequest {
+		EntrySearchPagination.validatedOffset(page, size);
 		if (q.isBlank()) {
 			throw new InvalidRequestException("The 'q' parameter must not be blank.");
 		}

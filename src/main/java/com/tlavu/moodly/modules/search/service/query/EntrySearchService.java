@@ -11,8 +11,8 @@ import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightFragment;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightRange;
+import com.tlavu.moodly.modules.search.validation.EntrySearchPagination;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class EntrySearchService {
 
-	public static final int MAX_RESULT_WINDOW = 10_000;
 	private static final List<String> SEARCH_FIELDS = List.of("mood.note", "habits.note", "mood.tags");
 	private static final List<NamedValue<HighlightField>> HIGHLIGHT_FIELDS = List.of(
 			NamedValue.of("mood.note", new HighlightField.Builder().build()),
@@ -45,7 +44,7 @@ public class EntrySearchService {
 		LocalDate to = input.to();
 		int page = input.page();
 		int size = input.size();
-		int offset = validatedOffset(page, size);
+		int offset = EntrySearchPagination.validatedOffset(page, size);
 		try {
 			var response = elasticsearchClient.search(request -> request
 					.index(indexManager.getIndexName())
@@ -93,16 +92,6 @@ public class EntrySearchService {
 		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		}
-	}
-
-	public static int validatedOffset(int page, int size) {
-		if (page < 0) throw new InvalidRequestException("The 'page' parameter must be at least 0.");
-		if (size < 1 || size > 100) throw new InvalidRequestException("The 'size' parameter must be between 1 and 100.");
-		long offset = (long) page * size;
-		if (offset + size > MAX_RESULT_WINDOW) {
-			throw new InvalidRequestException("The requested page exceeds the searchable result window of " + MAX_RESULT_WINDOW + ".");
-		}
-		return Math.toIntExact(offset);
 	}
 
 	private Map<String, List<HighlightFragment>> normalizeHighlights(Map<String, List<String>> raw) {

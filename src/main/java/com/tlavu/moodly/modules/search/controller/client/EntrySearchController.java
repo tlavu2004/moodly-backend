@@ -40,7 +40,6 @@ public class EntrySearchController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size
 	) {
-		EntrySearchService.validatedOffset(page, size);
 		EntrySearchRequest request = new EntrySearchRequest(q, from, to, page, size);
 		EntrySearchInput input = new EntrySearchInput(
 				request.q(), request.from(), request.to(), request.page(), request.size()
