@@ -10,8 +10,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;

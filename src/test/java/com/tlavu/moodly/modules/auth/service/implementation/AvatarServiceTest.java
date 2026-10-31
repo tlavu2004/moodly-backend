@@ -11,8 +11,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.model.UserProfile;

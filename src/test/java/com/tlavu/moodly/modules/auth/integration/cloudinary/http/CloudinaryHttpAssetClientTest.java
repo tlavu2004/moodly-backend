@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;

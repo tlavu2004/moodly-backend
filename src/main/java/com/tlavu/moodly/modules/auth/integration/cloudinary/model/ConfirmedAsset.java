@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.auth.integration.cloudinary.contract;
+package com.tlavu.moodly.modules.auth.integration.cloudinary.model;
 
 public record ConfirmedAsset(
 		String publicId,
