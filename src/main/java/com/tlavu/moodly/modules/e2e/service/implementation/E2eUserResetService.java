@@ -58,6 +58,7 @@ public class E2eUserResetService {
 		this.userId = userId;
 	}
 
+	/** Prevents reset calls from interleaving within this backend instance. */
 	public synchronized E2eResetView reset() {
 		try {
 			// Remove only this synthetic subject's old projection, including any stale documents.
