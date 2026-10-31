@@ -108,7 +108,6 @@ public class CdcDeliveryService {
 				);
 			}
 			deadLetterRepository.delete(deadLetter);
-			monitor.replayedSuccessfully();
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 			handleReplayFailure(deadLetter, exception, attempts.value());

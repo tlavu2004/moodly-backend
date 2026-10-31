@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
+import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CdcHealthIndicator implements HealthIndicator {
 	private final CdcMonitor monitor;
+	private final CdcDeadLetterRepository deadLetterRepository;
 
 	@Override
 	public Health health() {
@@ -17,7 +19,7 @@ public class CdcHealthIndicator implements HealthIndicator {
 				? Health.up()
 				: Health.down();
 		builder.withDetail("listenerHealthy", monitor.isListenerHealthy())
-				.withDetail("failedEventCount", monitor.getFailedEventCount());
+				.withDetail("failedEventCount", deadLetterRepository.count());
 
 		if (monitor.getLastFailureAt() != null) {
 			builder.withDetail(

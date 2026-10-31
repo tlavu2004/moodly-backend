@@ -215,7 +215,6 @@ class CdcDeliveryServiceTest {
 
 		verify(searchWriter).delete("entry-1");
 		verify(deadLetterRepository).delete(deadLetter);
-		verify(monitor).replayedSuccessfully();
 	}
 
 	@Test

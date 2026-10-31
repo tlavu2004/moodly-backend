@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +16,9 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.monitoring.CdcHealthIndicator;
+import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.model.elasticsearch.IndexedHabitLog;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
@@ -47,6 +51,7 @@ import org.springframework.test.context.ActiveProfiles;
 import com.tlavu.moodly.support.CdcSearchTestSupport;
 import java.time.LocalDate;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,6 +91,8 @@ class CdcSearchInfrastructureIntegrationTest {
 	@Autowired
 	private CdcDeliveryService deliveryService;
 	@Autowired
+	private CdcHealthIndicator cdcHealthIndicator;
+	@Autowired
 	private MockMvc mockMvc;
 	@Autowired
 	private EntrySearchService entrySearchService;
@@ -108,6 +115,31 @@ class CdcSearchInfrastructureIntegrationTest {
 	void cleanUp() throws Exception {
 		listener.stop();
 		cdcSearchTestSupport.clearState();
+	}
+
+	@Test
+	void healthCountsPersistedDeadLettersAfterFailedReplayAndNewMonitorInstance() {
+		assertThat(cdcHealthIndicator.health().getDetails())
+				.containsEntry("failedEventCount", 0L);
+
+		CdcDeadLetter deadLetter = deadLetterRepository.save(new CdcDeadLetter(
+				"event-1", "update", "entry-1", "invalid payload", "old failure", 1, Instant.now()
+		));
+		assertThat(cdcHealthIndicator.health().getDetails())
+				.containsEntry("failedEventCount", 1L);
+
+		assertThatThrownBy(() -> deliveryService.replay(deadLetter.getId()))
+				.isInstanceOf(IllegalStateException.class);
+		assertThat(cdcHealthIndicator.health().getDetails())
+				.containsEntry("failedEventCount", 1L);
+
+		CdcHealthIndicator restartedIndicator = new CdcHealthIndicator(new CdcMonitor(), deadLetterRepository);
+		assertThat(restartedIndicator.health().getDetails())
+				.containsEntry("failedEventCount", 1L);
+
+		deadLetterRepository.delete(deadLetter);
+		assertThat(restartedIndicator.health().getDetails())
+				.containsEntry("failedEventCount", 0L);
 	}
 
 	@Test
