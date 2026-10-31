@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.e2e.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
@@ -10,18 +11,20 @@ import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Resets only the fixed synthetic account reserved for browser E2E tests. */
 @Service
 public class E2eUserResetService {
-
 	public static final String DEFAULT_USER_ID = "synthetic|moodly-playwright-e2e";
 	private static final String WALK_HABIT_ID = "e2e-habit-walk";
 	private static final String JOURNAL_HABIT_ID = "e2e-habit-journal";
@@ -55,49 +58,123 @@ public class E2eUserResetService {
 			// Remove only this synthetic subject's old projection, including any stale documents.
 			elasticsearchClient.deleteByQuery(request -> request
 					.index(indexManager.getIndexName())
-					.query(query -> query.term(term -> term.field("userId").value(userId))));
-			elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
+					.query(query -> query.term(term -> term
+							.field("userId")
+							.value(userId)
+					))
+			);
+			elasticsearchClient.indices()
+					.refresh(request -> request.index(indexManager.getIndexName()));
 
 			entryRepository.deleteByUserId(userId);
 			habitRepository.deleteAll(habitRepository.findByUserId(userId));
 
-			var walk = new Habit(WALK_HABIT_ID, userId, "Daily walk", "walk", TargetFrequency.DAILY, true);
-			var journal = new Habit(JOURNAL_HABIT_ID, userId, "Evening journal", "book", TargetFrequency.DAILY, true);
+			var walk = new Habit(
+					WALK_HABIT_ID,
+					userId,
+					"Daily walk",
+					"walk",
+					TargetFrequency.DAILY,
+					true
+			);
+			var journal = new Habit(
+					JOURNAL_HABIT_ID,
+					userId,
+					"Evening journal",
+					"book",
+					TargetFrequency.DAILY,
+					true
+			);
+
 			habitRepository.saveAll(List.of(walk, journal));
 
 			var entries = List.of(
-					entry(ENTRY_IDS.get(0), LocalDate.of(2026, 9, 8), 3, "A steady start to the week", List.of("calm", "focused"), WALK_HABIT_ID, true),
-					entry(ENTRY_IDS.get(1), LocalDate.of(2026, 9, 9), 4, "A good day after a walk", List.of("positive", "energized"), WALK_HABIT_ID, true),
-					entry(ENTRY_IDS.get(2), LocalDate.of(2026, 9, 10), 5, "Grateful for a quiet evening", List.of("grateful", "calm"), JOURNAL_HABIT_ID, true)
+					entry(
+							ENTRY_IDS.get(0),
+							LocalDate.of(2026, 9, 8),
+							3,
+							"A steady start to the week",
+							List.of("calm", "focused"),
+							WALK_HABIT_ID,
+							true
+					),
+					entry(
+							ENTRY_IDS.get(1),
+							LocalDate.of(2026, 9, 9),
+							4,
+							"A good day after a walk",
+							List.of("positive", "energized"),
+							WALK_HABIT_ID,
+							true
+					),
+					entry(
+							ENTRY_IDS.get(2),
+							LocalDate.of(2026, 9, 10),
+							5,
+							"Grateful for a quiet evening",
+							List.of("grateful", "calm"),
+							JOURNAL_HABIT_ID,
+							true
+					)
 			);
+
 			entryRepository.saveAll(entries);
+
 			for (var entry : entries) {
 				searchWriter.index(entry);
 			}
-			elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
+
+			elasticsearchClient.indices()
+					.refresh(request -> request.index(indexManager.getIndexName()));
 
 			for (var entryId : ENTRY_IDS) {
-				var indexed = elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId),
-						com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument.class);
-				if (!indexed.found() || !userId.equals(indexed.source().userId())) {
+				var indexed = elasticsearchClient.get(
+						request -> request
+								.index(indexManager.getIndexName())
+								.id(entryId),
+						DailyEntrySearchDocument.class
+				);
+
+				if (
+						!indexed.found() ||
+						!userId.equals(Objects.requireNonNull(indexed.source()).userId())
+				) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
-							new IllegalStateException("Search document verification failed for " + entryId));
+							new IllegalStateException("Search document verification failed for " + entryId)
+					);
 				}
 			}
-			return new ResetResult(userId, habitRepository.findByUserId(userId).size(), entries.size(), "verified");
-		} catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException exception) {
+
+			return new ResetResult(
+					userId,
+					habitRepository.findByUserId(userId).size(),
+					entries.size(),
+					"verified"
+			);
+		} catch (IOException | ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringE2eIndexing(exception);
 		}
 	}
 
-	private DailyEntry entry(String id, LocalDate date, int score, String note, List<String> tags, String habitId, boolean done) {
+	private DailyEntry entry(
+			String id,
+			LocalDate date,
+			int score,
+			String note,
+			List<String> tags,
+			String habitId,
+			boolean done
+	) {
 		var entry = new DailyEntry(userId, date);
+
 		entry.setId(id);
 		entry.setMood(new Mood(score, tags, note));
 		entry.setHabits(List.of(new HabitLog(habitId, done, null)));
+
 		var timestamp = Instant.parse(date + "T12:00:00Z");
 		entry.setCreatedAt(timestamp);
 		entry.setUpdatedAt(timestamp);
+
 		return entry;
 	}
 

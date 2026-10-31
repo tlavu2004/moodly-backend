@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Profile("!prod & !production")
 @ConditionalOnProperty(name = "moodly.e2e.reset.enabled", havingValue = "true")
 public class E2eResetController {
-
 	private final E2eUserResetService resetService;
 	private final byte[] resetToken;
 
@@ -34,14 +33,24 @@ public class E2eResetController {
 	}
 
 	@PostMapping("/reset")
-	@Operation(summary = "Reset the fixed E2E account", description = "Resets and seeds the server-owned synthetic Playwright account. Enabled only when explicitly configured outside production.")
+	@Operation(
+		summary = "Reset the fixed E2E account",
+		description = "Resets and seeds the server-owned synthetic Playwright account. Enabled only when explicitly configured outside production."
+	)
 	public ResponseEntity<ApiResponse<E2eUserResetService.ResetResult>> reset(
 			@RequestHeader(value = "X-E2E-Reset-Token", required = false) String suppliedToken
 	) {
-		if (resetToken.length == 0 || suppliedToken == null || !MessageDigest.isEqual(
-				resetToken, suppliedToken.getBytes(StandardCharsets.UTF_8))) {
+		if (
+				resetToken.length == 0 ||
+				suppliedToken == null ||
+				!MessageDigest.isEqual(
+						resetToken,
+						suppliedToken.getBytes(StandardCharsets.UTF_8)
+				)
+		) {
 			throw new ForbiddenException();
 		}
+
 		return ResponseEntity.ok(ApiResponse.success(resetService.reset()));
 	}
 }
