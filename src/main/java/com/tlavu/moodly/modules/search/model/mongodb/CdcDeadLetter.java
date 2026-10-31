@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.search.model.mongodb;
 
 import java.time.Instant;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "cdc_dead_letters")
 @Getter
 @Setter
+@NoArgsConstructor
 public class CdcDeadLetter {
 	@Id
 	private String id;
@@ -20,10 +22,6 @@ public class CdcDeadLetter {
 	private String error;
 	private int attempts;
 	private Instant failedAt;
-
-	@SuppressWarnings("unused") // Spring Data MongoDB instantiates documents through reflection.
-	public CdcDeadLetter() {
-	}
 
 	public CdcDeadLetter(
 			String eventId,
