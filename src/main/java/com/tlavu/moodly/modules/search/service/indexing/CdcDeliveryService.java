@@ -83,13 +83,15 @@ public class CdcDeliveryService {
 	}
 
 	private void replayDeadLetter(CdcDeadLetter deadLetter) {
+		AttemptCount attempts = new AttemptCount();
 		try {
 			if ("delete".equals(deadLetter.getOperationType())) {
 				deliverWithRetry(
 					deadLetter.getEventId(),
 					"delete",
 					deadLetter.getEntryId(),
-					() -> searchWriter.delete(deadLetter.getEntryId())
+					() -> searchWriter.delete(deadLetter.getEntryId()),
+					attempts
 				);
 			} else {
 				DailyEntrySearchDocument document = objectMapper.readValue(
@@ -101,25 +103,26 @@ public class CdcDeliveryService {
 						deadLetter.getEventId(),
 						deadLetter.getOperationType(),
 						deadLetter.getEntryId(),
-						() -> searchWriter.index(deadLetter.getEntryId(), document)
+						() -> searchWriter.index(deadLetter.getEntryId(), document),
+						attempts
 				);
 			}
 			deadLetterRepository.delete(deadLetter);
 			monitor.replayedSuccessfully();
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
-			handleReplayFailure(deadLetter, exception);
+			handleReplayFailure(deadLetter, exception, attempts.value());
 
 			throw new IllegalStateException(
 					"CDC dead-letter replay was interrupted " + deadLetter.getId(),
 					exception
 			);
 		} catch (IOException exception) {
-			handleReplayFailure(deadLetter, exception);
+			handleReplayFailure(deadLetter, exception, attempts.value());
 
 			throw SearchInfrastructureUnavailableException.duringReplay(exception);
 		} catch (ElasticsearchException exception) {
-			handleReplayFailure(deadLetter, exception);
+			handleReplayFailure(deadLetter, exception, attempts.value());
 
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringReplay(exception);
@@ -130,7 +133,7 @@ public class CdcDeliveryService {
 					exception
 			);
 		} catch (RuntimeException exception) {
-			handleReplayFailure(deadLetter, exception);
+			handleReplayFailure(deadLetter, exception, attempts.value());
 
 			throw new IllegalStateException(
 					"Could not replay CDC dead-letter event " + deadLetter.getId(),
@@ -139,8 +142,8 @@ public class CdcDeliveryService {
 		}
 	}
 
-	private void handleReplayFailure(CdcDeadLetter deadLetter, Exception exception) {
-		deadLetter.setAttempts(deadLetter.getAttempts() + maxAttempts);
+	private void handleReplayFailure(CdcDeadLetter deadLetter, Exception exception, int attemptsMade) {
+		deadLetter.setAttempts(deadLetter.getAttempts() + attemptsMade);
 		deadLetter.setError(exception.getMessage());
 		deadLetter.setFailedAt(Instant.now());
 		deadLetterRepository.save(deadLetter);
@@ -148,12 +151,14 @@ public class CdcDeliveryService {
 	}
 
 	private void deliver(String eventId, String operationType, String entryId, String payload, ThrowingOperation operation) {
+		AttemptCount attempts = new AttemptCount();
 		try {
 			deliverWithRetry(
 					eventId,
 					operationType,
 					entryId,
-					operation
+					operation,
+					attempts
 			);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
@@ -163,7 +168,8 @@ public class CdcDeliveryService {
 					operationType,
 					entryId,
 					payload,
-					exception
+					exception,
+					attempts.value()
 			);
 		} catch (IOException | RuntimeException exception) {
 			saveDeadLetter(
@@ -171,7 +177,8 @@ public class CdcDeliveryService {
 					operationType,
 					entryId,
 					payload,
-					exception
+					exception,
+					attempts.value()
 			);
 		}
 	}
@@ -181,7 +188,8 @@ public class CdcDeliveryService {
 			String operationType,
 			String entryId,
 			String payload,
-			Exception exception
+			Exception exception,
+			int attemptsMade
 	) {
 		deadLetterRepository.save(
 				new CdcDeadLetter(
@@ -190,7 +198,7 @@ public class CdcDeliveryService {
 						entryId,
 						payload,
 						exception.getMessage(),
-						maxAttempts,
+						attemptsMade,
 						Instant.now()
 				)
 		);
@@ -201,7 +209,7 @@ public class CdcDeliveryService {
 				eventId,
 				operationType,
 				entryId,
-				maxAttempts,
+				attemptsMade,
 				exception
 		);
 	}
@@ -210,12 +218,14 @@ public class CdcDeliveryService {
 			String eventId,
 			String operationType,
 			String entryId,
-			ThrowingOperation operation
+			ThrowingOperation operation,
+			AttemptCount attempts
 	) throws IOException, InterruptedException {
 		IOException lastIoFailure = null;
 		RuntimeException lastRuntimeFailure = null;
 
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+			attempts.record(attempt);
 			try {
 				operation.run();
 
@@ -322,5 +332,17 @@ public class CdcDeliveryService {
 	@FunctionalInterface
 	private interface ThrowingOperation {
 		void run() throws IOException;
+	}
+
+	private static final class AttemptCount {
+		private int value;
+
+		void record(int attempt) {
+			value = attempt;
+		}
+
+		int value() {
+			return value;
+		}
 	}
 }

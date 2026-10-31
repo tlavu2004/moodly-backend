@@ -107,7 +107,9 @@ class CdcDeliveryServiceTest {
 		try {
 			service.deliverDelete("event-1", "entry-1");
 
-			verify(deadLetterRepository).save(any(CdcDeadLetter.class));
+			ArgumentCaptor<CdcDeadLetter> deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+			verify(deadLetterRepository).save(deadLetter.capture());
+			assertThat(deadLetter.getValue().getAttempts()).isEqualTo(1);
 		} finally {
 			assertThat(Thread.interrupted()).isTrue();
 		}
@@ -156,6 +158,9 @@ class CdcDeliveryServiceTest {
 
 		service.deliverDelete("event-1", "entry-1");
 
+		ArgumentCaptor<CdcDeadLetter> deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		verify(deadLetterRepository).save(deadLetter.capture());
+		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(1);
 		verify(searchWriter).delete("entry-1");
 		verifyNoInteractions(retrySleeper);
 	}
@@ -242,6 +247,24 @@ class CdcDeliveryServiceTest {
 		assertThatThrownBy(() -> service.replay("dead-letter-1"))
 				.isInstanceOf(IllegalStateException.class)
 				.hasCause(badRequest);
+		assertThat(deadLetter.getAttempts()).isEqualTo(4);
+		verify(deadLetterRepository).save(deadLetter);
+	}
+
+	@Test
+	void doesNotCountAReplayAttemptWhenPayloadCannotBeRead() throws Exception {
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "update", "entry-1", "invalid", "old", 3, Instant.now());
+		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
+		when(objectMapper.readValue("invalid", DailyEntrySearchDocument.class))
+				.thenThrow(new IllegalStateException("invalid payload"));
+		CdcDeliveryService service = service();
+
+		assertThatThrownBy(() -> service.replay("dead-letter-1"))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("Could not replay");
+
+		assertThat(deadLetter.getAttempts()).isEqualTo(3);
+		verifyNoInteractions(searchWriter);
 		verify(deadLetterRepository).save(deadLetter);
 	}
 
