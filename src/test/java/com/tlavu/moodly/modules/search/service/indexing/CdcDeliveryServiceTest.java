@@ -82,20 +82,14 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
-	void capsBackoffWhenAttemptExceedsLongShiftRange() throws Exception {
-		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
-		CdcDeliveryService service = new CdcDeliveryService(
-				searchWriter, deadLetterRepository, monitor, objectMapper, retrySleeper, 66, 1
-		);
+	void capsBackoffWhenAttemptExceedsLongShiftRange() {
+		Duration initialBackoff = Duration.ofMillis(1);
 
-		service.deliverDelete("event-1", "entry-1");
-
-		ArgumentCaptor<Duration> delays = ArgumentCaptor.forClass(Duration.class);
-		verify(retrySleeper, times(65)).sleep(delays.capture());
-		assertThat(delays.getAllValues()).first().isEqualTo(Duration.ofMillis(1));
-		assertThat(delays.getAllValues()).allSatisfy(delay ->
-				assertThat(delay).isBetween(Duration.ofMillis(1), Duration.ofSeconds(30)));
-		assertThat(delays.getAllValues()).last().isEqualTo(Duration.ofSeconds(30));
+		assertThat(CdcDeliveryService.backoffForAttempt(initialBackoff, 1)).isEqualTo(Duration.ofMillis(1));
+		assertThat(CdcDeliveryService.backoffForAttempt(initialBackoff, 2)).isEqualTo(Duration.ofMillis(2));
+		assertThat(CdcDeliveryService.backoffForAttempt(initialBackoff, 64)).isEqualTo(Duration.ofSeconds(30));
+		assertThat(CdcDeliveryService.backoffForAttempt(initialBackoff, 65)).isEqualTo(Duration.ofSeconds(30));
+		assertThat(CdcDeliveryService.backoffForAttempt(initialBackoff, 66)).isEqualTo(Duration.ofSeconds(30));
 	}
 
 	@Test

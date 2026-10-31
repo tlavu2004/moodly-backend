@@ -285,25 +285,29 @@ public class CdcDeliveryService {
 			int attempt,
 			Exception exception
 	) throws InterruptedException {
-		long delayMs = Math.min(initialBackoff.toMillis(), MAX_BACKOFF_MS);
-		for (int retry = 1; retry < attempt && delayMs > 0 && delayMs < MAX_BACKOFF_MS; retry++) {
-			delayMs = Math.min(delayMs * 2, MAX_BACKOFF_MS);
-		}
-		Duration delay = Duration.ofMillis(delayMs);
+		Duration delay = backoffForAttempt(initialBackoff, attempt);
 
 		log.warn(
 				"Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, " +
-						"attempt={}, maxAttempts={}, delayMs={}",
+						"attempt={}, maxAttempts={}, delayMs={}, cause={}",
 				eventId,
 				operationType,
 				entryId,
 				attempt,
 				maxAttempts,
 				delay.toMillis(),
-				exception
+				exception.toString()
 		);
 
 		retrySleeper.sleep(delay);
+	}
+
+	static Duration backoffForAttempt(Duration initialBackoff, int attempt) {
+		long delayMs = Math.min(initialBackoff.toMillis(), MAX_BACKOFF_MS);
+		for (int retry = 1; retry < attempt && delayMs > 0 && delayMs < MAX_BACKOFF_MS; retry++) {
+			delayMs = Math.min(delayMs * 2, MAX_BACKOFF_MS);
+		}
+		return Duration.ofMillis(delayMs);
 	}
 
 	private boolean isNonTransient(Exception exception) {
