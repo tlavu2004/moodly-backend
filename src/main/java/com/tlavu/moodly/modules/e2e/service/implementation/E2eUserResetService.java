@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 @Profile("!prod & !production")
 @ConditionalOnProperty(name = "moodly.e2e.reset.enabled", havingValue = "true")
 public class E2eUserResetService {
-	public static final String DEFAULT_USER_ID = "synthetic|moodly-playwright-e2e";
+	private static final String DEFAULT_USER_ID = "synthetic|moodly-playwright-e2e";
 	private static final String WALK_HABIT_ID = "e2e-habit-walk";
 	private static final String JOURNAL_HABIT_ID = "e2e-habit-journal";
 	private static final List<String> ENTRY_IDS = List.of("e2e-entry-2026-09-08", "e2e-entry-2026-09-09", "e2e-entry-2026-09-10");
@@ -48,7 +48,7 @@ public class E2eUserResetService {
 			DailyEntrySearchWriter searchWriter,
 			ElasticsearchClient elasticsearchClient,
 			DailyEntrySearchIndexManager indexManager,
-			@Value("${moodly.e2e.reset.user-id:synthetic|moodly-playwright-e2e}") String userId
+			@Value("${moodly.e2e.reset.user-id:" + DEFAULT_USER_ID + "}") String userId
 	) {
 		this.habitRepository = habitRepository;
 		this.entryRepository = entryRepository;
@@ -100,8 +100,7 @@ public class E2eUserResetService {
 							3,
 							"A steady start to the week",
 							List.of("calm", "focused"),
-							WALK_HABIT_ID,
-							true
+							WALK_HABIT_ID
 					),
 					entry(
 							ENTRY_IDS.get(1),
@@ -109,8 +108,7 @@ public class E2eUserResetService {
 							4,
 							"A good day after a walk",
 							List.of("positive", "energized"),
-							WALK_HABIT_ID,
-							true
+							WALK_HABIT_ID
 					),
 					entry(
 							ENTRY_IDS.get(2),
@@ -118,8 +116,7 @@ public class E2eUserResetService {
 							5,
 							"Grateful for a quiet evening",
 							List.of("grateful", "calm"),
-							JOURNAL_HABIT_ID,
-							true
+							JOURNAL_HABIT_ID
 					)
 			);
 
@@ -167,14 +164,13 @@ public class E2eUserResetService {
 			int score,
 			String note,
 			List<String> tags,
-			String habitId,
-			boolean done
+			String habitId
 	) {
 		DailyEntry entry = new DailyEntry(userId, date);
 
 		entry.setId(id);
 		entry.setMood(new Mood(score, tags, note));
-		entry.setHabits(List.of(new HabitLog(habitId, done, null)));
+		entry.setHabits(List.of(new HabitLog(habitId, true, null)));
 
 		Instant timestamp = Instant.parse(date + "T12:00:00Z");
 		entry.setCreatedAt(timestamp);
