@@ -6,14 +6,9 @@ Planned BE + FE work: [mood trend period navigation](docs/roadmap/mood-trend-per
 
 ## Keep the OpenAPI document current
 
-When changing controllers, request/response DTOs, OpenAPI annotations, or response
-type names, regenerate `docs/api/moodly-openapi.json`, review its diff, and commit
-it with the code change. Schema names can change even when endpoint paths do not.
-CI regenerates this file and fails if it differs from the committed version.
+When changing controllers, request/response DTOs, OpenAPI annotations, or response type names, regenerate `docs/api/moodly-openapi.json`, review its diff, and commit it with the code change. Schema names can change even when endpoint paths do not. CI regenerates this file and fails if it differs from the committed version.
 
-From the repository root, run `bash src/main/resources/scripts/openapi/generate-openapi.sh`
-on Linux. In Windows Git Bash, use the following command if the checked-out
-script has CRLF line endings:
+From the repository root, run `bash src/main/resources/scripts/openapi/generate-openapi.sh` on Linux. In Windows Git Bash, use the following command if the checked-out script has CRLF line endings:
 
 ```bash
 sed 's/\r$//' src/main/resources/scripts/openapi/generate-openapi.sh | bash
@@ -26,20 +21,21 @@ Requirements: Java 25, Maven, and Docker Desktop.
 
 ### Auth0 startup network failures
 
-JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even
-when the local Docker services are healthy. The backend uses 10-second connect
-and read timeouts, with at most three attempts and a 500 ms delay for connection
-refusals/timeouts. Persistent failures still stop startup; issuer, audience,
-signature and expiry validation remain mandatory. HTTP errors and TLS certificate
-errors are not retried.
+JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even when the local Docker services are healthy. The backend uses 10-second connect and read timeouts, with at most three attempts and a 500 ms delay for connection refusals/timeouts. Persistent failures still stop startup; issuer, audience, signature and expiry validation remain mandatory. HTTP errors and TLS certificate errors are not retried.
 
-Optional Spring properties: `moodly.auth0.http.connect-timeout`,
-`moodly.auth0.http.read-timeout`, `moodly.auth0.http.max-attempts` (1–5), and
-`moodly.auth0.http.retry-delay`. Their environment equivalents are
-`MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`, `MOODLY_AUTH0_HTTP_READ_TIMEOUT`,
-`MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`, and `MOODLY_AUTH0_HTTP_RETRY_DELAY`.
-No new secret is required. If all attempts fail, check network/proxy/firewall
-access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
+Optional Spring properties:
+   - `moodly.auth0.http.connect-timeout`
+   - `moodly.auth0.http.read-timeout`
+   - `moodly.auth0.http.max-attempts` (1–5)
+   - `moodly.auth0.http.retry-delay`.
+
+Their environment equivalents are
+   - `MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`
+   - `MOODLY_AUTH0_HTTP_READ_TIMEOUT`
+   - `MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`
+   - `MOODLY_AUTH0_HTTP_RETRY_DELAY`.
+
+No new secret is required. If all attempts fail, check network/proxy/firewall access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
 
 Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
@@ -66,8 +62,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-replica-status
    ```
 
-   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the
-   `moodly-elasticsearch-local-data` Docker volume.
+   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data` Docker volume.
 
 3. Run the application:
 
@@ -75,9 +70,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-run
    ```
 
-   On startup, Moodly creates `daily_entries_search` only when it does not already
-   exist. The mapping is deliberately not mutated at startup, so mapping changes
-   remain an explicit migration decision.
+   On startup, Moodly creates `daily_entries_search` only when it does not already exist. The mapping is deliberately not mutated at startup, so mapping changes remain an explicit migration decision.
 
    Verify the cluster, index, and mapping after the application has started:
 
@@ -87,34 +80,23 @@ Before starting the Phase 3 backend, configure the hosted development services a
    curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
-   The Change Stream listener resumes from its MongoDB-stored checkpoint after a
-   restart. To rebuild the derived index deliberately, set
-   `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+   The Change Stream listener resumes from its MongoDB-stored checkpoint after a restart. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
 
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/reindex \
      -H "X-Maintenance-Key: your-local-secret"
    ```
 
-   This temporary header guard will be replaced by authenticated admin access in
-   Phase 3.
+   This temporary header guard will be replaced by authenticated admin access in Phase 3.
 
-   Failed Elasticsearch deliveries are retried three times with exponential
-   backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters`
-   collection and can be replayed with
-   `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance
-   header. CDC state and its failed-event count are available at
-   `GET /actuator/health`.
+   Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance header. CDC state and its failed-event count are available at `GET /actuator/health`.
 
-   `GET /entries/search?q=...` queries the derived Elasticsearch index. It is
-   eventually consistent: a newly saved MongoDB entry can take a short time to
-   appear in search results.
+   `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
 
-   The CDC verification scenarios in `docs/testing/moodly.http` cover insert,
-   update, reindex/duplicate delivery, dead-letter replay, and health. The
-   delete scenario uses `mongosh` until an entry-delete API is introduced.
+   The CDC verification scenarios in `docs/testing/moodly.http` cover insert, update, reindex/duplicate delivery, dead-letter replay, and health. The delete scenario uses `mongosh` until an entry-delete API is introduced.
 
 4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
+
 5. After Auth0 authenticates the SPA, call `PUT /auth/profile` once to idempotently bootstrap the application-owned profile. Other protected endpoints resolve ownership from the verified JWT and never create users as a hidden side effect.
 
 ### Reset the local Playwright account
@@ -137,34 +119,17 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 
 ### Mutation replay contract
 
-`POST /habits` creates a new UUID for every accepted request and does not accept
-an idempotency key. A client must not automatically replay it after a timeout or
-lost response; it should read the habit list before a user chooses to submit it
-again. `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest
-habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current
-habit before deciding on another change.
+`POST /habits` creates a new UUID for every accepted request and does not accept an idempotency key. A client must not automatically replay it after a timeout or lost response; it should read the habit list before a user chooses to submit it again. `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current habit before deciding on another change.
 
-`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state.
-Repeating the same body leaves the same visible mood or habit-log state, but
-updates metadata and can emit another CDC event. These entry writes have no
-version check against concurrent changes. Avatar upload signature/confirmation
-also has no general replay guarantee; each signature allocates a new public ID
-and confirmation consumes its pending upload.
+`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state. Repeating the same body leaves the same visible mood or habit-log state, but updates metadata and can emit another CDC event. These entry writes have no version check against concurrent changes. Avatar upload signature/confirmation also has no general replay guarantee; each signature allocates a new public ID and confirmation consumes its pending upload.
 
 ### Habit streak query cost
 
-`GET /habits/{habitId}/streak` reads the authenticated user's entries on or
-before today for each requested habit. The frontend currently calls it once
-per active habit, in parallel. This repeated history read is accepted for
-small habit lists; a future summary endpoint should calculate all streaks
-from one history read if staging latency or habit counts exceed the frontend
-README's temporary threshold.
+`GET /habits/{habitId}/streak` reads the authenticated user's entries on or before today for each requested habit. The frontend currently calls it once per active habit, in parallel. This repeated history read is accepted for small habit lists; a future summary endpoint should calculate all streaks from one history read if staging latency or habit counts exceed the frontend README's temporary threshold.
 
 ## Test
 
-`mvn test` starts isolated MongoDB and Elasticsearch containers with
-Testcontainers; it does not use the local or test Docker Compose stacks. Docker
-Desktop must be running.
+`mvn test` starts isolated MongoDB and Elasticsearch containers with Testcontainers; it does not use the local or test Docker Compose stacks. Docker Desktop must be running.
 
 ```bash
 make test
@@ -178,12 +143,6 @@ make test-up
 
 ### Deferred test infrastructure review
 
-After the backend refactor is complete and the application is ready for
-production, decide whether Maven integration tests should reuse the
-`moodly-test` Compose stack instead of creating and removing Testcontainers for
-each run. Compare startup time and memory use. Preserve test isolation,
-repeatable database cleanup, dynamic connection configuration, and CI
-reliability before changing the setup. Keep automated tests away from local and
-production databases.
+After the backend refactor is complete and the application is ready for production, decide whether Maven integration tests should reuse the `moodly-test` Compose stack instead of creating and removing Testcontainers for each run. Compare startup time and memory use. Preserve test isolation, repeatable database cleanup, dynamic connection configuration, and CI reliability before changing the setup. Keep automated tests away from local and production databases.
 
 See `docs/blueprint/moodly-blueprint.md` for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.
