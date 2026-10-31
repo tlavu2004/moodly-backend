@@ -25,10 +25,10 @@ class DailyEntrySearchDocumentTest {
 
 		assertThat(document.userId()).isEqualTo("user-1");
 		assertThat(document.date()).isEqualTo(LocalDate.of(2026, 8, 6));
-		assertThat(document.mood()).isEqualTo(new DailyEntrySearchDocument.Mood(4, "A productive day", List.of("calm", "focused")));
+		assertThat(document.mood()).isEqualTo(new IndexedMood(4, "A productive day", List.of("calm", "focused")));
 		assertThat(document.habits()).containsExactly(
-				new DailyEntrySearchDocument.Habit("Morning run"),
-				new DailyEntrySearchDocument.Habit("Too tired")
+				new IndexedHabitLog("Morning run"),
+				new IndexedHabitLog("Too tired")
 		);
 	}
 

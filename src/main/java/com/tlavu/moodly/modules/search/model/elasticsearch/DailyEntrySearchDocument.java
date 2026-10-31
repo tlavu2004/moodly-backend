@@ -8,22 +8,15 @@ import java.util.List;
 public record DailyEntrySearchDocument(
 		String userId,
 		LocalDate date,
-		Mood mood,
-		List<Habit> habits
+		IndexedMood mood,
+		List<IndexedHabitLog> habits
 ) {
-
-	public record Mood(Integer score, String note, List<String> tags) {
-	}
-
-	public record Habit(String note) {
-	}
-
 	public static DailyEntrySearchDocument from(DailyEntry entry) {
 		com.tlavu.moodly.modules.entries.model.Mood mood = entry.getMood();
-		Mood searchMood = mood == null ? null : new Mood(mood.getScore(), mood.getNote(), mood.getTags());
-		List<Habit> habits = entry.getHabits() == null
-				? List.<Habit>of()
-				: entry.getHabits().stream().map(habit -> new Habit(habit.getNote())).toList();
+		IndexedMood searchMood = mood == null ? null : new IndexedMood(mood.getScore(), mood.getNote(), mood.getTags());
+		List<IndexedHabitLog> habits = entry.getHabits() == null
+				? List.<IndexedHabitLog>of()
+				: entry.getHabits().stream().map(habit -> new IndexedHabitLog(habit.getNote())).toList();
 		return new DailyEntrySearchDocument(entry.getUserId(), entry.getDate(), searchMood, habits);
 	}
 }

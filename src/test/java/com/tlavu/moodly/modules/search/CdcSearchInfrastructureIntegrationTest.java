@@ -16,6 +16,7 @@ import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
+import com.tlavu.moodly.modules.search.model.elasticsearch.IndexedHabitLog;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
@@ -186,7 +187,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(insertedDocument.mood().score()).isEqualTo(2);
 		assertThat(insertedDocument.mood().note()).isEqualTo("first note");
 		assertThat(insertedDocument.mood().tags()).containsExactly("old");
-		assertThat(insertedDocument.habits()).extracting(DailyEntrySearchDocument.Habit::note).containsExactly("old habit");
+		assertThat(insertedDocument.habits()).extracting(IndexedHabitLog::note).containsExactly("old habit");
 
 		entry.setMood(new Mood(5, List.of("new"), "updated note"));
 		entry.setHabits(List.of(new HabitLog("habit-1", true, "new habit")));
@@ -196,7 +197,7 @@ class CdcSearchInfrastructureIntegrationTest {
 			assertThat(indexed.mood().score()).isEqualTo(5);
 			assertThat(indexed.mood().note()).isEqualTo("updated note").doesNotContain("first note");
 			assertThat(indexed.mood().tags()).containsExactly("new").doesNotContain("old");
-			assertThat(indexed.habits()).extracting(DailyEntrySearchDocument.Habit::note)
+			assertThat(indexed.habits()).extracting(IndexedHabitLog::note)
 					.containsExactly("new habit").doesNotContain("old habit");
 		});
 
