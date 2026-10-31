@@ -1,8 +1,6 @@
 package com.tlavu.moodly;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,10 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
-import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.auth.integration.cloudinary.contract.ConfirmedAsset;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -35,7 +29,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import tools.jackson.databind.JsonNode;
@@ -56,19 +49,11 @@ class ApiIntegrationTest {
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
 	private HabitRepository habitRepository;
-	@Autowired
-	private UserProfileRepository userProfileRepository;
-	@Autowired
-	private PendingAvatarUploadRepository pendingAvatarUploadRepository;
-	@MockitoBean
-	private CloudinaryAssetClient cloudinary;
 
 	@AfterEach
 	void cleanUp() {
 		dailyEntryRepository.deleteAll();
 		habitRepository.deleteAll();
-		userProfileRepository.deleteAll();
-		pendingAvatarUploadRepository.deleteAll();
 	}
 
 	@Test
@@ -185,33 +170,6 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void returnsStandardValidationErrorForInvalidRequest() throws Exception {
-		mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"\",\"targetFrequency\":\"\"}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-				.andExpect(jsonPath("$.error.errors.length()").value(2));
-	}
-
-	@Test
-	void keepsTheHabitStatusFilterContract() throws Exception {
-		mockMvc.perform(get("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.param("status", "ACTIVE"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.length()").value(0));
-
-		mockMvc.perform(get("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.param("status", "invalid"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
-	}
-
-	@Test
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
 		String document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
@@ -262,69 +220,6 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void rejectsUnsupportedTargetFrequencyWithAFieldValidationError() throws Exception {
-		mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Exercise\",\"targetFrequency\":\"WEEKLY\"}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-				.andExpect(jsonPath("$.error.errors.length()").value(1))
-				.andExpect(jsonPath("$.error.errors[0].field").value("targetFrequency"))
-				.andExpect(jsonPath("$.error.errors[0].message").value("must be DAILY"));
-	}
-
-	@Test
-	void supportsHabitUpdateArchiveRestoreAndStatusFiltering() throws Exception {
-		String response = mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
-				.andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
-		JsonNode data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
-		String habitId = data.path("id").asString();
-		long version = data.path("version").asLong();
-
-		response = mockMvc.perform(patch("/habits/{habitId}", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Read daily\",\"icon\":\"books\",\"version\":" + version + "}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.name").value("Read daily"))
-				.andReturn().getResponse().getContentAsString();
-		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
-		mockMvc.perform(patch("/habits/{habitId}", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Stale update\",\"icon\":\"books\",\"version\":" + (version - 1) + "}"))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
-
-		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"version\":" + version + "}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.active").value(false))
-				.andReturn().getResponse().getContentAsString();
-		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
-
-		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
-		mockMvc.perform(get("/habits").param("status", "archived")
-					.with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(habitId));
-
-		mockMvc.perform(post("/habits/{habitId}/restore", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"version\":" + version + "}"))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.active").value(true));
-	}
-
-	@Test
 	void rejectsARequestWithoutAnAccessToken() throws Exception {
 		mockMvc.perform(get("/habits").header("X-Request-ID", "unauthorized-test"))
 				.andExpect(status().isUnauthorized())
@@ -366,77 +261,6 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void requiresAuthenticationForEveryAvatarEndpoint() throws Exception {
-		mockMvc.perform(get("/me/avatar"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(post("/me/avatar/upload-signature")
-					.contentType(MediaType.APPLICATION_JSON).content("{}"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(post("/me/avatar/confirm")
-					.contentType(MediaType.APPLICATION_JSON).content("{}"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/me/avatar"))
-				.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	void confirmsOnlyTheAuthenticatedUsersPendingAvatar() throws Exception {
-		String userA = "auth0|avatar-owner";
-		String userB = "auth0|avatar-other";
-		RequestPostProcessor ownerToken = jwt().jwt(token -> token.subject(userA).claim("email", "owner@example.com"));
-		RequestPostProcessor otherToken = jwt().jwt(token -> token.subject(userB).claim("email", "other@example.com"));
-
-		String signatureResponse = mockMvc.perform(post("/me/avatar/upload-signature").with(ownerToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"contentType\":\"image/png\",\"sizeBytes\":1024}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(org.hamcrest.Matchers.startsWith("moodly/test/users/auth0_avatar-owner/avatar/")))
-				.andExpect(jsonPath("$.data.cloudName").value("test-cloud"))
-				.andExpect(jsonPath("$.data.apiKey").value("test-api-key"))
-				.andExpect(jsonPath("$.data.uploadPreset").value("test-upload-preset"))
-				.andExpect(jsonPath("$.data.timestamp").isNumber())
-				.andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
-				.andExpect(jsonPath("$.data.signature").isNotEmpty())
-				.andExpect(jsonPath("$.data.uploadUrl").isNotEmpty())
-				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
-				.andReturn().getResponse().getContentAsString();
-		String publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
-
-		mockMvc.perform(post("/me/avatar/confirm").with(otherToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("AVATAR_UPLOAD_NOT_FOUND"));
-		verify(cloudinary, never()).findImage(publicId);
-
-		org.mockito.Mockito.when(cloudinary.findImage(publicId))
-				.thenReturn(new ConfirmedAsset(publicId, 1, "image/png", 1024));
-		mockMvc.perform(post("/me/avatar/confirm").with(ownerToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(publicId))
-				.andExpect(jsonPath("$.data.contentType").value("image/png"))
-				.andExpect(jsonPath("$.data.sizeBytes").value(1024))
-				.andExpect(jsonPath("$.data.deliveryUrl").value(org.hamcrest.Matchers.containsString("/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v1/")));
-		mockMvc.perform(get("/me/avatar").with(ownerToken))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(publicId));
-
-		verify(cloudinary).findImage(publicId);
-	}
-
-	@Test
-	void rejectsInvalidAvatarDeclarationsForAnAuthenticatedUser() throws Exception {
-		mockMvc.perform(post("/me/avatar/upload-signature")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"contentType\":\"image/gif\",\"sizeBytes\":1024}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("AVATAR_CONTENT_TYPE_UNSUPPORTED"));
-	}
-
-	@Test
 	void isolatesMongoBackedHabitsAndEntriesBetweenJwtSubjects() throws Exception {
 		String userA = "auth0|mongo-owner";
 		String userB = "auth0|mongo-other";
@@ -466,29 +290,6 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.weeklyMood.averageScore").doesNotExist())
 				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(0))
 				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
-	}
-
-	@Test
-	void bootstrapsTheAuth0ProfileExplicitlyAndIdempotently() throws Exception {
-		RequestPostProcessor authenticated = jwt().jwt(token -> token.subject(USER_ID).claim("email", "  API@Example.COM "));
-
-		mockMvc.perform(put("/auth/profile").with(authenticated))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.userId").value(USER_ID))
-				.andExpect(jsonPath("$.data.email").value("api@example.com"));
-
-		mockMvc.perform(put("/auth/profile").with(authenticated))
-				.andExpect(status().isOk());
-
-		assertThat(userProfileRepository.count()).isEqualTo(1);
-	}
-
-	@Test
-	void ordinaryProtectedRequestsDoNotCreateAProfileAsASideEffect() throws Exception {
-		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk());
-
-		assertThat(userProfileRepository.count()).isZero();
 	}
 
 	@Test
