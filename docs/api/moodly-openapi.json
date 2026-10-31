@@ -288,7 +288,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseReindexResult"
+                  "$ref": "#/components/schemas/ApiResponseCdcReindexResponse"
                 }
               }
             }
@@ -1634,7 +1634,7 @@
           }
         }
       },
-      "ApiResponseReindexResult": {
+      "ApiResponseCdcReindexResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -1642,7 +1642,7 @@
           },
           "data": {
             "type": "null",
-            "$ref": "#/components/schemas/ReindexResult",
+            "$ref": "#/components/schemas/CdcReindexResponse",
             "description": "Present for successful responses."
           },
           "error": {
@@ -1660,7 +1660,7 @@
           "timestamp"
         ]
       },
-      "ReindexResult": {
+      "CdcReindexResponse": {
         "type": "object",
         "properties": {
           "indexedEntries": {
