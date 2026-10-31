@@ -174,6 +174,20 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void retriesElasticsearchRequestTimeout() throws Exception {
+		ElasticsearchException timeout = org.mockito.Mockito.mock(ElasticsearchException.class);
+		when(timeout.status()).thenReturn(408);
+		doThrow(timeout).doNothing().when(searchWriter).delete("entry-1");
+		CdcDeliveryService service = service();
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(retrySleeper).sleep(Duration.ofMillis(1));
+		verifyNoInteractions(deadLetterRepository);
+	}
+
+	@Test
 	void retriesServerSideElasticsearchFailures() throws Exception {
 		ElasticsearchException serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(serverFailure.status()).thenReturn(503);

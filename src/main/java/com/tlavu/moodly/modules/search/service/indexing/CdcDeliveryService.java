@@ -303,7 +303,9 @@ public class CdcDeliveryService {
 		}
 
 		return !(exception instanceof ElasticsearchException elasticsearchException) ||
-				(elasticsearchException.status() != 429 && elasticsearchException.status() < 500);
+				(elasticsearchException.status() != 408 &&
+						elasticsearchException.status() != 429 &&
+						elasticsearchException.status() < 500);
 	}
 
 	private String serialize(DailyEntrySearchDocument document) {
