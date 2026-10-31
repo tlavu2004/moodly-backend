@@ -13,8 +13,8 @@ class E2eResetProductionProfileTest {
 
 	@Test
 	void doesNotRegisterResetEndpointInProductionProfiles() {
-		for (var profile : List.of("prod", "production")) {
-			try (var context = new AnnotationConfigApplicationContext()) {
+		for (String profile : List.of("prod", "production")) {
+			try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
 				context.getEnvironment().setActiveProfiles(profile);
 				context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
 						"e2e-test", Map.of("moodly.e2e.reset.enabled", "true")));

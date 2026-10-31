@@ -2,6 +2,7 @@ package com.tlavu.moodly.modules.e2e.service.implementation;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch.core.GetResponse;
 import com.tlavu.moodly.modules.e2e.service.view.E2eResetView;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
@@ -69,7 +70,7 @@ public class E2eUserResetService {
 			entryRepository.deleteByUserId(userId);
 			habitRepository.deleteAll(habitRepository.findByUserId(userId));
 
-			var walk = new Habit(
+			Habit walk = new Habit(
 					WALK_HABIT_ID,
 					userId,
 					"Daily walk",
@@ -77,7 +78,7 @@ public class E2eUserResetService {
 					TargetFrequency.DAILY,
 					true
 			);
-			var journal = new Habit(
+			Habit journal = new Habit(
 					JOURNAL_HABIT_ID,
 					userId,
 					"Evening journal",
@@ -88,7 +89,7 @@ public class E2eUserResetService {
 
 			habitRepository.saveAll(List.of(walk, journal));
 
-			var entries = List.of(
+			List<DailyEntry> entries = List.of(
 					entry(
 							ENTRY_IDS.get(0),
 							LocalDate.of(2026, 9, 8),
@@ -120,15 +121,15 @@ public class E2eUserResetService {
 
 			entryRepository.saveAll(entries);
 
-			for (var entry : entries) {
+			for (DailyEntry entry : entries) {
 				searchWriter.index(entry);
 			}
 
 			elasticsearchClient.indices()
 					.refresh(request -> request.index(indexManager.getIndexName()));
 
-			for (var entryId : ENTRY_IDS) {
-				var indexed = elasticsearchClient.get(
+			for (String entryId : ENTRY_IDS) {
+				GetResponse<DailyEntrySearchDocument> indexed = elasticsearchClient.get(
 						request -> request
 								.index(indexManager.getIndexName())
 								.id(entryId),
@@ -165,13 +166,13 @@ public class E2eUserResetService {
 			String habitId,
 			boolean done
 	) {
-		var entry = new DailyEntry(userId, date);
+		DailyEntry entry = new DailyEntry(userId, date);
 
 		entry.setId(id);
 		entry.setMood(new Mood(score, tags, note));
 		entry.setHabits(List.of(new HabitLog(habitId, done, null)));
 
-		var timestamp = Instant.parse(date + "T12:00:00Z");
+		Instant timestamp = Instant.parse(date + "T12:00:00Z");
 		entry.setCreatedAt(timestamp);
 		entry.setUpdatedAt(timestamp);
 
