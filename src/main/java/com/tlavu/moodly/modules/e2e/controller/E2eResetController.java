@@ -52,6 +52,10 @@ public class E2eResetController {
 			throw new ForbiddenException();
 		}
 
-		return ResponseEntity.ok(ApiResponse.success(E2eResetResponse.from(resetService.reset())));
+		return ResponseEntity.ok(
+				ApiResponse.success(
+						E2eResetResponse.from(resetService.reset())
+				)
+		);
 	}
 }
