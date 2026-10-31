@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search;
+package com.tlavu.moodly.modules.search.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
