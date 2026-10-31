@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 @Slf4j
 @Service
 public class CdcDeliveryService {
+	private static final long MAX_BACKOFF_MS = 30_000;
 
 	private final DailyEntrySearchWriter searchWriter;
 	private final CdcDeadLetterRepository deadLetterRepository;
@@ -173,7 +174,11 @@ public class CdcDeliveryService {
 
 	private void waitBeforeRetry(String eventId, String operationType, String entryId, int attempt, Exception exception)
 			throws InterruptedException {
-		Duration delay = initialBackoff.multipliedBy(1L << (attempt - 1));
+		long delayMs = Math.min(initialBackoff.toMillis(), MAX_BACKOFF_MS);
+		for (int retry = 1; retry < attempt && delayMs > 0 && delayMs < MAX_BACKOFF_MS; retry++) {
+			delayMs = Math.min(delayMs * 2, MAX_BACKOFF_MS);
+		}
+		Duration delay = Duration.ofMillis(delayMs);
 		log.warn("Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, attempt={}, maxAttempts={}, delayMs={}",
 				eventId, operationType, entryId, attempt, maxAttempts, delay.toMillis(), exception);
 		retrySleeper.sleep(delay);

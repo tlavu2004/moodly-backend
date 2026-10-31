@@ -82,6 +82,23 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void capsBackoffWhenAttemptExceedsLongShiftRange() throws Exception {
+		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
+		CdcDeliveryService service = new CdcDeliveryService(
+				searchWriter, deadLetterRepository, monitor, objectMapper, retrySleeper, 66, 1
+		);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		ArgumentCaptor<Duration> delays = ArgumentCaptor.forClass(Duration.class);
+		verify(retrySleeper, times(65)).sleep(delays.capture());
+		assertThat(delays.getAllValues()).first().isEqualTo(Duration.ofMillis(1));
+		assertThat(delays.getAllValues()).allSatisfy(delay ->
+				assertThat(delay).isBetween(Duration.ofMillis(1), Duration.ofSeconds(30)));
+		assertThat(delays.getAllValues()).last().isEqualTo(Duration.ofSeconds(30));
+	}
+
+	@Test
 	void preservesTheInterruptFlagAndStoresDeadLetterWhenRetrySleepIsInterrupted() throws Exception {
 		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		doThrow(new InterruptedException("shutdown")).when(retrySleeper).sleep(Duration.ofMillis(1));
