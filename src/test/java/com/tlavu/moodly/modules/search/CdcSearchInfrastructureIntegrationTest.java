@@ -21,7 +21,7 @@ import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
-import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.implementation.EntrySearchService;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;

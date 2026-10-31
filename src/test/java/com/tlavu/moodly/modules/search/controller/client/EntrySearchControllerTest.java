@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.implementation.EntrySearchService;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;

@@ -7,7 +7,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.util.NamedValue;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.service.query.EntrySearchQueryPort;
+import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;

@@ -1,6 +1,7 @@
-package com.tlavu.moodly.modules.search.service.query;
+package com.tlavu.moodly.modules.search.service.implementation;
 
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.validation.EntrySearchPagination;
 import lombok.RequiredArgsConstructor;

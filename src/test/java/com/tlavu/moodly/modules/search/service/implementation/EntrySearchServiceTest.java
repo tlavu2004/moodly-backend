@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.search.service.query;
+package com.tlavu.moodly.modules.search.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
+import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.util.List;

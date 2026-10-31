@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.search.controller.client;
 
-import com.tlavu.moodly.modules.search.service.query.EntrySearchService;
+import com.tlavu.moodly.modules.search.service.implementation.EntrySearchService;
 import com.tlavu.moodly.modules.search.dto.request.EntrySearchRequest;
 import com.tlavu.moodly.modules.search.dto.response.EntrySearchResponse;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
