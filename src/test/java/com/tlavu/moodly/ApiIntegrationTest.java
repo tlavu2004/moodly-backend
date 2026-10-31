@@ -20,6 +20,7 @@ import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import com.tlavu.moodly.shared.time.MoodlyTime;
+import java.time.LocalDate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -36,6 +37,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import tools.jackson.databind.JsonNode;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -76,7 +79,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.checkedIn").value(false))
 				.andExpect(jsonPath("$.data.entry").doesNotExist());
 
-		var createHabitResponse = mockMvc.perform(post("/habits")
+		String createHabitResponse = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
@@ -89,7 +92,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.active").value(true))
 				.andExpect(jsonPath("$.data.version").isNumber())
 				.andReturn().getResponse().getContentAsString();
-		var habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
+		String habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -128,7 +131,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.entry.mood.score").value(4))
 				.andExpect(jsonPath("$.data.entry.habits.length()").value(2));
 
-		var entryDate = dailyEntryRepository
+		LocalDate entryDate = dailyEntryRepository
 				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, MoodlyTime.today(clock))
 				.getFirst()
 				.getDate();
@@ -210,7 +213,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
-		var document = mockMvc.perform(get("/v3/api-docs"))
+		String document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.components.schemas.Habit").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
@@ -228,9 +231,9 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())
 				.andReturn().getResponse().getContentAsString();
 
-		var openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
-		var examples = openApi.path("components").path("examples");
-		var badRequestExample = openApi.path("components").path("responses")
+		JsonNode openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
+		JsonNode examples = openApi.path("components").path("examples");
+		JsonNode badRequestExample = openApi.path("components").path("responses")
 			.path("BadRequest").path("content").path("application/json")
 			.path("examples").path("default").path("value");
 		assertThat(badRequestExample.isObject()).isTrue();
@@ -274,15 +277,15 @@ class ApiIntegrationTest {
 
 	@Test
 	void supportsHabitUpdateArchiveRestoreAndStatusFiltering() throws Exception {
-		var response = mockMvc.perform(post("/habits")
+		String response = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		var data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
-		var habitId = data.path("id").asString();
-		var version = data.path("version").asLong();
+		JsonNode data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
+		String habitId = data.path("id").asString();
+		long version = data.path("version").asLong();
 
 		response = mockMvc.perform(patch("/habits/{habitId}", habitId)
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -353,7 +356,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void returnsTheStandardUnauthorizedEnvelopeForASignatureShapedBearerTokenRejectedByTheDecoder() throws Exception {
-		var tamperedJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+		String tamperedJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
 				+ "eyJzdWIiOiJhdXRoMHx0ZXN0In0.invalid-signature";
 
 		mockMvc.perform(get("/habits").header("Authorization", "Bearer " + tamperedJwt))
@@ -381,12 +384,12 @@ class ApiIntegrationTest {
 
 	@Test
 	void confirmsOnlyTheAuthenticatedUsersPendingAvatar() throws Exception {
-		var userA = "auth0|avatar-owner";
-		var userB = "auth0|avatar-other";
-		var ownerToken = jwt().jwt(token -> token.subject(userA).claim("email", "owner@example.com"));
-		var otherToken = jwt().jwt(token -> token.subject(userB).claim("email", "other@example.com"));
+		String userA = "auth0|avatar-owner";
+		String userB = "auth0|avatar-other";
+		RequestPostProcessor ownerToken = jwt().jwt(token -> token.subject(userA).claim("email", "owner@example.com"));
+		RequestPostProcessor otherToken = jwt().jwt(token -> token.subject(userB).claim("email", "other@example.com"));
 
-		var signatureResponse = mockMvc.perform(post("/me/avatar/upload-signature").with(ownerToken)
+		String signatureResponse = mockMvc.perform(post("/me/avatar/upload-signature").with(ownerToken)
 					.contentType(MediaType.APPLICATION_JSON).content("{\"contentType\":\"image/png\",\"sizeBytes\":1024}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.publicId").value(org.hamcrest.Matchers.startsWith("moodly/test/users/auth0_avatar-owner/avatar/")))
@@ -399,7 +402,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.uploadUrl").isNotEmpty())
 				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
 				.andReturn().getResponse().getContentAsString();
-		var publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
+		String publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
 
 		mockMvc.perform(post("/me/avatar/confirm").with(otherToken)
 					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
@@ -435,8 +438,8 @@ class ApiIntegrationTest {
 
 	@Test
 	void isolatesMongoBackedHabitsAndEntriesBetweenJwtSubjects() throws Exception {
-		var userA = "auth0|mongo-owner";
-		var userB = "auth0|mongo-other";
+		String userA = "auth0|mongo-owner";
+		String userB = "auth0|mongo-other";
 		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated());
@@ -467,7 +470,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void bootstrapsTheAuth0ProfileExplicitlyAndIdempotently() throws Exception {
-		var authenticated = jwt().jwt(token -> token.subject(USER_ID).claim("email", "  API@Example.COM "));
+		RequestPostProcessor authenticated = jwt().jwt(token -> token.subject(USER_ID).claim("email", "  API@Example.COM "));
 
 		mockMvc.perform(put("/auth/profile").with(authenticated))
 				.andExpect(status().isOk())
@@ -513,7 +516,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void rejectsInvalidEntryDateRanges() throws Exception {
-		var today = MoodlyTime.today(clock);
+		LocalDate today = MoodlyTime.today(clock);
 
 		mockMvc.perform(get("/entries")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -543,7 +546,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void normalizesFrameworkRequestFailures() throws Exception {
-		var jwtUser = jwt().jwt(token -> token.subject(USER_ID));
+		RequestPostProcessor jwtUser = jwt().jwt(token -> token.subject(USER_ID));
 
 		mockMvc.perform(get("/entries").with(jwtUser).param("to", "2026-10-21"))
 				.andExpect(status().isBadRequest())
