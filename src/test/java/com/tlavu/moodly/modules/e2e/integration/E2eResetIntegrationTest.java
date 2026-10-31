@@ -1,6 +1,9 @@
 package com.tlavu.moodly.modules.e2e.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,11 +17,13 @@ import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.support.CdcSearchTestSupport;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,6 +35,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
@@ -66,6 +72,8 @@ class E2eResetIntegrationTest {
 	private DailyEntryChangeStreamListener listener;
 	@Autowired
 	private MockMvc mockMvc;
+	@MockitoSpyBean
+	private DailyEntrySearchWriter searchWriter;
 
 	@BeforeEach
 	void prepareState() throws Exception {
@@ -127,6 +135,31 @@ class E2eResetIntegrationTest {
 		postReset.setDate(otherEntry.getDate().plusDays(1));
 		postReset = cdcSearchTestSupport.save(postReset);
 		cdcSearchTestSupport.awaitIndexed(postReset.getId());
+	}
+
+	@Test
+	void returnsServiceUnavailableWhenIndexingFails() throws Exception {
+		listener.stop();
+		doThrow(new IOException("connection refused"))
+				.when(searchWriter).index(any(DailyEntry.class));
+
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"))
+				.andExpect(jsonPath("$.error.message").value("E2E reset search indexing is unavailable"));
+	}
+
+	@Test
+	void returnsServiceUnavailableWhenSeededDocumentsCannotBeVerified() throws Exception {
+		listener.stop();
+		doNothing().when(searchWriter).index(any(DailyEntry.class));
+
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"))
+				.andExpect(jsonPath("$.error.message").value("E2E reset search indexing could not be verified"));
 	}
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {
