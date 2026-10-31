@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -30,6 +31,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 	private final String apiKey;
 	private final String apiSecret;
 
+	@Autowired
 	public CloudinaryHttpAssetClient(
 			ObjectMapper objectMapper,
 			@Value("${moodly.cloudinary.cloud-name}") String cloudName,
@@ -38,11 +40,29 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			@Value("${moodly.cloudinary.connect-timeout:2s}") Duration connectTimeout,
 			@Value("${moodly.cloudinary.request-timeout:5s}") Duration requestTimeout
 	) {
+		this(
+				objectMapper,
+				cloudName,
+				apiKey,
+				apiSecret,
+				requestTimeout,
+				HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+		);
+	}
+
+	CloudinaryHttpAssetClient(
+			ObjectMapper objectMapper,
+			String cloudName,
+			String apiKey,
+			String apiSecret,
+			Duration requestTimeout,
+			HttpClient httpClient
+	) {
 		this.objectMapper = objectMapper;
 		this.cloudName = cloudName;
 		this.apiKey = apiKey;
 		this.apiSecret = apiSecret;
-		this.httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
+		this.httpClient = httpClient;
 		this.requestTimeout = requestTimeout;
 		this.authorization = "Basic " +
 				Base64.getEncoder()
