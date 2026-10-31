@@ -21,10 +21,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 /** Resets only the fixed synthetic account reserved for browser E2E tests. */
 @Service
+@Profile("!prod & !production")
+@ConditionalOnProperty(name = "moodly.e2e.reset.enabled", havingValue = "true")
 public class E2eUserResetService {
 	public static final String DEFAULT_USER_ID = "synthetic|moodly-playwright-e2e";
 	private static final String WALK_HABIT_ID = "e2e-habit-walk";
