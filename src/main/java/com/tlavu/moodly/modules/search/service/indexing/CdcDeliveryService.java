@@ -310,11 +310,15 @@ public class CdcDeliveryService {
 		if (exception instanceof IOException) {
 			return false;
 		}
+		if (exception instanceof ElasticsearchException elasticsearchException) {
+			return !isRetryableStatus(elasticsearchException.status());
+		}
 
-		return !(exception instanceof ElasticsearchException elasticsearchException) ||
-				(elasticsearchException.status() != 408 &&
-						elasticsearchException.status() != 429 &&
-						elasticsearchException.status() < 500);
+		return true;
+	}
+
+	private boolean isRetryableStatus(int status) {
+		return status == 408 || status == 429 || status >= 500;
 	}
 
 	private String serialize(DailyEntrySearchDocument document) {
