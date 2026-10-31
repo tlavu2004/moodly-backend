@@ -7,9 +7,5 @@ import java.util.Map;
 public record EntrySearchView(
 		String entryId,
 		LocalDate date,
-		Map<String, List<HighlightFragment>> highlights
-) {
-	public record HighlightFragment(String text, List<HighlightRange> ranges) {}
-
-	public record HighlightRange(int start, int end) {}
-}
+		Map<String, List<HighlightFragmentView>> highlights
+) {}

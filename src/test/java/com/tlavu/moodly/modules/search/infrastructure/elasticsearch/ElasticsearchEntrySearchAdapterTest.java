@@ -17,6 +17,7 @@ import co.elastic.clients.util.ObjectBuilder;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
+import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
@@ -60,7 +61,7 @@ class ElasticsearchEntrySearchAdapterTest {
 			assertThat(searchResult.entryId()).isEqualTo("entry-1");
 			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
 				assertThat(fragment.text()).isEqualTo("I felt tired.");
-				assertThat(fragment.ranges()).containsExactly(new EntrySearchView.HighlightRange(7, 12));
+				assertThat(fragment.ranges()).containsExactly(new HighlightRangeView(7, 12));
 			});
 		});
 		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));

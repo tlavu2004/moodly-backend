@@ -11,6 +11,8 @@ import com.tlavu.moodly.modules.search.service.implementation.EntrySearchService
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
+import com.tlavu.moodly.modules.search.service.view.HighlightFragmentView;
+import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
@@ -54,8 +56,8 @@ class EntrySearchControllerTest {
 		EntrySearchView result = new EntrySearchView(
 				"entry-1",
 				LocalDate.of(2026, 8, 6),
-				Map.of("mood.note", List.of(new EntrySearchView.HighlightFragment(
-						"I felt tired.", List.of(new EntrySearchView.HighlightRange(7, 12)))))
+				Map.of("mood.note", List.of(new HighlightFragmentView(
+						"I felt tired.", List.of(new HighlightRangeView(7, 12)))))
 		);
 		EntrySearchInput input = new EntrySearchInput("tired", from, to, 0, 20);
 		when(entrySearchService.search(USER_ID, input))

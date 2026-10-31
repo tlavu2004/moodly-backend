@@ -11,8 +11,8 @@ import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightFragment;
-import com.tlavu.moodly.modules.search.service.view.EntrySearchView.HighlightRange;
+import com.tlavu.moodly.modules.search.service.view.HighlightFragmentView;
+import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -81,7 +81,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			List<EntrySearchView> items = response.hits().hits().stream()
 					.filter(hit -> hit.source() != null)
 					.map(hit -> {
-						Map<String, List<HighlightFragment>> highlights = normalizeHighlights(hit.highlight());
+						Map<String, List<HighlightFragmentView>> highlights = normalizeHighlights(hit.highlight());
 						return new EntrySearchView(hit.id(), hit.source().date(), highlights);
 					})
 					.toList();
@@ -97,16 +97,16 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		}
 	}
 
-	private Map<String, List<HighlightFragment>> normalizeHighlights(Map<String, List<String>> raw) {
+	private Map<String, List<HighlightFragmentView>> normalizeHighlights(Map<String, List<String>> raw) {
 		if (raw == null || raw.isEmpty()) return Map.of();
-		Map<String, List<HighlightFragment>> normalized = new LinkedHashMap<>();
+		Map<String, List<HighlightFragmentView>> normalized = new LinkedHashMap<>();
 		raw.forEach((field, fragments) -> normalized.put(field, fragments.stream().map(this::plainFragment).toList()));
 		return Map.copyOf(normalized);
 	}
 
-	private HighlightFragment plainFragment(String marked) {
+	private HighlightFragmentView plainFragment(String marked) {
 		StringBuilder text = new StringBuilder();
-		List<HighlightRange> ranges = new ArrayList<>();
+		List<HighlightRangeView> ranges = new ArrayList<>();
 		int cursor = 0;
 		while (cursor < marked.length()) {
 			int startTag = marked.indexOf("<em>", cursor);
@@ -122,9 +122,9 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			}
 			int start = text.length();
 			text.append(marked, startTag + 4, endTag);
-			ranges.add(new HighlightRange(start, text.length()));
+			ranges.add(new HighlightRangeView(start, text.length()));
 			cursor = endTag + 5;
 		}
-		return new HighlightFragment(text.toString(), List.copyOf(ranges));
+		return new HighlightFragmentView(text.toString(), List.copyOf(ranges));
 	}
 }
