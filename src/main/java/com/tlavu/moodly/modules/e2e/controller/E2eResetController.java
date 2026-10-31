@@ -1,14 +1,15 @@
 package com.tlavu.moodly.modules.e2e.controller;
 
+import com.tlavu.moodly.modules.e2e.dto.response.E2eResetResponse;
 import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
-import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
+import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
 import io.swagger.v3.oas.annotations.Operation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -37,7 +38,7 @@ public class E2eResetController {
 		summary = "Reset the fixed E2E account",
 		description = "Resets and seeds the server-owned synthetic Playwright account. Enabled only when explicitly configured outside production."
 	)
-	public ResponseEntity<ApiResponse<E2eUserResetService.ResetResult>> reset(
+	public ResponseEntity<ApiResponse<E2eResetResponse>> reset(
 			@RequestHeader(value = "X-E2E-Reset-Token", required = false) String suppliedToken
 	) {
 		if (
@@ -51,6 +52,6 @@ public class E2eResetController {
 			throw new ForbiddenException();
 		}
 
-		return ResponseEntity.ok(ApiResponse.success(resetService.reset()));
+		return ResponseEntity.ok(ApiResponse.success(E2eResetResponse.from(resetService.reset())));
 	}
 }

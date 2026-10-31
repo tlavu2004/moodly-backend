@@ -2,15 +2,16 @@ package com.tlavu.moodly.modules.e2e.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
+import com.tlavu.moodly.modules.e2e.service.view.E2eResetView;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
-import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
@@ -18,7 +19,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -53,7 +53,7 @@ public class E2eUserResetService {
 		this.userId = userId;
 	}
 
-	public synchronized ResetResult reset() {
+	public synchronized E2eResetView reset() {
 		try {
 			// Remove only this synthetic subject's old projection, including any stale documents.
 			elasticsearchClient.deleteByQuery(request -> request
@@ -145,7 +145,7 @@ public class E2eUserResetService {
 				}
 			}
 
-			return new ResetResult(
+			return new E2eResetView(
 					userId,
 					habitRepository.findByUserId(userId).size(),
 					entries.size(),
@@ -176,8 +176,5 @@ public class E2eUserResetService {
 		entry.setUpdatedAt(timestamp);
 
 		return entry;
-	}
-
-	public record ResetResult(String userId, int habits, int entries, String searchIndexing) {
 	}
 }
