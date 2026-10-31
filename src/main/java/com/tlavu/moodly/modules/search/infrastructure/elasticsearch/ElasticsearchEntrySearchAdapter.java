@@ -27,7 +27,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
-	private static final List<String> SEARCH_FIELDS = List.of("mood.note", "habits.note", "mood.tags");
+	private static final List<String> SEARCH_FIELDS = List.of(
+			"mood.note",
+			"habits.note",
+			"mood.tags"
+	);
 	private static final List<NamedValue<HighlightField>> HIGHLIGHT_FIELDS = List.of(
 			NamedValue.of("mood.note", new HighlightField.Builder().build()),
 			NamedValue.of("habits.note", new HighlightField.Builder().build()),
@@ -37,55 +41,81 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 	private final DailyEntrySearchIndexManager indexManager;
 
 	@Override
-	public EntrySearchPageView search(String userId, EntrySearchInput input, int offset) {
+	public EntrySearchPageView search(
+			String userId,
+			EntrySearchInput input,
+			int offset
+	) {
 		String query = input.query();
 		LocalDate from = input.from();
 		LocalDate to = input.to();
 		int page = input.page();
 		int size = input.size();
+
 		try {
-			SearchResponse<DailyEntrySearchDocument> response = elasticsearchClient.search(request -> request
-					.index(indexManager.getIndexName())
-					.from(offset)
-					.size(size)
-					.trackTotalHits(track -> track.enabled(true))
-					.sort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
-					.sort(sort -> sort.field(field -> field.field("date").order(SortOrder.Desc)))
-					.query(searchQuery -> searchQuery.bool(bool -> {
-						bool.must(match -> match.multiMatch(multiMatch -> multiMatch
-								.query(query)
-								.fields(SEARCH_FIELDS)));
-						bool.filter(filter -> filter.term(term -> term
-								.field("userId")
-								.value(userId)));
-						if (from != null || to != null) {
-							bool.filter(filter -> filter.range(range -> range.date(date -> {
-								date.field("date");
-								if (from != null) {
-									date.gte(from.toString());
+			SearchResponse<DailyEntrySearchDocument> response =
+					elasticsearchClient.search(request -> request
+							.index(indexManager.getIndexName())
+							.from(offset)
+							.size(size)
+							.trackTotalHits(track -> track.enabled(true))
+							.sort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
+							.sort(sort -> sort
+									.field(field -> field
+											.field("date")
+											.order(SortOrder.Desc)
+									)
+							).query(searchQuery -> searchQuery.bool(bool -> {
+								bool.must(match -> match
+										.multiMatch(multiMatch -> multiMatch
+												.query(query)
+												.fields(SEARCH_FIELDS)
+										)
+								);
+								bool.filter(filter -> filter.term(term -> term
+										.field("userId")
+										.value(userId)));
+
+								if (from != null || to != null) {
+									bool.filter(filter -> filter
+											.range(range -> range.date(date -> {
+												date.field("date");
+
+												if (from != null) {
+													date.gte(from.toString());
+												}
+												if (to != null) {
+													date.lte(to.toString());
+												}
+
+												return date;
+											}))
+									);
 								}
-								if (to != null) {
-									date.lte(to.toString());
-								}
-								return date;
-							})));
-						}
-						return bool;
-					}))
-					.highlight(highlight -> highlight
-							.preTags("<em>")
-							.postTags("</em>")
-							.fields(HIGHLIGHT_FIELDS)),
-					DailyEntrySearchDocument.class);
+								return bool;
+							}))
+							.highlight(highlight -> highlight
+									.preTags("<em>")
+									.postTags("</em>")
+									.fields(HIGHLIGHT_FIELDS)
+							),
+							DailyEntrySearchDocument.class);
 
 			List<EntrySearchView> items = response.hits().hits().stream()
 					.filter(hit -> hit.source() != null)
 					.map(hit -> {
 						Map<String, List<HighlightFragmentView>> highlights = normalizeHighlights(hit.highlight());
-						return new EntrySearchView(hit.id(), hit.source().date(), highlights);
-					})
-					.toList();
-			long total = response.hits().total() == null ? items.size() : response.hits().total().value();
+
+						return new EntrySearchView(
+								hit.id(),
+								hit.source().date(),
+								highlights
+						);
+					}).toList();
+			long total = response.hits().total() == null
+					? items.size()
+					: response.hits().total().value();
+
 			return new EntrySearchPageView(items, page, size, total);
 		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
@@ -93,14 +123,24 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringSearch(exception);
 			}
+
 			throw exception;
 		}
 	}
 
 	private Map<String, List<HighlightFragmentView>> normalizeHighlights(Map<String, List<String>> raw) {
-		if (raw == null || raw.isEmpty()) return Map.of();
+		if (raw == null || raw.isEmpty()) {
+			return Map.of();
+		}
+
 		Map<String, List<HighlightFragmentView>> normalized = new LinkedHashMap<>();
-		raw.forEach((field, fragments) -> normalized.put(field, fragments.stream().map(this::plainFragment).toList()));
+		raw.forEach((field, fragments) -> normalized.put(
+				field,
+				fragments.stream()
+						.map(this::plainFragment)
+						.toList()
+		));
+
 		return Map.copyOf(normalized);
 	}
 
@@ -108,23 +148,30 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		StringBuilder text = new StringBuilder();
 		List<HighlightRangeView> ranges = new ArrayList<>();
 		int cursor = 0;
+
 		while (cursor < marked.length()) {
 			int startTag = marked.indexOf("<em>", cursor);
+
 			if (startTag < 0) {
 				text.append(marked, cursor, marked.length());
 				break;
 			}
+
 			text.append(marked, cursor, startTag);
 			int endTag = marked.indexOf("</em>", startTag + 4);
+
 			if (endTag < 0) {
 				text.append(marked, startTag, marked.length());
 				break;
 			}
+
 			int start = text.length();
+
 			text.append(marked, startTag + 4, endTag);
 			ranges.add(new HighlightRangeView(start, text.length()));
 			cursor = endTag + 5;
 		}
+
 		return new HighlightFragmentView(text.toString(), List.copyOf(ranges));
 	}
 }

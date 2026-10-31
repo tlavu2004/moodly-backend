@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class DailyEntrySearchWriter {
-
 	private final ElasticsearchClient elasticsearchClient;
 	private final DailyEntrySearchIndexManager indexManager;
 

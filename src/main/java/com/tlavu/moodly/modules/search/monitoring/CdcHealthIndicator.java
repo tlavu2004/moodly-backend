@@ -9,21 +9,29 @@ import org.springframework.stereotype.Component;
 @Component("cdc")
 @RequiredArgsConstructor
 public class CdcHealthIndicator implements HealthIndicator {
-
 	private final CdcMonitor monitor;
 
 	@Override
 	public Health health() {
-		Health.Builder builder = monitor.isListenerHealthy() ? Health.up() : Health.down();
-		builder
-				.withDetail("listenerHealthy", monitor.isListenerHealthy())
+		Health.Builder builder = monitor.isListenerHealthy()
+				? Health.up()
+				: Health.down();
+		builder.withDetail("listenerHealthy", monitor.isListenerHealthy())
 				.withDetail("failedEventCount", monitor.getFailedEventCount());
+
 		if (monitor.getLastFailureAt() != null) {
-			builder.withDetail("lastFailureAt", monitor.getLastFailureAt());
+			builder.withDetail(
+					"lastFailureAt",
+					monitor.getLastFailureAt()
+			);
 		}
 		if (monitor.getLastFailure() != null) {
-			builder.withDetail("lastFailure", monitor.getLastFailure());
+			builder.withDetail(
+					"lastFailure",
+					monitor.getLastFailure()
+			);
 		}
+
 		return builder.build();
 	}
 }

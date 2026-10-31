@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class DailyEntryReindexService {
-
 	private final DailyEntryRepository dailyEntryRepository;
 	private final DailyEntrySearchWriter searchWriter;
 	private final DailyEntrySearchIndexManager indexManager;
@@ -37,9 +36,11 @@ public class DailyEntryReindexService {
 	public ReindexView reindex() {
 		try {
 			indexManager.recreate();
+
 			PageRequest pageRequest = PageRequest.of(0, batchSize);
 			Page<DailyEntry> page = dailyEntryRepository.findAll(pageRequest);
 			long indexed = 0;
+
 			while (true) {
 				for (DailyEntry entry : page.getContent()) {
 					searchWriter.index(entry);
@@ -56,6 +57,7 @@ public class DailyEntryReindexService {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringReindex(exception);
 			}
+
 			throw exception;
 		}
 	}

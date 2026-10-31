@@ -10,7 +10,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @Setter
 public class CdcResumeToken {
-
 	@Id
 	private String id;
 	private String token;

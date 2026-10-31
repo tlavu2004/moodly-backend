@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 /** Owns lifecycle operations for the derived daily-entry search index. */
 @Component
 public class DailyEntrySearchIndexManager {
-
 	private final ElasticsearchClient elasticsearchClient;
+
 	@Getter
 	private final String indexName;
 	private final Resource mapping;
@@ -28,7 +28,11 @@ public class DailyEntrySearchIndexManager {
 	}
 
 	public void createIfMissing() throws IOException {
-		if (!elasticsearchClient.indices().exists(request -> request.index(indexName)).value()) {
+		if (
+				!elasticsearchClient.indices()
+						.exists(request -> request.index(indexName))
+						.value()
+		) {
 			create();
 		}
 	}
@@ -37,12 +41,15 @@ public class DailyEntrySearchIndexManager {
 		if (elasticsearchClient.indices().exists(request -> request.index(indexName)).value()) {
 			elasticsearchClient.indices().delete(request -> request.index(indexName));
 		}
+
 		create();
 	}
 
 	private void create() throws IOException {
 		try (InputStream mappingStream = mapping.getInputStream()) {
-			elasticsearchClient.indices().create(request -> request.index(indexName).withJson(mappingStream));
+			elasticsearchClient.indices()
+					.create(request -> request.index(indexName)
+					.withJson(mappingStream));
 		}
 	}
 }

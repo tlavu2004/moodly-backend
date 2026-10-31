@@ -10,9 +10,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @Setter
 public class CdcDeadLetter {
-
 	@Id
 	private String id;
+
 	private String eventId;
 	private String operationType;
 	private String entryId;

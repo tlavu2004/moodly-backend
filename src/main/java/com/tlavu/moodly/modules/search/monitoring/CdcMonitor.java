@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 @Component
 @Getter
 public class CdcMonitor {
-
 	private final AtomicLong failedEventCount = new AtomicLong();
 	private volatile boolean listenerHealthy;
 	private volatile Instant lastFailureAt;
@@ -26,6 +25,7 @@ public class CdcMonitor {
 
 	public void deadLettered(Throwable exception) {
 		failedEventCount.incrementAndGet();
+
 		lastFailureAt = Instant.now();
 		lastFailure = exception.getMessage();
 	}
@@ -33,5 +33,4 @@ public class CdcMonitor {
 	public void replayedSuccessfully() {
 		failedEventCount.updateAndGet(count -> Math.max(0, count - 1));
 	}
-
 }

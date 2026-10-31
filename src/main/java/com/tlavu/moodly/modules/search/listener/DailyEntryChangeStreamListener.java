@@ -35,7 +35,6 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "moodly.cdc.enabled", havingValue = "true", matchIfMissing = true)
 public class DailyEntryChangeStreamListener {
-
 	private final DefaultMessageListenerContainer listenerContainer;
 	private final CdcResumeTokenRepository resumeTokenRepository;
 	private final CdcDeliveryService deliveryService;
@@ -87,7 +86,9 @@ public class DailyEntryChangeStreamListener {
 	@EventListener(ApplicationReadyEvent.class)
 	public synchronized void start() {
 		listenerContainer.start();
-		register(resumeTokenRepository.findById(streamId).map(CdcResumeToken::getToken).orElse(null));
+		register(resumeTokenRepository.findById(streamId)
+				.map(CdcResumeToken::getToken)
+				.orElse(null));
 		monitor.listenerStarted();
 	}
 
@@ -102,56 +103,117 @@ public class DailyEntryChangeStreamListener {
 
 	/** Waits until the registered change-stream subscription is active. */
 	public synchronized boolean awaitRegistration(Duration timeout) throws InterruptedException {
-		return subscription != null && subscription.await(timeout);
+		return subscription != null &&
+				subscription.await(timeout);
 	}
 
 	private void register(String resumeToken) {
-		ChangeStreamRequest.ChangeStreamRequestBuilder<DailyEntry> builder = ChangeStreamRequest.builder(this::onMessage)
-				.collection(collectionName)
-				.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
+		ChangeStreamRequest.ChangeStreamRequestBuilder<DailyEntry> builder =
+				ChangeStreamRequest.builder(this::onMessage)
+						.collection(collectionName)
+						.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
+
 		if (resumeToken != null) {
 			builder.resumeAfter(BsonDocument.parse(resumeToken));
 		}
-		subscription = listenerContainer.register(builder.build(), DailyEntry.class, this::onListenerFailure);
-		log.info("Started {} Change Stream{}.", collectionName, resumeToken == null ? "" : " from its resume token");
+
+		subscription = listenerContainer.register(
+				builder.build(),
+				DailyEntry.class,
+				this::onListenerFailure
+		);
+
+		log.info(
+				"Started {} Change Stream{}.",
+				collectionName,
+				resumeToken == null
+						? ""
+						: " from its resume token"
+		);
 	}
 
-	private void onMessage(Message<ChangeStreamDocument<org.bson.Document>, DailyEntry> message) {
+	private void onMessage(
+			Message<ChangeStreamDocument<Document>,
+			DailyEntry> message
+	) {
 		try {
-			ChangeStreamDocument<Document> raw = Objects.requireNonNull(message.getRaw(), "Change Stream message has no raw event");
-			BsonDocument resumeToken = Objects.requireNonNull(raw.getResumeToken(), "Change Stream event has no resume token");
+			ChangeStreamDocument<Document> raw = Objects.requireNonNull(
+					message.getRaw(),
+					"Change Stream message has no raw event"
+			);
+			BsonDocument resumeToken = Objects.requireNonNull(
+				raw.getResumeToken(),
+				"Change Stream event has no resume token"
+			);
 			String eventId = resumeToken.toString();
 			OperationType operationType = raw.getOperationType();
-			if (operationType == com.mongodb.client.model.changestream.OperationType.DELETE) {
-				BsonDocument documentKey = Objects.requireNonNull(raw.getDocumentKey(), "Delete event has no document key");
-				BsonValue id = Objects.requireNonNull(documentKey.get("_id"), "Delete event has no entry ID");
+
+			if (operationType == OperationType.DELETE) {
+				BsonDocument documentKey = Objects.requireNonNull(
+						raw.getDocumentKey(),
+						"Delete event has no document key"
+				);
+				BsonValue id = Objects.requireNonNull(
+						documentKey.get("_id"),
+						"Delete event has no entry ID"
+				);
 				String entryId = switch (id.getBsonType()) {
 					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
 					case STRING -> id.asString().getValue();
-					default -> throw new IllegalStateException("Delete event has an unsupported entry ID type: " + id.getBsonType());
+					default -> throw new IllegalStateException(
+							"Delete event has an unsupported entry ID type: " + id.getBsonType()
+					);
 				};
+
 				deliveryService.deliverDelete(eventId, entryId);
-			} else if (operationType == com.mongodb.client.model.changestream.OperationType.INSERT
-					|| operationType == com.mongodb.client.model.changestream.OperationType.UPDATE
-					|| operationType == com.mongodb.client.model.changestream.OperationType.REPLACE) {
-				deliveryService.deliverUpsert(eventId, operationType.getValue(), message.getBody());
+			} else if (
+					operationType == OperationType.INSERT ||
+					operationType == OperationType.UPDATE ||
+					operationType == OperationType.REPLACE
+			) {
+				deliveryService.deliverUpsert(
+						eventId,
+						operationType.getValue(),
+						message.getBody()
+				);
 			} else {
 				return;
 			}
-			resumeTokenRepository.save(new CdcResumeToken(streamId, resumeToken.toString(), Instant.now()));
+
+			resumeTokenRepository.save(
+					new CdcResumeToken(
+							streamId,
+							resumeToken.toString(),
+							Instant.now()
+					)
+			);
 		} catch (Exception exception) {
-			throw new IllegalStateException("Could not synchronize a " + collectionName + " change event", exception);
+			throw new IllegalStateException(
+					"Could not synchronize a " + collectionName + " change event",
+					exception
+			);
 		}
 	}
 
 	private synchronized void onListenerFailure(@NonNull Throwable exception) {
 		monitor.listenerFailed(exception);
+
 		if (!isExpiredResumeToken(exception)) {
-			log.error("{} Change Stream stopped unexpectedly.", collectionName, exception);
+			log.error(
+					"{} Change Stream stopped unexpectedly.",
+					collectionName,
+					exception
+			);
+
 			return;
 		}
 
-		log.warn("The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.", collectionName, exception);
+		log.warn(
+				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.",
+				collectionName,
+				exception
+		);
+
 		try {
 			listenerContainer.remove(subscription);
 			resumeTokenRepository.deleteById(streamId);
@@ -159,12 +221,18 @@ public class DailyEntryChangeStreamListener {
 			register(null);
 			monitor.listenerStarted();
 		} catch (Exception recoveryFailure) {
-			log.error("Could not recover {} Change Stream with a full reindex.", collectionName, recoveryFailure);
+			log.error(
+					"Could not recover {} Change Stream with a full reindex.",
+					collectionName,
+					recoveryFailure
+			);
 		}
 	}
 
 	private boolean isExpiredResumeToken(Throwable exception) {
 		String message = exception.getMessage();
-		return message != null && (message.contains("ChangeStreamHistoryLost") || message.contains("code 286"));
+		return message != null &&
+				(message.contains("ChangeStreamHistoryLost") ||
+				message.contains("code 286"));
 	}
 }

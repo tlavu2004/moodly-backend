@@ -50,13 +50,30 @@ public class CdcDeliveryService {
 		this.initialBackoff = Duration.ofMillis(initialBackoffMs);
 	}
 
-	public void deliverUpsert(String eventId, String operationType, DailyEntry entry) {
+	public void deliverUpsert(
+			String eventId,
+			String operationType,
+			DailyEntry entry
+	) {
 		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
-		deliver(eventId, operationType, entry.getId(), serialize(document), () -> searchWriter.index(entry.getId(), document));
+
+		deliver(
+				eventId,
+				operationType,
+				entry.getId(),
+				serialize(document),
+				() -> searchWriter.index(entry.getId(), document)
+		);
 	}
 
 	public void deliverDelete(String eventId, String entryId) {
-		deliver(eventId, "delete", entryId, null, () -> searchWriter.delete(entryId));
+		deliver(
+			eventId,
+			"delete",
+			entryId,
+			null,
+			() -> searchWriter.delete(entryId)
+		);
 	}
 
 	public void replay(String deadLetterId) {
@@ -68,30 +85,57 @@ public class CdcDeliveryService {
 	private void replayDeadLetter(CdcDeadLetter deadLetter) {
 		try {
 			if ("delete".equals(deadLetter.getOperationType())) {
-				deliverWithRetry(deadLetter.getEventId(), "delete", deadLetter.getEntryId(), () -> searchWriter.delete(deadLetter.getEntryId()));
+				deliverWithRetry(
+					deadLetter.getEventId(),
+					"delete",
+					deadLetter.getEntryId(),
+					() -> searchWriter.delete(deadLetter.getEntryId())
+				);
 			} else {
-				DailyEntrySearchDocument document = objectMapper.readValue(deadLetter.getPayload(), DailyEntrySearchDocument.class);
-				deliverWithRetry(deadLetter.getEventId(), deadLetter.getOperationType(), deadLetter.getEntryId(),
-						() -> searchWriter.index(deadLetter.getEntryId(), document));
+				DailyEntrySearchDocument document = objectMapper.readValue(
+						deadLetter.getPayload(),
+						DailyEntrySearchDocument.class
+				);
+
+				deliverWithRetry(
+						deadLetter.getEventId(),
+						deadLetter.getOperationType(),
+						deadLetter.getEntryId(),
+						() -> searchWriter.index(deadLetter.getEntryId(), document)
+				);
 			}
 			deadLetterRepository.delete(deadLetter);
 			monitor.replayedSuccessfully();
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 			handleReplayFailure(deadLetter, exception);
-			throw new IllegalStateException("CDC dead-letter replay was interrupted " + deadLetter.getId(), exception);
+
+			throw new IllegalStateException(
+					"CDC dead-letter replay was interrupted " + deadLetter.getId(),
+					exception
+			);
 		} catch (IOException exception) {
 			handleReplayFailure(deadLetter, exception);
+
 			throw SearchInfrastructureUnavailableException.duringReplay(exception);
 		} catch (ElasticsearchException exception) {
 			handleReplayFailure(deadLetter, exception);
+
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringReplay(exception);
 			}
-			throw new IllegalStateException("Could not replay CDC dead-letter event " + deadLetter.getId(), exception);
+
+			throw new IllegalStateException(
+					"Could not replay CDC dead-letter event " + deadLetter.getId(),
+					exception
+			);
 		} catch (RuntimeException exception) {
 			handleReplayFailure(deadLetter, exception);
-			throw new IllegalStateException("Could not replay CDC dead-letter event " + deadLetter.getId(), exception);
+
+			throw new IllegalStateException(
+					"Could not replay CDC dead-letter event " + deadLetter.getId(),
+					exception
+			);
 		}
 	}
 
@@ -105,12 +149,30 @@ public class CdcDeliveryService {
 
 	private void deliver(String eventId, String operationType, String entryId, String payload, ThrowingOperation operation) {
 		try {
-			deliverWithRetry(eventId, operationType, entryId, operation);
+			deliverWithRetry(
+					eventId,
+					operationType,
+					entryId,
+					operation
+			);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
-			saveDeadLetter(eventId, operationType, entryId, payload, exception);
+
+			saveDeadLetter(
+					eventId,
+					operationType,
+					entryId,
+					payload,
+					exception
+			);
 		} catch (IOException | RuntimeException exception) {
-			saveDeadLetter(eventId, operationType, entryId, payload, exception);
+			saveDeadLetter(
+					eventId,
+					operationType,
+					entryId,
+					payload,
+					exception
+			);
 		}
 	}
 
@@ -121,66 +183,117 @@ public class CdcDeliveryService {
 			String payload,
 			Exception exception
 	) {
-		deadLetterRepository.save(new CdcDeadLetter(
+		deadLetterRepository.save(
+				new CdcDeadLetter(
+						eventId,
+						operationType,
+						entryId,
+						payload,
+						exception.getMessage(),
+						maxAttempts,
+						Instant.now()
+				)
+		);
+		monitor.deadLettered(exception);
+
+		log.error(
+				"CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}",
 				eventId,
 				operationType,
 				entryId,
-				payload,
-				exception.getMessage(),
 				maxAttempts,
-				Instant.now()
-		));
-		monitor.deadLettered(exception);
-		log.error("CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}",
-				eventId, operationType, entryId, maxAttempts, exception);
+				exception
+		);
 	}
 
-	private void deliverWithRetry(String eventId, String operationType, String entryId, ThrowingOperation operation)
-			throws IOException, InterruptedException {
+	private void deliverWithRetry(
+			String eventId,
+			String operationType,
+			String entryId,
+			ThrowingOperation operation
+	) throws IOException, InterruptedException {
 		IOException lastIoFailure = null;
 		RuntimeException lastRuntimeFailure = null;
+
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 			try {
 				operation.run();
+
 				return;
 			} catch (IOException exception) {
 				if (isNonTransient(exception)) {
 					throw exception;
 				}
+
 				lastIoFailure = exception;
+
 				if (attempt == maxAttempts) {
 					break;
 				}
-				waitBeforeRetry(eventId, operationType, entryId, attempt, exception);
+
+				waitBeforeRetry(
+						eventId,
+						operationType,
+						entryId,
+						attempt,
+						exception
+				);
 			} catch (RuntimeException exception) {
 				if (isNonTransient(exception)) {
 					throw exception;
 				}
+
 				lastRuntimeFailure = exception;
+
 				if (attempt == maxAttempts) {
 					break;
 				}
-				waitBeforeRetry(eventId, operationType, entryId, attempt, exception);
+
+				waitBeforeRetry(
+						eventId,
+						operationType,
+						entryId,
+						attempt,
+						exception
+				);
 			}
 		}
+
 		if (lastIoFailure != null) {
 			throw lastIoFailure;
 		}
 		if (lastRuntimeFailure != null) {
 			throw lastRuntimeFailure;
 		}
+
 		throw new IOException("CDC delivery failed without an Elasticsearch exception");
 	}
 
-	private void waitBeforeRetry(String eventId, String operationType, String entryId, int attempt, Exception exception)
-			throws InterruptedException {
+	private void waitBeforeRetry(
+			String eventId,
+			String operationType,
+			String entryId,
+			int attempt,
+			Exception exception
+	) throws InterruptedException {
 		long delayMs = Math.min(initialBackoff.toMillis(), MAX_BACKOFF_MS);
 		for (int retry = 1; retry < attempt && delayMs > 0 && delayMs < MAX_BACKOFF_MS; retry++) {
 			delayMs = Math.min(delayMs * 2, MAX_BACKOFF_MS);
 		}
 		Duration delay = Duration.ofMillis(delayMs);
-		log.warn("Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, attempt={}, maxAttempts={}, delayMs={}",
-				eventId, operationType, entryId, attempt, maxAttempts, delay.toMillis(), exception);
+
+		log.warn(
+				"Retrying CDC Elasticsearch delivery: eventId={}, operation={}, entryId={}, " +
+						"attempt={}, maxAttempts={}, delayMs={}",
+				eventId,
+				operationType,
+				entryId,
+				attempt,
+				maxAttempts,
+				delay.toMillis(),
+				exception
+		);
+
 		retrySleeper.sleep(delay);
 	}
 
@@ -188,15 +301,19 @@ public class CdcDeliveryService {
 		if (exception instanceof IOException) {
 			return false;
 		}
-		return !(exception instanceof ElasticsearchException elasticsearchException)
-				|| (elasticsearchException.status() != 429 && elasticsearchException.status() < 500);
+
+		return !(exception instanceof ElasticsearchException elasticsearchException) ||
+				(elasticsearchException.status() != 429 && elasticsearchException.status() < 500);
 	}
 
 	private String serialize(DailyEntrySearchDocument document) {
 		try {
 			return objectMapper.writeValueAsString(document);
 		} catch (JacksonException exception) {
-			throw new IllegalStateException("Could not serialize CDC search document", exception);
+			throw new IllegalStateException(
+					"Could not serialize CDC search document",
+					exception
+			);
 		}
 	}
 

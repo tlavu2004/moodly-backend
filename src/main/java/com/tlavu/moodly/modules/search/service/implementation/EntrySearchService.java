@@ -10,11 +10,18 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class EntrySearchService {
-
 	private final EntrySearchQueryPort queryPort;
 
 	public EntrySearchPageView search(String userId, EntrySearchInput input) {
-		int offset = EntrySearchPagination.validatedOffset(input.page(), input.size());
-		return queryPort.search(userId, input, offset);
+		int offset = EntrySearchPagination.validatedOffset(
+				input.page(),
+				input.size()
+		);
+
+		return queryPort.search(
+				userId,
+				input,
+				offset
+		);
 	}
 }

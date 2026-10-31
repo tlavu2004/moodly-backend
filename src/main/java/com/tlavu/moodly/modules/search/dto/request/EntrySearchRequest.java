@@ -13,15 +13,21 @@ public record EntrySearchRequest(
 ) {
 	public EntrySearchRequest {
 		EntrySearchPagination.validatedOffset(page, size);
+
 		if (q.isBlank()) {
 			throw new InvalidRequestException("The 'q' parameter must not be blank.");
 		}
 		if (q.trim().length() > 200) {
 			throw new InvalidRequestException("The 'q' parameter must not exceed 200 characters.");
 		}
-		if (from != null && to != null && from.isAfter(to)) {
+		if (
+				from != null &&
+				to != null &&
+				from.isAfter(to)
+		) {
 			throw new InvalidRequestException("The 'from' date must not be after the 'to' date.");
 		}
+
 		q = q.trim();
 	}
 }

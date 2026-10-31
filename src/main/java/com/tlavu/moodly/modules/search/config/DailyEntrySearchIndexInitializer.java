@@ -34,6 +34,7 @@ public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringIndexInitialization(exception);
 			}
+
 			throw exception;
 		}
 	}
