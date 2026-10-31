@@ -1,4 +1,4 @@
-package com.tlavu.moodly.modules.e2e.service;
+package com.tlavu.moodly.modules.e2e.service.implementation;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;

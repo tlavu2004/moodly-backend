@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.e2e.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.tlavu.moodly.modules.e2e.service.E2eUserResetService;
+import com.tlavu.moodly.modules.e2e.service.implementation.E2eUserResetService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
