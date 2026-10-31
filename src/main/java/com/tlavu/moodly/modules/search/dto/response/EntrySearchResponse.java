@@ -12,29 +12,12 @@ public record EntrySearchResponse(
 		String entryId,
 		LocalDate date,
 		@Schema(description = "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets.")
-		Map<String, List<HighlightFragment>> highlights
+		Map<String, List<HighlightFragmentResponse>> highlights
 ) {
 	public static EntrySearchResponse from(EntrySearchView view) {
-		Map<String, List<HighlightFragment>> highlights = new LinkedHashMap<>();
+		Map<String, List<HighlightFragmentResponse>> highlights = new LinkedHashMap<>();
 		view.highlights().forEach((field, fragments) ->
-				highlights.put(field, fragments.stream().map(HighlightFragment::from).toList()));
+				highlights.put(field, fragments.stream().map(HighlightFragmentResponse::from).toList()));
 		return new EntrySearchResponse(view.entryId(), view.date(), Map.copyOf(highlights));
-	}
-
-	@Schema(requiredProperties = {"text", "ranges"})
-	public record HighlightFragment(String text, List<HighlightRange> ranges) {
-		private static HighlightFragment from(EntrySearchView.HighlightFragment view) {
-			return new HighlightFragment(
-					view.text(),
-					view.ranges().stream().map(HighlightRange::from).toList()
-			);
-		}
-	}
-
-	@Schema(requiredProperties = {"start", "end"})
-	public record HighlightRange(int start, int end) {
-		private static HighlightRange from(EntrySearchView.HighlightRange view) {
-			return new HighlightRange(view.start(), view.end());
-		}
 	}
 }
