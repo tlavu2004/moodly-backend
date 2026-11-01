@@ -9,17 +9,21 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.MongoTimeoutException;
+import com.mongodb.MongoException;
 import com.mongodb.client.model.changestream.OperationType;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.lang.reflect.Method;
 import java.util.Optional;
+import java.time.Instant;
 import org.bson.BsonDocument;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
@@ -59,7 +63,8 @@ class DailyEntryChangeStreamListenerTest {
 	@BeforeEach
 	void setUp() {
 		listener = new DailyEntryChangeStreamListener(
-				listenerContainer, resumeTokenRepository, deliveryService, reindexService, monitor, "entries-test", "stream-test");
+				listenerContainer, resumeTokenRepository, deliveryService, reindexService, monitor,
+				"entries-test", "stream-test", () -> Instant.parse("2026-11-02T00:00:00Z"));
 	}
 
 	@Test
@@ -156,16 +161,37 @@ class DailyEntryChangeStreamListenerTest {
 		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
 		listener.start();
 
-		invoke("onListenerFailure", Throwable.class, new IllegalStateException("code 286"));
+		invoke("onListenerFailure", Throwable.class, new IllegalStateException("stream failed", new MongoException(286, "history lost")));
 
 		verify(listenerContainer).remove(subscription);
-		verify(resumeTokenRepository).deleteById("stream-test");
+		ArgumentCaptor<CdcResumeToken> checkpoint = ArgumentCaptor.forClass(CdcResumeToken.class);
+		verify(resumeTokenRepository).save(checkpoint.capture());
+		assertThat(checkpoint.getValue().getResumeAt()).isEqualTo(Instant.parse("2026-11-02T00:00:00Z"));
+		assertThat(checkpoint.getValue().getToken()).isNull();
 		verify(reindexService).reindex();
 		verify(monitor, org.mockito.Mockito.times(2)).listenerStarted();
 
 		invoke("onListenerFailure", Throwable.class, new IllegalStateException("network error"));
 		verify(reindexService).reindex();
 		verify(monitor, org.mockito.Mockito.times(2)).listenerFailed(any(Throwable.class));
+	}
+
+	@Test
+	void keepsExpiredTokenAndRetriesRebuildAfterFailure() throws Exception {
+		CdcResumeToken expired = new CdcResumeToken("stream-test", "{_data: 'expired'}", Instant.now());
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.of(expired));
+		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
+		listener.start();
+		when(reindexService.reindex()).thenThrow(new IllegalStateException("index unavailable"))
+				.thenReturn(new ReindexView(0));
+
+		invoke("onListenerFailure", Throwable.class, new MongoException(286, "history lost"));
+		verify(resumeTokenRepository, never()).save(any(CdcResumeToken.class));
+		listener.recoverTransientFailure();
+
+		verify(reindexService, org.mockito.Mockito.times(2)).reindex();
+		verify(resumeTokenRepository).save(any(CdcResumeToken.class));
+		verify(monitor, org.mockito.Mockito.times(2)).listenerStarted();
 	}
 
 	@Test

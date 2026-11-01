@@ -56,6 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.bson.BsonTimestamp;
+import org.bson.Document;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -99,6 +102,8 @@ class CdcSearchInfrastructureIntegrationTest {
 	private DailyEntryChangeStreamListener listener;
 	@Autowired
 	private CdcResumeTokenRepository resumeTokenRepository;
+	@Autowired
+	private MongoTemplate mongoTemplate;
 	@MockitoSpyBean
 	private DailyEntryReindexService reindexService;
 	@MockitoSpyBean
@@ -331,6 +336,24 @@ class CdcSearchInfrastructureIntegrationTest {
 						.map(CdcResumeToken::getToken).filter(token -> !token.equals(tokenBeforeFailure)).isPresent(),
 				() -> "streamId=daily_entries_cdc_test");
 		assertThat(monitor.isListenerHealthy()).isTrue();
+	}
+
+	@Test
+	void replaysChangesFromPersistedRebuildOperationTimeAfterRestart() throws Exception {
+		listener.stop();
+		BsonTimestamp serverTime = mongoTemplate.executeCommand(new Document("ping", 1))
+				.get("operationTime", BsonTimestamp.class);
+		assertThat(serverTime).isNotNull();
+		resumeTokenRepository.save(CdcResumeToken.fromOperationTime("daily_entries_cdc_test",
+				Instant.ofEpochSecond(serverTime.getTime()), Instant.now()));
+		DailyEntry entry = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(),
+				"written while stopped", List.of(), "habit", 4));
+
+		listener.start();
+		awaitChangeStreamRegistration();
+		cdcSearchTestSupport.awaitIndexed(entry.getId());
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+				.isPresent();
 	}
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {
