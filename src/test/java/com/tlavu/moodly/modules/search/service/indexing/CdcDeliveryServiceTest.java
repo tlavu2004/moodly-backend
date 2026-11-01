@@ -238,7 +238,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("dead-letter-1"))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.CdcReplayException.class)
 				.hasCause(badRequest);
 		assertThat(deadLetter.getAttempts()).isEqualTo(4);
 		verify(deadLetterRepository).save(deadLetter);
@@ -253,7 +253,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("dead-letter-1"))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.CdcReplayException.class)
 				.hasMessageContaining("Could not replay");
 
 		assertThat(deadLetter.getAttempts()).isEqualTo(3);

@@ -8,6 +8,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
+import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
+import com.tlavu.moodly.modules.search.exception.CdcReplayException;
 import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
@@ -116,6 +118,23 @@ class GlobalExceptionHandlerTest {
 		assertThat(unexpected.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(unexpected.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
 		assertThat(unexpected.getBody().error().message()).doesNotContain("secret");
+	}
+
+	@Test
+	void keepsInternalModuleFailuresAtFiveHundredWithoutLeakingDetails() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/internal/cdc/dead-letters/secret/replay");
+		GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+		for (Exception exception : List.of(
+				new AvatarProfileMissingException(),
+				new CdcReplayException("sensitive dead letter", new IllegalArgumentException("secret"))
+		)) {
+			ResponseEntity<ApiResponse<Void>> response = handler.handleUnexpectedException(exception, request);
+			assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+			assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+			assertThat(response.getBody().error().message()).isEqualTo("An unexpected error occurred.");
+		}
 	}
 
 	@Test
