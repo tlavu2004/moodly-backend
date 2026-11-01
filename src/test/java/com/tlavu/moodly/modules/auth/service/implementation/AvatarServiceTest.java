@@ -274,7 +274,7 @@ class AvatarServiceTest {
 	}
 
 	@Test
-	void doesNotQueueUnexpectedAvatarDeletionProgrammingFailures() {
+	void queuesUnexpectedAvatarDeletionProgrammingFailuresButStillReportsThem() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		String previousPublicId = NAMESPACE + "old-avatar";
@@ -286,7 +286,7 @@ class AvatarServiceTest {
 		assertThatThrownBy(() -> service.delete())
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessage("invalid client state");
-		verify(pendingDeletions, never()).save(any());
+		verify(pendingDeletions).save(any(PendingAssetDeletion.class));
 	}
 
 	@Test

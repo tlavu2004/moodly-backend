@@ -194,7 +194,7 @@ public class AvatarService {
 	private void deleteObsoleteAsset(String publicId) {
 		try {
 			cloudinary.deleteImage(publicId);
-		} catch (AvatarAssetDeletionException exception) {
+		} catch (RuntimeException exception) {
 			try {
 				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
 						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
@@ -211,6 +211,9 @@ public class AvatarService {
 						"Cloudinary avatar cleanup could not be queued after profile persistence ({})",
 						schedulingException.getClass().getSimpleName()
 				);
+			}
+			if (!(exception instanceof AvatarAssetDeletionException)) {
+				throw exception;
 			}
 		}
 	}
