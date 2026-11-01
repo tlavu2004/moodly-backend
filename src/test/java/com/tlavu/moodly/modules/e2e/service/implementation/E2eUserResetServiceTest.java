@@ -6,17 +6,24 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.GetResponse;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.e2e.controller.E2eResetController;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
+import com.tlavu.moodly.shared.controller.advice.GlobalExceptionHandler;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class E2eUserResetServiceTest {
 	@Test
@@ -40,5 +47,14 @@ class E2eUserResetServiceTest {
 		assertThatThrownBy(service::reset)
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("E2E reset search indexing could not be verified");
+
+		MockMvc mvc = MockMvcBuilders.standaloneSetup(new E2eResetController(service, "test-token"))
+				.setControllerAdvice(new GlobalExceptionHandler())
+				.build();
+		mvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-token"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"))
+				.andExpect(jsonPath("$.error.message").value("E2E reset search indexing could not be verified"))
+				.andExpect(jsonPath("$.error.path").value("/internal/e2e/reset"));
 	}
 }
