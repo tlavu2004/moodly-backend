@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
@@ -18,6 +19,7 @@ import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Set;
@@ -192,7 +194,7 @@ public class AvatarService {
 	private void deleteObsoleteAsset(String publicId) {
 		try {
 			cloudinary.deleteImage(publicId);
-		} catch (RuntimeException exception) {
+		} catch (AvatarAssetDeletionException exception) {
 			try {
 				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
 						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
@@ -244,7 +246,7 @@ public class AvatarService {
 			return HexFormat.of()
 					.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(value.getBytes(StandardCharsets.UTF_8)));
-		} catch (Exception e) {
+		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);
 		}
 	}

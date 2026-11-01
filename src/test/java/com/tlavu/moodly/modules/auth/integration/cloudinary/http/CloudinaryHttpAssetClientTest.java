@@ -78,6 +78,19 @@ class CloudinaryHttpAssetClientTest {
 	}
 
 	@Test
+	void doesNotPresentUnexpectedClientProgrammingFailureAsProviderOutage() throws Exception {
+		doThrow(new IllegalArgumentException("invalid client state"))
+				.when(httpClient).send(any(HttpRequest.class), any());
+
+		assertThatThrownBy(() -> client.findImage(PUBLIC_ID))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid client state");
+		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid client state");
+	}
+
+	@Test
 	void preservesInterruptWhenImageLookupIsInterrupted() throws Exception {
 		doThrow(new InterruptedException("shutdown")).when(httpClient).send(any(HttpRequest.class), any());
 

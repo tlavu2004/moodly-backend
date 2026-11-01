@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.job;
 
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import java.time.Instant;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.dao.DataAccessException;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -28,7 +30,7 @@ public class PendingAvatarUploadCleanup {
 			try {
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingUploads.delete(pending);
-			} catch (RuntimeException exception) {
+			} catch (AvatarAssetDeletionException | DataAccessException exception) {
 				pending.recordCleanupFailure();
 				try {
 					pendingUploads.save(pending);

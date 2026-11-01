@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
@@ -235,7 +236,7 @@ class AvatarServiceTest {
 		when(cloudinary.findImage(publicId))
 				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
-		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
+		doThrow(new AvatarAssetDeletionException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 
 		assertThat(service.confirm(new ConfirmAvatarInput(publicId, 4)).publicId()).isEqualTo(publicId);
 		assertThat(profile.getAvatarPublicId()).isEqualTo(publicId);
@@ -264,12 +265,28 @@ class AvatarServiceTest {
 		String previousPublicId = NAMESPACE + "old-avatar";
 		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
-		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
+		doThrow(new AvatarAssetDeletionException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 
 		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));
 		assertThat(profile.getAvatarPublicId()).isNull();
 		verify(profiles).save(profile);
 		verify(pendingDeletions).save(any(PendingAssetDeletion.class));
+	}
+
+	@Test
+	void doesNotQueueUnexpectedAvatarDeletionProgrammingFailures() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		String previousPublicId = NAMESPACE + "old-avatar";
+		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
+		doThrow(new IllegalArgumentException("invalid client state"))
+				.when(cloudinary).deleteImage(previousPublicId);
+
+		assertThatThrownBy(() -> service.delete())
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid client state");
+		verify(pendingDeletions, never()).save(any());
 	}
 
 	@Test
@@ -279,7 +296,7 @@ class AvatarServiceTest {
 		String previousPublicId = NAMESPACE + "old-avatar";
 		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
 		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
-		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
+		doThrow(new AvatarAssetDeletionException("Cloudinary unavailable")).when(cloudinary).deleteImage(previousPublicId);
 		doThrow(new IllegalStateException("Mongo unavailable")).when(pendingDeletions).save(any(PendingAssetDeletion.class));
 
 		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));

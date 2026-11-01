@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
 import java.time.Instant;
@@ -41,7 +42,7 @@ class PendingAvatarUploadCleanupTest {
 		PendingAvatarUpload pending = new PendingAvatarUpload(
 				"moodly/test/users/user/avatar/retry", "user", Instant.now().minusSeconds(1));
 		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
-		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
+		doThrow(new AvatarAssetDeletionException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
 
 		cleanup.cleanupExpiredUploads();
 
