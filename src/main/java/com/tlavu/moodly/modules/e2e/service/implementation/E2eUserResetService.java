@@ -129,7 +129,8 @@ public class E2eUserResetService {
 			elasticsearchClient.indices()
 					.refresh(request -> request.index(indexManager.getIndexName()));
 
-			for (String entryId : ENTRY_IDS) {
+			for (DailyEntry entry : entries) {
+				String entryId = entry.getId();
 				GetResponse<DailyEntrySearchDocument> indexed = elasticsearchClient.get(
 						request -> request
 								.index(indexManager.getIndexName())
@@ -140,7 +141,7 @@ public class E2eUserResetService {
 				if (
 						!indexed.found() ||
 						indexed.source() == null ||
-						!userId.equals(indexed.source().userId())
+					!DailyEntrySearchDocument.from(entry).equals(indexed.source())
 				) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId)
