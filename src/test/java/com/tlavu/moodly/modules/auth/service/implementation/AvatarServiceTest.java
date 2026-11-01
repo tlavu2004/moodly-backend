@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
@@ -119,6 +120,22 @@ class AvatarServiceTest {
 		ordered.verify(profiles).save(profile);
 		verify(pendingUploads).delete(any(PendingAvatarUpload.class));
 		ordered.verify(cloudinary).deleteImage(NAMESPACE + "old-avatar");
+	}
+
+	@Test
+	void reportsDisappearingProfileAsInternalFailureBeforePersistingAvatar() {
+		String publicId = NAMESPACE + "new-avatar";
+		when(currentUser.id()).thenReturn(SUBJECT);
+		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
+				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
+		when(cloudinary.findImage(publicId))
+				.thenReturn(new ConfirmedAsset(publicId, 4, "image/webp", 2048));
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(publicId, 4)))
+				.isInstanceOf(AvatarProfileMissingException.class);
+		verify(profiles, never()).save(any());
+		verify(pendingUploads, never()).delete(any());
 	}
 
 	@Test

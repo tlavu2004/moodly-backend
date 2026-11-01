@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
@@ -138,7 +139,8 @@ public class AvatarService {
 			throw AvatarException.invalidMetadata();
 		}
 
-		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();
+		UserProfile profile = profiles.findByAuth0Subject(subject)
+				.orElseThrow(AvatarProfileMissingException::new);
 		String previousPublicId = profile.getAvatarPublicId();
 
 		profile.replaceAvatar(

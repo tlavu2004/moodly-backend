@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import java.io.IOException;
@@ -104,7 +105,7 @@ class CloudinaryHttpAssetClientTest {
 		assertThat(request.getValue().headers().firstValue("Content-Type"))
 				.contains("application/x-www-form-urlencoded");
 		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(AvatarAssetDeletionException.class)
 				.hasMessage("Cloudinary deletion failed.");
 	}
 
@@ -114,7 +115,7 @@ class CloudinaryHttpAssetClientTest {
 
 		try {
 			assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
-					.isInstanceOf(IllegalStateException.class)
+					.isInstanceOf(AvatarAssetDeletionException.class)
 					.hasCauseInstanceOf(InterruptedException.class);
 			assertThat(Thread.currentThread().isInterrupted()).isTrue();
 		} finally {

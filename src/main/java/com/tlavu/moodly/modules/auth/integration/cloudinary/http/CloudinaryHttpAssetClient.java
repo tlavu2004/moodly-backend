@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
@@ -149,17 +150,19 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 
 			if (response.statusCode() >= 300) {
-				throw new IllegalStateException("Cloudinary deletion failed.");
+				throw new AvatarAssetDeletionException("Cloudinary deletion failed.");
 			}
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 
-			throw new IllegalStateException(
+			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion was interrupted.",
 					exception
 			);
+		} catch (AvatarAssetDeletionException exception) {
+			throw exception;
 		} catch (Exception exception) {
-			throw new IllegalStateException(
+			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion failed.",
 					exception
 			);
