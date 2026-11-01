@@ -55,4 +55,19 @@ class PendingAssetDeletionCleanupTest {
 		assertThat(saved.getValue().getNextAttemptAt()).isAfter(Instant.now());
 		verify(pendingDeletions, never()).delete(any());
 	}
+
+	@Test
+	void continuesWithOtherAssetsAfterUnexpectedDeletionFailure() {
+		PendingAssetDeletion failing = new PendingAssetDeletion("moodly/test/users/user/avatar/failing", Instant.now().minusSeconds(1));
+		PendingAssetDeletion healthy = new PendingAssetDeletion("moodly/test/users/user/avatar/healthy", Instant.now().minusSeconds(1));
+		when(pendingDeletions.findByNextAttemptAtBefore(any())).thenReturn(List.of(failing, healthy));
+		doThrow(new IllegalArgumentException("invalid client state")).when(cloudinary).deleteImage(failing.getPublicId());
+
+		cleanup.cleanupObsoleteAssets();
+
+		verify(pendingDeletions).save(failing);
+		assertThat(failing.getCleanupAttempts()).isEqualTo(1);
+		verify(cloudinary).deleteImage(healthy.getPublicId());
+		verify(pendingDeletions).delete(healthy);
+	}
 }

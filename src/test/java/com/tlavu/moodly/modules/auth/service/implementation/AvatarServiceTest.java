@@ -274,7 +274,7 @@ class AvatarServiceTest {
 	}
 
 	@Test
-	void queuesUnexpectedAvatarDeletionProgrammingFailuresButStillReportsThem() {
+	void returnsPersistedAvatarStateAndQueuesUnexpectedCleanupFailure() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		String previousPublicId = NAMESPACE + "old-avatar";
@@ -283,9 +283,9 @@ class AvatarServiceTest {
 		doThrow(new IllegalArgumentException("invalid client state"))
 				.when(cloudinary).deleteImage(previousPublicId);
 
-		assertThatThrownBy(() -> service.delete())
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessage("invalid client state");
+		assertThat(service.delete()).isEqualTo(new AvatarView(null, null, null, null));
+		assertThat(profile.getAvatarPublicId()).isNull();
+		verify(profiles).save(profile);
 		verify(pendingDeletions).save(any(PendingAssetDeletion.class));
 	}
 

@@ -202,18 +202,14 @@ public class AvatarService {
 				pending.recordFailure(Instant.now());
 				pendingDeletions.save(pending);
 
-				log.warn(
-						"Cloudinary avatar cleanup queued after profile persistence ({})",
-						exception.getClass().getSimpleName()
-				);
+				if (exception instanceof AvatarAssetDeletionException) {
+					log.warn("Cloudinary avatar cleanup queued after profile persistence", exception);
+				} else {
+					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence", exception);
+				}
 			} catch (RuntimeException schedulingException) {
-				log.error(
-						"Cloudinary avatar cleanup could not be queued after profile persistence ({})",
-						schedulingException.getClass().getSimpleName()
-				);
-			}
-			if (!(exception instanceof AvatarAssetDeletionException)) {
-				throw exception;
+				schedulingException.addSuppressed(exception);
+				log.error("Cloudinary avatar cleanup could not be queued after profile persistence", schedulingException);
 			}
 		}
 	}
