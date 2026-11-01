@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.MongoTimeoutException;
 import com.mongodb.client.model.changestream.OperationType;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
@@ -165,6 +166,31 @@ class DailyEntryChangeStreamListenerTest {
 		invoke("onListenerFailure", Throwable.class, new IllegalStateException("network error"));
 		verify(reindexService).reindex();
 		verify(monitor, org.mockito.Mockito.times(2)).listenerFailed(any(Throwable.class));
+	}
+
+	@Test
+	void restartsTransientMongoFailureFromPersistedToken() throws Exception {
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
+		listener.start();
+
+		invoke("onListenerFailure", Throwable.class, new MongoTimeoutException("connection lost"));
+		listener.recoverTransientFailure();
+
+		verify(listenerContainer).remove(subscription);
+		verify(listenerContainer).stop();
+		verify(listenerContainer, org.mockito.Mockito.times(2)).start();
+		verify(resumeTokenRepository, org.mockito.Mockito.times(2)).findById("stream-test");
+		verify(monitor, org.mockito.Mockito.times(2)).listenerStarted();
+	}
+
+	@Test
+	void leavesProgrammingFailureUnhealthyWithoutAutomaticReplay() throws Exception {
+		invoke("onListenerFailure", Throwable.class, new IllegalArgumentException("invalid writer state"));
+		listener.recoverTransientFailure();
+
+		verify(monitor).listenerFailed(any(Throwable.class));
+		verifyNoInteractions(listenerContainer, resumeTokenRepository);
 	}
 
 	private void invoke(String name, Class<?> parameterType, Object argument) throws Exception {

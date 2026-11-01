@@ -5,6 +5,8 @@ import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
+import com.mongodb.MongoSocketException;
+import com.mongodb.MongoTimeoutException;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
@@ -28,6 +30,9 @@ import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
 import org.springframework.data.mongodb.core.messaging.DefaultMessageListenerContainer;
 import org.springframework.data.mongodb.core.messaging.Message;
 import org.springframework.data.mongodb.core.messaging.Subscription;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Maintains Elasticsearch as an asynchronous, rebuildable projection of daily_entries. */
@@ -43,6 +48,7 @@ public class DailyEntryChangeStreamListener {
 	private final String collectionName;
 	private final String streamId;
 	private Subscription subscription;
+	private boolean recoveryPending;
 
 	@Autowired
 	public DailyEntryChangeStreamListener(
@@ -85,6 +91,7 @@ public class DailyEntryChangeStreamListener {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public synchronized void start() {
+		recoveryPending = false;
 		listenerContainer.start();
 		register(resumeTokenRepository.findById(streamId)
 				.map(CdcResumeToken::getToken)
@@ -94,11 +101,30 @@ public class DailyEntryChangeStreamListener {
 
 	/** Stops the stream without deleting its persisted resume token. */
 	public synchronized void stop() {
+		recoveryPending = false;
 		if (subscription != null) {
 			listenerContainer.remove(subscription);
 			subscription = null;
 		}
 		listenerContainer.stop();
+	}
+
+	/** Restarts only transient MongoDB failures from the last persisted token. */
+	@Scheduled(fixedDelayString = "${moodly.cdc.recovery-delay-ms:30000}")
+	public synchronized void recoverTransientFailure() {
+		if (!recoveryPending) {
+			return;
+		}
+
+		recoveryPending = false;
+		try {
+			stop();
+			start();
+		} catch (RuntimeException exception) {
+			recoveryPending = true;
+			monitor.listenerFailed(exception);
+			log.error("Could not restart {} Change Stream from its resume token.", collectionName, exception);
+		}
 	}
 
 	/** Waits until the registered change-stream subscription is active. */
@@ -199,9 +225,11 @@ public class DailyEntryChangeStreamListener {
 		monitor.listenerFailed(exception);
 
 		if (!isExpiredResumeToken(exception)) {
+			recoveryPending = isTransientMongoFailure(exception);
 			log.error(
-					"{} Change Stream stopped unexpectedly.",
+					"{} Change Stream stopped unexpectedly (automaticRecovery={}).",
 					collectionName,
+					recoveryPending,
 					exception
 			);
 
@@ -227,6 +255,16 @@ public class DailyEntryChangeStreamListener {
 					recoveryFailure
 			);
 		}
+	}
+
+	private boolean isTransientMongoFailure(Throwable exception) {
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof MongoSocketException || cause instanceof MongoTimeoutException ||
+					cause instanceof TransientDataAccessException || cause instanceof DataAccessResourceFailureException) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean isExpiredResumeToken(Throwable exception) {
