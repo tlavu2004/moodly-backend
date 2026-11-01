@@ -98,6 +98,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	void prepareState() throws Exception {
 		listener.stop();
 		cdcSearchTestSupport.clearState();
+		cdcHealthIndicator.refreshDeadLetterCount();
 		listener.start();
 		awaitChangeStreamRegistration();
 	}
@@ -116,6 +117,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		CdcDeadLetter deadLetter = deadLetterRepository.save(new CdcDeadLetter(
 				"event-1", "update", "entry-1", "invalid payload", "old failure", 1, Instant.now()
 		));
+		cdcHealthIndicator.refreshDeadLetterCount();
 		assertThat(cdcHealthIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 1L);
 
@@ -125,10 +127,12 @@ class CdcSearchInfrastructureIntegrationTest {
 				.containsEntry("failedEventCount", 1L);
 
 		CdcHealthIndicator restartedIndicator = new CdcHealthIndicator(new CdcMonitor(), deadLetterRepository);
+		restartedIndicator.initializeDeadLetterCount();
 		assertThat(restartedIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 1L);
 
 		deadLetterRepository.delete(deadLetter);
+		restartedIndicator.refreshDeadLetterCount();
 		assertThat(restartedIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 0L);
 	}
