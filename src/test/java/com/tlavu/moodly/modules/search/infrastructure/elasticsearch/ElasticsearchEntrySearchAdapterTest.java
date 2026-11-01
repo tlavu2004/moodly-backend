@@ -22,7 +22,9 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +52,11 @@ class ElasticsearchEntrySearchAdapterTest {
 		when(hits.hits()).thenReturn(List.of(hit));
 		when(hit.id()).thenReturn("entry-1");
 		when(hit.source()).thenReturn(new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, List.of()));
-		when(hit.highlight()).thenReturn(java.util.Map.of("mood.note", List.of("I felt <em>tired</em>.")));
+		Map<String, List<String>> rawHighlights = new LinkedHashMap<>();
+		rawHighlights.put("mood.tags", List.of("<em>tired</em>"));
+		rawHighlights.put("mood.note", List.of("I felt <em>tired</em>."));
+		rawHighlights.put("habits.note", List.of("<em>tired</em> habit"));
+		when(hit.highlight()).thenReturn(rawHighlights);
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		List<EntrySearchView> result = adapter.search("user-1", new EntrySearchInput(
@@ -59,6 +65,10 @@ class ElasticsearchEntrySearchAdapterTest {
 
 		assertThat(result).singleElement().satisfies(searchResult -> {
 			assertThat(searchResult.entryId()).isEqualTo("entry-1");
+			assertThat(searchResult.highlights().keySet())
+					.containsExactly("habits.note", "mood.note", "mood.tags");
+			assertThatThrownBy(() -> searchResult.highlights().clear())
+					.isInstanceOf(UnsupportedOperationException.class);
 			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
 				assertThat(fragment.text()).isEqualTo("I felt tired.");
 				assertThat(fragment.ranges()).containsExactly(new HighlightRangeView(7, 12));

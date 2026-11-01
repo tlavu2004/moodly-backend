@@ -16,6 +16,7 @@ import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
@@ -134,14 +135,16 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		}
 
 		Map<String, List<HighlightFragmentView>> normalized = new LinkedHashMap<>();
-		raw.forEach((field, fragments) -> normalized.put(
-				field,
-				fragments.stream()
-						.map(this::plainFragment)
-						.toList()
-		));
+		raw.entrySet().stream()
+				.sorted(Map.Entry.comparingByKey())
+				.forEach(entry -> normalized.put(
+						entry.getKey(),
+						entry.getValue().stream()
+								.map(this::plainFragment)
+								.toList()
+				));
 
-		return Map.copyOf(normalized);
+		return Collections.unmodifiableMap(normalized);
 	}
 
 	private HighlightFragmentView plainFragment(String marked) {

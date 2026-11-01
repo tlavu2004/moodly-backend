@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.dto.response;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,7 @@ public record EntrySearchResponse(
 		return new EntrySearchResponse(
 				view.entryId(),
 				view.date(),
-				Map.copyOf(highlights)
+				Collections.unmodifiableMap(highlights)
 		);
 	}
 }
