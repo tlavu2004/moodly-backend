@@ -30,20 +30,18 @@ public class PendingAvatarUploadCleanup {
 			try {
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingUploads.delete(pending);
-			} catch (AvatarAssetDeletionException | DataAccessException exception) {
+			} catch (RuntimeException exception) {
 				pending.recordCleanupFailure();
 				try {
 					pendingUploads.save(pending);
-					log.warn(
-							"Avatar cleanup retry {} failed ({})",
-							pending.getCleanupAttempts(),
-							exception.getClass().getSimpleName()
-					);
+					if (exception instanceof AvatarAssetDeletionException || exception instanceof DataAccessException) {
+						log.warn("Avatar cleanup retry {} failed", pending.getCleanupAttempts(), exception);
+					} else {
+						log.error("Unexpected avatar cleanup retry {} failure", pending.getCleanupAttempts(), exception);
+					}
 				} catch (RuntimeException persistenceException) {
-					log.error(
-							"Avatar cleanup retry state could not be persisted ({})",
-							persistenceException.getClass().getSimpleName()
-					);
+					persistenceException.addSuppressed(exception);
+					log.error("Avatar cleanup retry state could not be persisted", persistenceException);
 				}
 			}
 		}
