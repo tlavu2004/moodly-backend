@@ -20,15 +20,17 @@ for error contracts and codes, `error/exception` for shared exceptions, and
   and Spring Security integration.
 - Within `modules.auth`, `security` resolves the verified identity and configures JWT validation,
   `job` runs avatar cleanup, `dto/request` and `dto/response` hold API types,
-  `dto/result` holds internal operation results, and `exception` holds avatar-specific errors.
+  `service/input` and `service/view` hold internal operation types, and
+  `exception` holds avatar-specific errors.
 - `modules.habits` owns habit lifecycle operations.
 - `modules.entries` owns daily entries and mood logging.
 - `modules.stats` owns streak and aggregation-based statistics.
 - `modules.search` owns Elasticsearch index models, the search API, and indexing.
 - Within `modules.search`, `controller/client` exposes the authenticated search
   endpoint and `controller/internal` exposes maintenance operations.
-  `service/query` handles search requests and
-  `service/indexing` coordinates Change Stream delivery and reindexing.
+  `service/implementation` handles search requests, `service/port` defines
+  the query port, and `service/indexing` coordinates Change Stream delivery
+  and reindexing.
   `model/mongodb`
   contains resume tokens and dead letters; `model/elasticsearch` contains
   the derived daily-entry search document.
