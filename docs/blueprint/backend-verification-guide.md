@@ -26,13 +26,13 @@ If the collection was updated, close and reopen it in Bruno to load the new requ
 
 ## 2. Authentication conventions
 
-| Request group | Configuration |
-|---|---|
-| Health | `No Auth` |
-| User A profile bootstrap, habits, entries, statistics, search, and avatars | `Inherit` from the collection OAuth configuration |
-| User B ownership checks | Request-level OAuth 2.0 with the `moodly-user-b-local` credential ID |
-| Invalid token | Intentionally invalid Bearer token |
-| CDC maintenance | `No Auth` plus `X-Maintenance-Key` |
+| Request group                                                              | Configuration                                                        |
+|----------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Health                                                                     | `No Auth`                                                            |
+| User A profile bootstrap, habits, entries, statistics, search, and avatars | `Inherit` from the collection OAuth configuration                    |
+| User B ownership checks                                                    | Request-level OAuth 2.0 with the `moodly-user-b-local` credential ID |
+| Invalid token                                                              | Intentionally invalid Bearer token                                   |
+| CDC maintenance                                                            | `No Auth` plus `X-Maintenance-Key`                                   |
 
 Bruno stores the access token after Auth0 Universal Login. Do not copy access tokens into `.env`, do not use ID tokens for API calls, and do not expose an Auth0 Client Secret in the SPA or Bruno.
 
@@ -193,7 +193,7 @@ Create a new signed upload and upload an image as user A, but do not confirm it 
 
 The request must return HTTP `400` with an ownership error. User B must not confirm or manage an asset under user A's namespace. Then switch back to user A and confirm the pending upload successfully.
 
-A Cloudinary signed upload payload is intentionally a short-lived bearer capability for its fixed `public_id`; Cloudinary cannot infer which browser user sends it. Therefore do not treat a leaked user-A signature as an Auth0 authorization test. The application-level invariant is that user B cannot ask Moodly to issue a user-A public ID, cannot confirm that public ID, and cannot replace or delete user A's persisted avatar. Keep upload signatures private and short-lived; after the ownership test, confirm or allow cleanup to remove the pending asset.
+A Cloudinary signed upload payload is intentionally a short-lived bearer capability for its fixed `public_id`; Cloudinary cannot infer which browser user sends it. Therefore, do not treat a leaked user-A signature as an Auth0 authorization test. The application-level invariant is that user B cannot ask Moodly to issue a user-A public ID, cannot confirm that public ID, and cannot replace or delete user A's persisted avatar. Keep upload signatures private and short-lived; after the ownership test, confirm or allow cleanup to remove the pending asset.
 
 ## 11. Replace an avatar and delete the previous asset
 

@@ -12,8 +12,8 @@ class MoodlyTimeTest {
 
 	@Test
 	void changesTheBusinessDateAtHoChiMinhMidnight() {
-		var beforeMidnight = Clock.fixed(Instant.parse("2026-09-21T16:59:59Z"), ZoneOffset.UTC);
-		var atMidnight = Clock.fixed(Instant.parse("2026-09-21T17:00:00Z"), ZoneOffset.UTC);
+		Clock beforeMidnight = Clock.fixed(Instant.parse("2026-09-21T16:59:59Z"), ZoneOffset.UTC);
+		Clock atMidnight = Clock.fixed(Instant.parse("2026-09-21T17:00:00Z"), ZoneOffset.UTC);
 
 		assertThat(MoodlyTime.today(beforeMidnight)).isEqualTo(LocalDate.of(2026, 9, 21));
 		assertThat(MoodlyTime.today(atMidnight)).isEqualTo(LocalDate.of(2026, 9, 22));

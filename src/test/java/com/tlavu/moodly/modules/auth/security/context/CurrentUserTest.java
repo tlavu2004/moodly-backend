@@ -1,0 +1,45 @@
+package com.tlavu.moodly.modules.auth.security.context;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.tlavu.moodly.modules.auth.identity.CurrentUserIdentity;
+import java.time.Instant;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+class CurrentUserTest {
+
+	private final CurrentUser currentUser = new CurrentUser();
+
+	@Test
+	void rejectsMissingJwtAsUnauthenticated() {
+		assertThatThrownBy(currentUser::id)
+				.isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+	}
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
+	}
+
+	@Test
+	void resolvesTheVerifiedIdentityWithoutWritingApplicationData() {
+		Jwt jwt = Jwt.withTokenValue("test-token")
+				.header("alg", "none")
+				.subject("auth0|user-123")
+				.claim("email", "  USER@Example.COM ")
+				.issuedAt(Instant.now())
+				.expiresAt(Instant.now().plusSeconds(60))
+				.build();
+		JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt);
+		authentication.setAuthenticated(true);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		assertThat(currentUser.id()).isEqualTo("auth0|user-123");
+		assertThat(currentUser.identity()).isEqualTo(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
+	}
+}

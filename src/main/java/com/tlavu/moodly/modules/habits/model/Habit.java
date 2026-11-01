@@ -1,0 +1,57 @@
+package com.tlavu.moodly.modules.habits.model;
+
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document(collection = "habits")
+@CompoundIndex(name = "user_active_idx", def = "{ 'userId': 1, 'active': 1 }")
+@Getter
+@NoArgsConstructor
+public class Habit {
+	@Id
+	private String id;
+
+	private String userId;
+	private String name;
+	private String icon;
+	private TargetFrequency targetFrequency;
+	private boolean active;
+
+	@Version
+	private Long version;
+
+	public Habit(
+			String id,
+			String userId,
+			String name,
+			String icon,
+			TargetFrequency targetFrequency,
+			boolean active
+	) {
+		this.id = id;
+		this.userId = userId;
+		this.name = name;
+		this.icon = icon;
+		this.targetFrequency = targetFrequency;
+		this.active = active;
+	}
+
+	public void update(String name, String icon) {
+		this.name = name;
+		this.icon = icon;
+	}
+
+	public void archive() {
+		this.active = false;
+	}
+
+	public void restore() {
+		this.active = true;
+	}
+
+}

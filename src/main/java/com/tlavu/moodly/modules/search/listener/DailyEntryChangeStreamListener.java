@@ -1,0 +1,238 @@
+package com.tlavu.moodly.modules.search.listener;
+
+import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
+
+import com.mongodb.client.model.changestream.FullDocument;
+import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.client.model.changestream.OperationType;
+import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
+import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
+import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
+import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
+import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import java.time.Instant;
+import java.time.Duration;
+import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
+import org.bson.BsonDocument;
+import org.bson.BsonValue;
+import org.bson.Document;
+import org.jspecify.annotations.NonNull;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
+import org.springframework.data.mongodb.core.messaging.DefaultMessageListenerContainer;
+import org.springframework.data.mongodb.core.messaging.Message;
+import org.springframework.data.mongodb.core.messaging.Subscription;
+import org.springframework.stereotype.Component;
+
+/** Maintains Elasticsearch as an asynchronous, rebuildable projection of daily_entries. */
+@Slf4j
+@Component
+@ConditionalOnProperty(name = "moodly.cdc.enabled", havingValue = "true", matchIfMissing = true)
+public class DailyEntryChangeStreamListener {
+	private final DefaultMessageListenerContainer listenerContainer;
+	private final CdcResumeTokenRepository resumeTokenRepository;
+	private final CdcDeliveryService deliveryService;
+	private final DailyEntryReindexService reindexService;
+	private final CdcMonitor monitor;
+	private final String collectionName;
+	private final String streamId;
+	private Subscription subscription;
+
+	@Autowired
+	public DailyEntryChangeStreamListener(
+			MongoTemplate mongoTemplate,
+			CdcResumeTokenRepository resumeTokenRepository,
+			CdcDeliveryService deliveryService,
+			DailyEntryReindexService reindexService,
+			CdcMonitor monitor,
+			@Value("${moodly.entries.collection-name}") String collectionName,
+			@Value("${moodly.cdc.stream-id}") String streamId
+	) {
+		this(
+				new DefaultMessageListenerContainer(mongoTemplate),
+				resumeTokenRepository,
+				deliveryService,
+				reindexService,
+				monitor,
+				collectionName,
+				streamId
+		);
+	}
+
+	DailyEntryChangeStreamListener(
+			DefaultMessageListenerContainer listenerContainer,
+			CdcResumeTokenRepository resumeTokenRepository,
+			CdcDeliveryService deliveryService,
+			DailyEntryReindexService reindexService,
+			CdcMonitor monitor,
+			String collectionName,
+			String streamId
+	) {
+		this.listenerContainer = listenerContainer;
+		this.resumeTokenRepository = resumeTokenRepository;
+		this.deliveryService = deliveryService;
+		this.reindexService = reindexService;
+		this.monitor = monitor;
+		this.collectionName = collectionName;
+		this.streamId = streamId;
+	}
+
+	@EventListener(ApplicationReadyEvent.class)
+	public synchronized void start() {
+		listenerContainer.start();
+		register(resumeTokenRepository.findById(streamId)
+				.map(CdcResumeToken::getToken)
+				.orElse(null));
+		monitor.listenerStarted();
+	}
+
+	/** Stops the stream without deleting its persisted resume token. */
+	public synchronized void stop() {
+		if (subscription != null) {
+			listenerContainer.remove(subscription);
+			subscription = null;
+		}
+		listenerContainer.stop();
+	}
+
+	/** Waits until the registered change-stream subscription is active. */
+	public synchronized boolean awaitRegistration(Duration timeout) throws InterruptedException {
+		return subscription != null &&
+				subscription.await(timeout);
+	}
+
+	private void register(String resumeToken) {
+		ChangeStreamRequest.ChangeStreamRequestBuilder<DailyEntry> builder =
+				ChangeStreamRequest.builder(this::onMessage)
+						.collection(collectionName)
+						.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
+
+		if (resumeToken != null) {
+			builder.resumeAfter(BsonDocument.parse(resumeToken));
+		}
+
+		subscription = listenerContainer.register(
+				builder.build(),
+				DailyEntry.class,
+				this::onListenerFailure
+		);
+
+		log.info(
+				"Started {} Change Stream{}.",
+				collectionName,
+				resumeToken == null
+						? ""
+						: " from its resume token"
+		);
+	}
+
+	private void onMessage(
+			Message<ChangeStreamDocument<Document>,
+			DailyEntry> message
+	) {
+		try {
+			ChangeStreamDocument<Document> raw = Objects.requireNonNull(
+					message.getRaw(),
+					"Change Stream message has no raw event"
+			);
+			BsonDocument resumeToken = Objects.requireNonNull(
+				raw.getResumeToken(),
+				"Change Stream event has no resume token"
+			);
+			String eventId = resumeToken.toString();
+			OperationType operationType = raw.getOperationType();
+
+			if (operationType == OperationType.DELETE) {
+				BsonDocument documentKey = Objects.requireNonNull(
+						raw.getDocumentKey(),
+						"Delete event has no document key"
+				);
+				BsonValue id = Objects.requireNonNull(
+						documentKey.get("_id"),
+						"Delete event has no entry ID"
+				);
+				String entryId = switch (id.getBsonType()) {
+					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
+					case STRING -> id.asString().getValue();
+					default -> throw new IllegalStateException(
+							"Delete event has an unsupported entry ID type: " + id.getBsonType()
+					);
+				};
+
+				deliveryService.deliverDelete(eventId, entryId);
+			} else if (
+					operationType == OperationType.INSERT ||
+					operationType == OperationType.UPDATE ||
+					operationType == OperationType.REPLACE
+			) {
+				deliveryService.deliverUpsert(
+						eventId,
+						operationType.getValue(),
+						message.getBody()
+				);
+			} else {
+				return;
+			}
+
+			resumeTokenRepository.save(
+					new CdcResumeToken(
+							streamId,
+							resumeToken.toString(),
+							Instant.now()
+					)
+			);
+		} catch (Exception exception) {
+			throw new IllegalStateException(
+					"Could not synchronize a " + collectionName + " change event",
+					exception
+			);
+		}
+	}
+
+	private synchronized void onListenerFailure(@NonNull Throwable exception) {
+		monitor.listenerFailed(exception);
+
+		if (!isExpiredResumeToken(exception)) {
+			log.error(
+					"{} Change Stream stopped unexpectedly.",
+					collectionName,
+					exception
+			);
+
+			return;
+		}
+
+		log.warn(
+				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.",
+				collectionName,
+				exception
+		);
+
+		try {
+			listenerContainer.remove(subscription);
+			resumeTokenRepository.deleteById(streamId);
+			reindexService.reindex();
+			register(null);
+			monitor.listenerStarted();
+		} catch (Exception recoveryFailure) {
+			log.error(
+					"Could not recover {} Change Stream with a full reindex.",
+					collectionName,
+					recoveryFailure
+			);
+		}
+	}
+
+	private boolean isExpiredResumeToken(Throwable exception) {
+		String message = exception.getMessage();
+		return message != null &&
+				(message.contains("ChangeStreamHistoryLost") ||
+				message.contains("code 286"));
+	}
+}

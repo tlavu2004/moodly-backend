@@ -1,0 +1,43 @@
+package com.tlavu.moodly.modules.search.model.mongodb;
+
+import java.time.Instant;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document(collection = "cdc_dead_letters")
+@Getter
+@Setter
+@NoArgsConstructor
+public class CdcDeadLetter {
+	@Id
+	private String id;
+
+	private String eventId;
+	private String operationType;
+	private String entryId;
+	private String payload;
+	private String error;
+	private int attempts;
+	private Instant failedAt;
+
+	public CdcDeadLetter(
+			String eventId,
+			String operationType,
+			String entryId,
+			String payload,
+			String error,
+			int attempts,
+			Instant failedAt
+	) {
+		this.eventId = eventId;
+		this.operationType = operationType;
+		this.entryId = entryId;
+		this.payload = payload;
+		this.error = error;
+		this.attempts = attempts;
+		this.failedAt = failedAt;
+	}
+}

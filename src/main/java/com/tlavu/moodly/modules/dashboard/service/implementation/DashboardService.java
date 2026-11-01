@@ -1,0 +1,76 @@
+package com.tlavu.moodly.modules.dashboard.service.implementation;
+
+import com.tlavu.moodly.modules.dashboard.service.view.DashboardView;
+import com.tlavu.moodly.modules.dashboard.service.view.WeeklyMoodView;
+import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
+import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
+import com.tlavu.moodly.modules.habits.service.view.HabitView;
+import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
+import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
+import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
+import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
+import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
+import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class DashboardService {
+	private final EntryReadService entryReadService;
+	private final HabitService habitService;
+	private final StatsService statsService;
+
+	public DashboardView getDashboard(String userId, LocalDate today) {
+		List<HabitView> habits = habitService.findActive(userId);
+		DailyEntryView todayEntry = entryReadService.findByDate(userId, today)
+				.orElse(null);
+		int completedHabitCount = todayEntry == null
+				? 0
+				: (int) todayEntry.habits().stream()
+						.filter(
+								log -> log.done() &&
+								habits.stream()
+										.anyMatch(habit -> habit.id().equals(log.habitId()))
+						).count();
+		int totalHabitCount = habits.size();
+		double completionRatio = totalHabitCount == 0
+				? 0.0
+				: (double) completedHabitCount / totalHabitCount;
+		List<MoodTrendView> moodTrend = statsService.findMoodTrend(
+				userId,
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, today)
+		);
+		long moodEntryCount = moodTrend.stream()
+				.mapToLong(MoodTrendView::entryCount)
+				.sum();
+		double moodScoreTotal = moodTrend.stream()
+				.mapToDouble(point -> point.averageScore() * point.entryCount())
+				.sum();
+		WeeklyMoodView weeklyMood = new WeeklyMoodView(
+				moodEntryCount == 0
+						? null
+						: moodScoreTotal / moodEntryCount,
+				moodEntryCount
+		);
+		List<String> habitIds = habits.stream()
+				.map(HabitView::id)
+				.toList();
+		int bestCurrentStreak = statsService.calculateBestCurrentStreak(
+				userId,
+				new CalculateBestCurrentStreakInput(habitIds, today)
+		);
+
+		return new DashboardView(
+				todayEntry,
+				habits,
+				completedHabitCount,
+				totalHabitCount,
+				completionRatio,
+				weeklyMood,
+				bestCurrentStreak
+		);
+	}
+}

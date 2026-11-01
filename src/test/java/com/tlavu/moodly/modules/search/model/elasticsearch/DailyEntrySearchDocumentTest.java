@@ -1,0 +1,56 @@
+package com.tlavu.moodly.modules.search.model.elasticsearch;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
+import com.tlavu.moodly.modules.entries.model.Mood;
+import java.time.LocalDate;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class DailyEntrySearchDocumentTest {
+
+	@Test
+	void denormalizesSearchableMoodAndHabitContent() {
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		entry.setId("entry-1");
+		entry.setMood(new Mood(4, List.of("calm", "focused"), "A productive day"));
+		entry.setHabits(List.of(
+				new HabitLog("exercise", true, "Morning run"),
+				new HabitLog("reading", false, "Too tired")
+		));
+
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
+
+		assertThat(document.userId()).isEqualTo("user-1");
+		assertThat(document.date()).isEqualTo(LocalDate.of(2026, 8, 6));
+		assertThat(document.mood()).isEqualTo(new IndexedMood(4, "A productive day", List.of("calm", "focused")));
+		assertThat(document.habits()).containsExactly(
+				new IndexedHabitLog("Morning run"),
+				new IndexedHabitLog("Too tired")
+		);
+	}
+
+	@Test
+	void handlesAnEntryWithoutMood() {
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
+
+		assertThat(document.mood()).isNull();
+		assertThat(document.habits()).isEmpty();
+	}
+
+	@Test
+	void handlesEmptyTagsAndNullHabitCollection() {
+		DailyEntry entry = new DailyEntry("user-1", LocalDate.of(2026, 8, 6));
+		entry.setMood(new Mood(3, null, null));
+		entry.setHabits(null);
+
+		DailyEntrySearchDocument document = DailyEntrySearchDocument.from(entry);
+
+		assertThat(document.mood().tags()).isEmpty();
+		assertThat(document.habits()).isEmpty();
+	}
+}

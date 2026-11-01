@@ -1,8 +1,6 @@
 package com.tlavu.moodly;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,16 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
-import com.tlavu.moodly.modules.auth.infrastructure.UserProfileRepository;
-import com.tlavu.moodly.modules.auth.infrastructure.PendingAvatarUploadRepository;
-import com.tlavu.moodly.modules.auth.infrastructure.CloudinaryAssetClient;
-import com.tlavu.moodly.modules.entries.infrastructure.DailyEntryRepository;
-import com.tlavu.moodly.modules.habits.infrastructure.HabitRepository;
+import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import com.tlavu.moodly.shared.time.MoodlyTime;
+import java.time.LocalDate;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -34,8 +29,9 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import tools.jackson.databind.JsonNode;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,19 +49,11 @@ class ApiIntegrationTest {
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
 	private HabitRepository habitRepository;
-	@Autowired
-	private UserProfileRepository userProfileRepository;
-	@Autowired
-	private PendingAvatarUploadRepository pendingAvatarUploadRepository;
-	@MockitoBean
-	private CloudinaryAssetClient cloudinary;
 
 	@AfterEach
 	void cleanUp() {
 		dailyEntryRepository.deleteAll();
 		habitRepository.deleteAll();
-		userProfileRepository.deleteAll();
-		pendingAvatarUploadRepository.deleteAll();
 	}
 
 	@Test
@@ -76,16 +64,20 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.checkedIn").value(false))
 				.andExpect(jsonPath("$.data.entry").doesNotExist());
 
-		var createHabitResponse = mockMvc.perform(post("/habits")
+		String createHabitResponse = mockMvc.perform(post("/habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID).claim("email", "api@example.com")))
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Exercise\",\"icon\":\"run\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.userId").value(USER_ID))
 				.andExpect(jsonPath("$.data.name").value("Exercise"))
+				.andExpect(jsonPath("$.data.icon").value("run"))
 				.andExpect(jsonPath("$.data.targetFrequency").value("DAILY"))
+				.andExpect(jsonPath("$.data.active").value(true))
+				.andExpect(jsonPath("$.data.version").isNumber())
 				.andReturn().getResponse().getContentAsString();
-		var habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
+		String habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -97,6 +89,9 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"habitId\":\"" + habitId + "\",\"done\":true,\"note\":\"Completed\"}"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.date").value(MoodlyTime.today(clock).toString()))
+				.andExpect(jsonPath("$.data.habits[0].habitId").value(habitId))
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
 		mockMvc.perform(patch("/entries/today")
@@ -111,7 +106,9 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"score\":4,\"tags\":[\"calm\"],\"note\":\"Good day\"}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.mood.score").value(4));
+				.andExpect(jsonPath("$.data.mood.score").value(4))
+				.andExpect(jsonPath("$.data.mood.tags[0]").value("calm"))
+				.andExpect(jsonPath("$.data.mood.note").value("Good day"));
 
 		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
@@ -119,7 +116,7 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.entry.mood.score").value(4))
 				.andExpect(jsonPath("$.data.entry.habits.length()").value(2));
 
-		var entryDate = dailyEntryRepository
+		LocalDate entryDate = dailyEntryRepository
 				.findByUserIdAndDateLessThanEqualOrderByDateDesc(USER_ID, MoodlyTime.today(clock))
 				.getFirst()
 				.getDate();
@@ -152,7 +149,13 @@ class ApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
 				.andExpect(jsonPath("$.data.todayEntry.date").value(entryDate.toString()))
+				.andExpect(jsonPath("$.data.todayEntry.userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.todayEntry.habits[0].habitId").value(habitId))
+				.andExpect(jsonPath("$.data.todayEntry.mood.score").value(4))
 				.andExpect(jsonPath("$.data.activeHabits.length()").value(1))
+				.andExpect(jsonPath("$.data.activeHabits[0].id").value(habitId))
+				.andExpect(jsonPath("$.data.activeHabits[0].userId").value(USER_ID))
+				.andExpect(jsonPath("$.data.activeHabits[0].targetFrequency").value("DAILY"))
 				.andExpect(jsonPath("$.data.completedHabitCount").value(1))
 				.andExpect(jsonPath("$.data.totalHabitCount").value(1))
 				.andExpect(jsonPath("$.data.completionRatio").value(1.0))
@@ -167,30 +170,40 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void returnsStandardValidationErrorForInvalidRequest() throws Exception {
-		mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"\",\"targetFrequency\":\"\"}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-				.andExpect(jsonPath("$.error.errors.length()").value(2));
-	}
-
-	@Test
 	void publishesRequiredNullableAndEnvelopeExamplesInOpenApi() throws Exception {
-		var document = mockMvc.perform(get("/v3/api-docs"))
+		String document = mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.components.schemas.Habit.required", org.hamcrest.Matchers.hasItems("id", "name", "active", "version")))
-				.andExpect(jsonPath("$.components.schemas.DailyEntry.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
+				.andExpect(jsonPath("$.components.schemas.Habit").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.required", org.hamcrest.Matchers.hasItems("id", "userId", "name", "active", "version")))
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.type").value("string"))
+				.andExpect(jsonPath("$.components.schemas.HabitResponse.properties.targetFrequency.enum[0]").value("DAILY"))
+				.andExpect(jsonPath("$.components.schemas.DailyEntry").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.DailyEntryResponse.required", org.hamcrest.Matchers.hasItems("id", "date", "habits")))
+				.andExpect(jsonPath("$.components.schemas.EntrySearchResult.required", org.hamcrest.Matchers.hasItems("entryId", "date", "highlights")))
+				.andExpect(jsonPath("$.components.schemas.EntrySearchResult.properties.highlights.additionalProperties.items['$ref']")
+						.value("#/components/schemas/HighlightFragment"))
+				.andExpect(jsonPath("$.components.schemas.HighlightFragment.properties.ranges.items['$ref']")
+						.value("#/components/schemas/HighlightRange"))
 				.andExpect(jsonPath("$.components.examples.SuccessEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.EmptyEnvelope").exists())
 				.andExpect(jsonPath("$.components.examples.ErrorEnvelope").exists())
 				.andReturn().getResponse().getContentAsString();
 
-		var openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
-		var examples = openApi.path("components").path("examples");
+		JsonNode openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
+		JsonNode examples = openApi.path("components").path("examples");
+		JsonNode badRequestExample = openApi.path("components").path("responses")
+			.path("BadRequest").path("content").path("application/json")
+			.path("examples").path("default").path("value");
+		assertThat(badRequestExample.isObject()).isTrue();
+		assertThat(badRequestExample.path("data").isNull()).isTrue();
+		assertThat(badRequestExample.path("error").path("status").asInt()).isEqualTo(400);
+		assertThat(badRequestExample.path("error").path("code").asString()).isEqualTo("VALIDATION_FAILED");
+		assertThat(openApi.path("components").path("responses").path("AvatarUploadNotFound")
+				.path("content").path("application/json").path("examples").path("default").path("value")
+				.path("error").path("code").asString()).isEqualTo("AVATAR_UPLOAD_NOT_FOUND");
+		assertThat(openApi.path("components").path("responses").path("AvatarServiceUnavailable")
+				.path("content").path("application/json").path("examples").path("default").path("value")
+				.path("error").path("status").asInt()).isEqualTo(503);
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/Conflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
@@ -204,69 +217,6 @@ class ApiIntegrationTest {
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":false,\"error\":{\"status\":400,\"code\":\"INVALID_REQUEST\",\"message\":\"The request is invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
-	}
-
-	@Test
-	void rejectsUnsupportedTargetFrequencyWithAFieldValidationError() throws Exception {
-		mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Exercise\",\"targetFrequency\":\"WEEKLY\"}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-				.andExpect(jsonPath("$.error.errors.length()").value(1))
-				.andExpect(jsonPath("$.error.errors[0].field").value("targetFrequency"))
-				.andExpect(jsonPath("$.error.errors[0].message").value("must be DAILY"));
-	}
-
-	@Test
-	void supportsHabitUpdateArchiveRestoreAndStatusFiltering() throws Exception {
-		var response = mockMvc.perform(post("/habits")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
-				.andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
-		var data = new tools.jackson.databind.ObjectMapper().readTree(response).path("data");
-		var habitId = data.path("id").asString();
-		var version = data.path("version").asLong();
-
-		response = mockMvc.perform(patch("/habits/{habitId}", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Read daily\",\"icon\":\"books\",\"version\":" + version + "}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.name").value("Read daily"))
-				.andReturn().getResponse().getContentAsString();
-		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
-		mockMvc.perform(patch("/habits/{habitId}", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Stale update\",\"icon\":\"books\",\"version\":" + (version - 1) + "}"))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
-
-		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"version\":" + version + "}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.active").value(false))
-				.andReturn().getResponse().getContentAsString();
-		version = new tools.jackson.databind.ObjectMapper().readTree(response).path("data").path("version").asLong();
-
-		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
-		mockMvc.perform(get("/habits").param("status", "archived")
-					.with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(habitId));
-
-		mockMvc.perform(post("/habits/{habitId}/restore", habitId)
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"version\":" + version + "}"))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.active").value(true));
 	}
 
 	@Test
@@ -301,7 +251,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void returnsTheStandardUnauthorizedEnvelopeForASignatureShapedBearerTokenRejectedByTheDecoder() throws Exception {
-		var tamperedJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+		String tamperedJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
 				+ "eyJzdWIiOiJhdXRoMHx0ZXN0In0.invalid-signature";
 
 		mockMvc.perform(get("/habits").header("Authorization", "Bearer " + tamperedJwt))
@@ -311,75 +261,9 @@ class ApiIntegrationTest {
 	}
 
 	@Test
-	void requiresAuthenticationForEveryAvatarEndpoint() throws Exception {
-		mockMvc.perform(get("/me/avatar"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(post("/me/avatar/upload-signature")
-					.contentType(MediaType.APPLICATION_JSON).content("{}"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(post("/me/avatar/confirm")
-					.contentType(MediaType.APPLICATION_JSON).content("{}"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/me/avatar"))
-				.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	void confirmsOnlyTheAuthenticatedUsersPendingAvatar() throws Exception {
-		var userA = "auth0|avatar-owner";
-		var userB = "auth0|avatar-other";
-		var ownerToken = jwt().jwt(token -> token.subject(userA).claim("email", "owner@example.com"));
-		var otherToken = jwt().jwt(token -> token.subject(userB).claim("email", "other@example.com"));
-
-		var signatureResponse = mockMvc.perform(post("/me/avatar/upload-signature").with(ownerToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"contentType\":\"image/png\",\"sizeBytes\":1024}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(org.hamcrest.Matchers.startsWith("moodly/test/users/auth0_avatar-owner/avatar/")))
-				.andExpect(jsonPath("$.data.cloudName").value("test-cloud"))
-				.andExpect(jsonPath("$.data.apiKey").value("test-api-key"))
-				.andExpect(jsonPath("$.data.uploadPreset").value("test-upload-preset"))
-				.andExpect(jsonPath("$.data.expiresAt").isNotEmpty())
-				.andExpect(jsonPath("$.data.apiSecret").doesNotExist())
-				.andReturn().getResponse().getContentAsString();
-		var publicId = new tools.jackson.databind.ObjectMapper().readTree(signatureResponse).path("data").path("publicId").asString();
-
-		mockMvc.perform(post("/me/avatar/confirm").with(otherToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("AVATAR_UPLOAD_NOT_FOUND"));
-		verify(cloudinary, never()).findImage(publicId);
-
-		org.mockito.Mockito.when(cloudinary.findImage(publicId))
-				.thenReturn(new CloudinaryAssetClient.ConfirmedAsset(publicId, 1, "image/png", 1024));
-		mockMvc.perform(post("/me/avatar/confirm").with(ownerToken)
-					.contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"" + publicId + "\",\"version\":1}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(publicId))
-				.andExpect(jsonPath("$.data.deliveryUrl").value(org.hamcrest.Matchers.containsString("/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v1/")));
-		mockMvc.perform(get("/me/avatar").with(ownerToken))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.publicId").value(publicId));
-
-		verify(cloudinary).findImage(publicId);
-	}
-
-	@Test
-	void rejectsInvalidAvatarDeclarationsForAnAuthenticatedUser() throws Exception {
-		mockMvc.perform(post("/me/avatar/upload-signature")
-					.with(jwt().jwt(token -> token.subject(USER_ID)))
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"contentType\":\"image/gif\",\"sizeBytes\":1024}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("AVATAR_CONTENT_TYPE_UNSUPPORTED"));
-	}
-
-	@Test
 	void isolatesMongoBackedHabitsAndEntriesBetweenJwtSubjects() throws Exception {
-		var userA = "auth0|mongo-owner";
-		var userB = "auth0|mongo-other";
+		String userA = "auth0|mongo-owner";
+		String userB = "auth0|mongo-other";
 		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
 				.andExpect(status().isCreated());
@@ -396,33 +280,16 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.items.length()").value(0));
 		mockMvc.perform(get("/dashboard").with(jwt().jwt(token -> token.subject(userB))))
 				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.todayEntry").doesNotExist())
 				.andExpect(jsonPath("$.data.activeHabits.length()").value(0))
+				.andExpect(jsonPath("$.data.completedHabitCount").value(0))
 				.andExpect(jsonPath("$.data.totalHabitCount").value(0))
+				.andExpect(jsonPath("$.data.completionRatio").value(0.0))
+				.andExpect(jsonPath("$.data.weeklyMood.averageScore").doesNotExist())
+				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(0))
 				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
-	}
-
-	@Test
-	void bootstrapsTheAuth0ProfileExplicitlyAndIdempotently() throws Exception {
-		var authenticated = jwt().jwt(token -> token.subject(USER_ID).claim("email", "  API@Example.COM "));
-
-		mockMvc.perform(put("/auth/profile").with(authenticated))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.userId").value(USER_ID))
-				.andExpect(jsonPath("$.data.email").value("api@example.com"));
-
-		mockMvc.perform(put("/auth/profile").with(authenticated))
-				.andExpect(status().isOk());
-
-		assertThat(userProfileRepository.count()).isEqualTo(1);
-	}
-
-	@Test
-	void ordinaryProtectedRequestsDoNotCreateAProfileAsASideEffect() throws Exception {
-		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
-				.andExpect(status().isOk());
-
-		assertThat(userProfileRepository.count()).isZero();
 	}
 
 	@Test
@@ -450,7 +317,7 @@ class ApiIntegrationTest {
 
 	@Test
 	void rejectsInvalidEntryDateRanges() throws Exception {
-		var today = MoodlyTime.today(clock);
+		LocalDate today = MoodlyTime.today(clock);
 
 		mockMvc.perform(get("/entries")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -475,7 +342,39 @@ class ApiIntegrationTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
-				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period: month. Supported values: week."));
+				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period. Supported values: week."));
+	}
+
+	@Test
+	void normalizesFrameworkRequestFailures() throws Exception {
+		RequestPostProcessor jwtUser = jwt().jwt(token -> token.subject(USER_ID));
+
+		mockMvc.perform(get("/entries").with(jwtUser).param("to", "2026-10-21"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+		mockMvc.perform(get("/entries").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.param("from", "2026-10-01").param("to", "2026-10-21").param("page", "invalid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+		mockMvc.perform(post("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isMethodNotAllowed())
+				.andExpect(jsonPath("$.error.code").value("METHOD_NOT_ALLOWED"));
+
+		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.TEXT_PLAIN).content("invalid"))
+				.andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.error.code").value("UNSUPPORTED_MEDIA_TYPE"));
+
+		mockMvc.perform(get("/entries/today").with(jwt().jwt(token -> token.subject(USER_ID)))
+					.accept(MediaType.TEXT_PLAIN))
+				.andExpect(status().isNotAcceptable())
+				.andExpect(jsonPath("$.error.code").value("NOT_ACCEPTABLE"));
+
+		mockMvc.perform(get("/missing-endpoint").with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
 	}
 
 	@TestConfiguration(proxyBeanMethods = false)

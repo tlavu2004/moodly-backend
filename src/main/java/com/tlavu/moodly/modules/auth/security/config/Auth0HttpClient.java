@@ -1,0 +1,85 @@
+package com.tlavu.moodly.modules.auth.security.config;
+
+import com.tlavu.moodly.modules.auth.exception.Auth0HttpConfigurationException;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.time.Duration;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
+
+/** Bounded retries for transient discovery/JWKS network failures, never token validation. */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class Auth0HttpClient {
+
+	public static RestTemplate create(
+			Duration connectTimeout,
+			Duration readTimeout,
+			int attempts,
+			Duration delay
+	) {
+		if (
+				connectTimeout.isNegative() ||
+				connectTimeout.isZero() ||
+				readTimeout.isNegative() ||
+				readTimeout.isZero() ||
+				attempts < 1 ||
+				attempts > 5 ||
+				delay.isNegative()
+		) {
+			throw new Auth0HttpConfigurationException();
+		}
+
+		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+		factory.setConnectTimeout(connectTimeout);
+		factory.setReadTimeout(readTimeout);
+
+		RestTemplate client = new RestTemplate(factory);
+		client.getInterceptors().add(retry(attempts, delay));
+
+		return client;
+	}
+
+	public static ClientHttpRequestInterceptor retry(int attempts, Duration delay) {
+		return (request, body, execution) -> {
+			for (int attempt = 1; ; attempt++) {
+				try {
+					return execution.execute(request, body);
+				} catch (IOException failure) {
+					// Do not replay HTTP errors, TLS failures, or arbitrary I/O errors.
+					if (
+							Thread.currentThread().isInterrupted() ||
+							attempt >= attempts ||
+							!(failure instanceof SocketTimeoutException ||
+							failure instanceof ConnectException)
+					) {
+						throw failure;
+					}
+
+					LoggerFactory.getLogger(Auth0HttpClient.class).warn(
+							"Auth0 network request failed ({}); retry {}/{}",
+							failure.getClass().getSimpleName(),
+							attempt + 1,
+							attempts
+					);
+
+					try {
+						Thread.sleep(delay);
+					} catch (InterruptedException interrupted) {
+						Thread.currentThread().interrupt();
+
+						InterruptedIOException cancelled = new InterruptedIOException("Auth0 HTTP retry interrupted");
+						cancelled.initCause(interrupted);
+
+						throw cancelled;
+					}
+				}
+			}
+		};
+	}
+}
