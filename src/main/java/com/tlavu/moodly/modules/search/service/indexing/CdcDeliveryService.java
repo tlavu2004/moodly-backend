@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -146,7 +147,12 @@ public class CdcDeliveryService {
 		deadLetter.setAttempts(deadLetter.getAttempts() + attemptsMade);
 		deadLetter.setError(exception.getMessage());
 		deadLetter.setFailedAt(Instant.now());
-		deadLetterRepository.save(deadLetter);
+		try {
+			deadLetterRepository.save(deadLetter);
+		} catch (DataAccessException persistenceFailure) {
+			exception.addSuppressed(persistenceFailure);
+			log.error("Could not persist failed CDC replay state for dead letter {}", deadLetter.getId(), persistenceFailure);
+		}
 		monitor.deadLettered(exception);
 	}
 
@@ -171,7 +177,7 @@ public class CdcDeliveryService {
 					exception,
 					attempts.value()
 			);
-		} catch (IOException | RuntimeException exception) {
+		} catch (IOException | ElasticsearchException exception) {
 			saveDeadLetter(
 					eventId,
 					operationType,
@@ -191,17 +197,22 @@ public class CdcDeliveryService {
 			Exception exception,
 			int attemptsMade
 	) {
-		deadLetterRepository.save(
-				new CdcDeadLetter(
-						eventId,
-						operationType,
-						entryId,
-						payload,
-						exception.getMessage(),
-						attemptsMade,
-						Instant.now()
-				)
-		);
+		try {
+			deadLetterRepository.save(
+					new CdcDeadLetter(
+							eventId,
+							operationType,
+							entryId,
+							payload,
+							exception.getMessage(),
+							attemptsMade,
+							Instant.now()
+					)
+			);
+		} catch (DataAccessException persistenceFailure) {
+			persistenceFailure.addSuppressed(exception);
+			throw persistenceFailure;
+		}
 		monitor.deadLettered(exception);
 
 		log.error(
@@ -222,7 +233,7 @@ public class CdcDeliveryService {
 			AttemptCount attempts
 	) throws IOException, InterruptedException {
 		IOException lastIoFailure = null;
-		RuntimeException lastRuntimeFailure = null;
+		ElasticsearchException lastRuntimeFailure = null;
 
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 			attempts.record(attempt);
@@ -248,7 +259,7 @@ public class CdcDeliveryService {
 						attempt,
 						exception
 				);
-			} catch (RuntimeException exception) {
+			} catch (ElasticsearchException exception) {
 				if (isNonTransient(exception)) {
 					throw exception;
 				}
