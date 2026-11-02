@@ -47,7 +47,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
 - In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
 - Set `CLOUDINARY_FOLDER` to `moodly/local`. The Phase 3 backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
 
-`make local-run` exports these variables before launching the `local` profile. The Auth0 issuer, API audience, Cloudinary settings, and CORS origins are deliberately bound only by `application-local.yaml`; production configuration is deferred to Phase 3 deployment preparation.
+`make local-run` exports these variables before launching the `local` profile. For production, activate `prod` (or `production`, which includes `prod`) explicitly and supply the settings in `application-prod.yaml` through the deployment environment. Production requires `MONGODB_URI` and `ELASTICSEARCH_URIS` rather than the local host/port variables, and disables Swagger and the E2E reset endpoint. CDC maintenance requires both an Auth0 JWT with `MOODLY_CDC_ADMIN_AUTHORITY` (default `SCOPE_moodly:admin`) and the existing `X-Maintenance-Key` header. Grant that authority only to operators; keep the maintenance key private.
 
 1. Start MongoDB as a single-node replica set and Elasticsearch:
 
@@ -87,7 +87,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
      -H "X-Maintenance-Key: your-local-secret"
    ```
 
-   This temporary header guard will be replaced by authenticated admin access in Phase 3.
+   Outside production, the maintenance header is the guard. Production also requires the operator JWT described above.
 
    Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance header. CDC state and its failed-event count are available at `GET /actuator/health`.
 

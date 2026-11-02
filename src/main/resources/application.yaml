@@ -3,6 +3,8 @@ spring:
     name: moodly
   profiles:
     default: local
+    group:
+      production: prod
   data:
     mongodb:
       auto-index-creation: true

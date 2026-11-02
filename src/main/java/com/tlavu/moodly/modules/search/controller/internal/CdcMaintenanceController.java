@@ -16,7 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/** Temporary maintenance guard; replace this header with an admin authority in Phase 3. */
+/** Maintenance key is required in every profile; production also requires an admin JWT. */
 @RestController
 @RequestMapping("/internal/cdc")
 @Tag(
