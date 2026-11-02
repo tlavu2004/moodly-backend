@@ -94,10 +94,24 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.habits[0].habitId").value(habitId))
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
+		String readingResponse = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Reading\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode reading = new tools.jackson.databind.ObjectMapper().readTree(readingResponse).path("data");
+		String readingId = reading.path("id").asString();
+		mockMvc.perform(post("/habits/{habitId}/archive", readingId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + reading.path("version").asLong() + "}"))
+				.andExpect(status().isOk());
+
 		mockMvc.perform(patch("/entries/today")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"habitId\":\"reading\",\"done\":false,\"note\":\"Missed\"}"))
+					.content("{\"habitId\":\"" + readingId + "\",\"done\":false,\"note\":\"Missed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits.length()").value(2));
 
@@ -141,7 +155,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/stats/most-missed-habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
+				.andExpect(jsonPath("$.data[0].habitId").value(readingId))
 				.andExpect(jsonPath("$.data[0].missedCount").value(1));
 
 		mockMvc.perform(get("/dashboard")
@@ -264,11 +278,12 @@ class ApiIntegrationTest {
 	void isolatesMongoBackedHabitsAndEntriesBetweenJwtSubjects() throws Exception {
 		String userA = "auth0|mongo-owner";
 		String userB = "auth0|mongo-other";
-		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
+		String created = mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
-				.andExpect(status().isCreated());
+				.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		String privateHabitId = new tools.jackson.databind.ObjectMapper().readTree(created).path("data").path("id").asString();
 		mockMvc.perform(patch("/entries/today").with(jwt().jwt(token -> token.subject(userA)))
-					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"private-a\",\"done\":true}"))
+					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"" + privateHabitId + "\",\"done\":true}"))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(userB))))
@@ -290,6 +305,30 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.weeklyMood.averageScore").doesNotExist())
 				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(0))
 				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
+	}
+
+	@Test
+	void rejectsUnknownOrAnotherUsersHabitLogWithoutCreatingAnEntry() throws Exception {
+		String otherUser = "auth0|another-habit-owner";
+		String created = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(otherUser)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Private\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		String otherHabitId = new tools.jackson.databind.ObjectMapper().readTree(created)
+				.path("data").path("id").asString();
+
+		for (String habitId : new String[]{"missing-habit", otherHabitId}) {
+			mockMvc.perform(patch("/entries/today")
+						.with(jwt().jwt(token -> token.subject(USER_ID)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"habitId\":\"" + habitId + "\",\"done\":true}"))
+					.andExpect(status().isNotFound())
+					.andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
+		}
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
 	}
 
 	@Test

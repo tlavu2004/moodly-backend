@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +31,8 @@ class DailyEntryServiceTest {
 	@Mock
 	private DailyEntryRepository dailyEntryRepository;
 	@Mock
+	private HabitRepository habitRepository;
+	@Mock
 	private MongoTemplate mongoTemplate;
 	@InjectMocks
 	private DailyEntryService dailyEntryService;
@@ -42,6 +46,18 @@ class DailyEntryServiceTest {
 
 		assertEquals(entries.stream().map(DailyEntryView::from).toList(),
 				dailyEntryService.findBetween("user-1", date.minusDays(1), date));
+	}
+
+	@Test
+	void refusesUnknownHabitBeforeCreatingAnEntry() {
+		LocalDate date = LocalDate.of(2026, 8, 5);
+		when(habitRepository.findByIdAndUserId("other-habit", "user-1")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> dailyEntryService.updateHabitLog("user-1", date,
+				new UpdateHabitLogInput("other-habit", true, null)))
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException.class)
+				.hasMessage("Habit was not found.");
+		org.mockito.Mockito.verifyNoInteractions(mongoTemplate);
 	}
 
 	@Test

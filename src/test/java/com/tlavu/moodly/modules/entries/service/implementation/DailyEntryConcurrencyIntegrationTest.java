@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.model.Habit;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -13,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,10 +32,19 @@ class DailyEntryConcurrencyIntegrationTest {
 	private DailyEntryService service;
 	@Autowired
 	private DailyEntryRepository repository;
+	@Autowired
+	private HabitRepository habitRepository;
+
+	@BeforeEach
+	void seedHabits() {
+		habitRepository.save(new Habit("walk", USER, "Walk", "walk", TargetFrequency.DAILY, true));
+		habitRepository.save(new Habit("read", USER, "Read", "book", TargetFrequency.DAILY, true));
+	}
 
 	@AfterEach
 	void cleanUp() {
 		repository.deleteByUserId(USER);
+		habitRepository.deleteAll(habitRepository.findByUserId(USER));
 	}
 
 	@Test

@@ -14,6 +14,7 @@ import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Clock;
@@ -44,6 +45,13 @@ public class DailyEntryController {
 			summary = "Update today's habit log",
 			description = "Marks or unmarks a habit in the authenticated user's entry for today."
 	)
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "404",
+					ref = "#/components/responses/NotFound"
+			)
+	})
 	public ApiResponse<DailyEntryResponse> updateTodayHabit(
 			@Valid @RequestBody UpdateHabitLogRequest request
 	) {
