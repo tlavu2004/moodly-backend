@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/internal/cdc")
 @Tag(
 		name = "CDC maintenance",
-		description = "Internal operations protected by the X-Maintenance-Key header"
+		description = "Internal operations require X-Maintenance-Key; production additionally requires an operator JWT."
 )
 public class CdcMaintenanceController {
 	private final DailyEntryReindexService reindexService;
@@ -41,7 +41,7 @@ public class CdcMaintenanceController {
 	@PostMapping("/reindex")
 	@Operation(
 			summary = "Reindex daily entries",
-			description = "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
+			description = "Rebuilds the daily-entry search index. Requires X-Maintenance-Key; production also requires an operator JWT.",
 			security = @SecurityRequirement(name = "maintenanceKey")
 	)
 	public ResponseEntity<ApiResponse<CdcReindexResponse>> reindex(
@@ -58,7 +58,7 @@ public class CdcMaintenanceController {
 	@PostMapping("/dead-letters/{id}/replay")
 	@Operation(
 			summary = "Replay a CDC dead letter",
-			description = "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
+			description = "Replays a failed CDC delivery by ID. Requires X-Maintenance-Key; production also requires an operator JWT.",
 			security = @SecurityRequirement(name = "maintenanceKey")
 	)
 	@ApiResponses({

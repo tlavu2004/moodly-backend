@@ -28,6 +28,7 @@ with open(sys.argv[1], encoding="utf-8") as source:
     document = json.load(source)
 
 # SpringDoc can emit response codes in a different order between runs.
+document["tags"] = sorted(document.get("tags", []), key=lambda tag: tag["name"])
 for path in document.get("paths", {}).values():
     for operation in path.values():
         if isinstance(operation, dict) and isinstance(operation.get("responses"), dict):

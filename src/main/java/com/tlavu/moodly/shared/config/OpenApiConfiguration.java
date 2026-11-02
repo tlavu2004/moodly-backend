@@ -58,7 +58,7 @@ public class OpenApiConfiguration {
 										new SecurityScheme().type(SecurityScheme.Type.APIKEY)
 												.in(SecurityScheme.In.HEADER)
 												.name("X-Maintenance-Key")
-												.description("Internal maintenance credential. This is not an Auth0 bearer token.")
+												.description("Internal maintenance credential. Production also requires an operator Auth0 bearer token.")
 								)
 				);
 	}

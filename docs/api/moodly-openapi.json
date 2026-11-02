@@ -18,12 +18,24 @@
   ],
   "tags": [
     {
-      "name": "Dashboard",
-      "description": "Authenticated user's current dashboard summary"
-    },
-    {
       "name": "Authentication",
       "description": "Authenticated user profile operations"
+    },
+    {
+      "name": "Avatar",
+      "description": "Avatar upload and retrieval for the authenticated user"
+    },
+    {
+      "name": "CDC maintenance",
+      "description": "Internal operations require X-Maintenance-Key; production additionally requires an operator JWT."
+    },
+    {
+      "name": "Daily entries",
+      "description": "Daily mood and habit-log entries for the authenticated user"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Authenticated user's current dashboard summary"
     },
     {
       "name": "Entry search",
@@ -34,20 +46,8 @@
       "description": "Statistics for the authenticated user's habits"
     },
     {
-      "name": "CDC maintenance",
-      "description": "Internal operations protected by the X-Maintenance-Key header"
-    },
-    {
       "name": "Habits",
       "description": "Habit management for the authenticated user"
-    },
-    {
-      "name": "Avatar",
-      "description": "Avatar upload and retrieval for the authenticated user"
-    },
-    {
-      "name": "Daily entries",
-      "description": "Daily mood and habit-log entries for the authenticated user"
     },
     {
       "name": "Statistics",
@@ -269,7 +269,7 @@
           "CDC maintenance"
         ],
         "summary": "Reindex daily entries",
-        "description": "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
+        "description": "Rebuilds the daily-entry search index. Requires X-Maintenance-Key; production also requires an operator JWT.",
         "operationId": "reindex",
         "parameters": [
           {
@@ -328,7 +328,7 @@
           "CDC maintenance"
         ],
         "summary": "Replay a CDC dead letter",
-        "description": "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
+        "description": "Replays a failed CDC delivery by ID. Requires X-Maintenance-Key; production also requires an operator JWT.",
         "operationId": "replay",
         "parameters": [
           {
@@ -2753,7 +2753,7 @@
       },
       "maintenanceKey": {
         "type": "apiKey",
-        "description": "Internal maintenance credential. This is not an Auth0 bearer token.",
+        "description": "Internal maintenance credential. Production also requires an operator Auth0 bearer token.",
         "name": "X-Maintenance-Key",
         "in": "header"
       }
