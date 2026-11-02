@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +64,24 @@ class HabitApiIntegrationTest {
 					.param("status", "invalid"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void streakRequiresAnOwnedHabitButStillReturnsZeroWithoutEntries() throws Exception {
+		habitRepository.save(new Habit("owned-habit", USER_ID, "Read", "book", TargetFrequency.DAILY, true));
+		habitRepository.save(new Habit("other-habit", "another-user", "Walk", "walk", TargetFrequency.DAILY, true));
+
+		mockMvc.perform(get("/habits/{habitId}/streak", "owned-habit")
+					.with(jwt().jwt(token -> token.subject(USER_ID))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.currentStreak").value(0));
+		for (String habitId : new String[]{"missing-habit", "other-habit"}) {
+			mockMvc.perform(get("/habits/{habitId}/streak", habitId)
+						.with(jwt().jwt(token -> token.subject(USER_ID))))
+					.andExpect(status().isNotFound())
+					.andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
+		}
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.stats.service.implementation;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
@@ -10,6 +11,7 @@ import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.modules.stats.service.view.MoodTrendView;
 import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
+import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.HashMap;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StatsService {
 	private final EntryReadService entryReadService;
+	private final HabitRepository habitRepository;
 	private final StatsAggregationRepository statsAggregationRepository;
 
 	public List<MoodTrendView> findMoodTrend(String userId, FindMoodTrendInput input) {
@@ -47,6 +50,8 @@ public class StatsService {
 			String userId,
 			CalculateCurrentStreakInput input
 	) {
+		habitRepository.findByIdAndUserId(input.habitId(), userId)
+				.orElseThrow(() -> new ResourceNotFoundException("Habit was not found."));
 		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, input.today());
 		String habitId = input.habitId();
 		Map<String, Integer> streaks = calculateCurrentStreaks(
