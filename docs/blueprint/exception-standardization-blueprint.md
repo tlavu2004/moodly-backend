@@ -12,7 +12,7 @@ Normal API failures use `ApiResponse.error(ApiError)` with a stable `status`, `c
 | --- | --- | --- |
 | Malformed JSON, missing or mistyped parameters, Bean Validation, security filter denial | Spring MVC, Security, or `GlobalExceptionHandler` | Shared `GlobalErrorCode` |
 | Expected business or module-specific request failure | Controller, service, or adapter that understands the condition | Module `ErrorCode` through `ApplicationException` |
-| Unknown persistence collision, broken invariant, programming or library defect | Nearest system boundary | Generic 500 `INTERNAL_SERVER_ERROR`; log original cause |
+| Unknown persistence collision, broken invariant, programming or library defect | Nearest system boundary | Generic 500 `INTERNAL_SERVER_ERROR`; log a compact cause summary and application location |
 | Scheduled job or change-stream callback failure | Job/listener retry, dead-letter, and health policy | No HTTP response unless an API explicitly invokes the operation |
 
 Controllers may validate transport input. Services decide ownership, state, and persistence outcomes. Repositories return data or native persistence exceptions; they do not construct HTTP errors. `GlobalExceptionHandler` handles known MVC failures, all `ApplicationException` instances, and a generic fallback. Do not add a blanket 4xx mapping for `IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`, Mongo exceptions, or third-party exceptions.
@@ -40,6 +40,8 @@ This code migration is intentional and requires consumer review before merge. Pr
 2. Return the same 404 and message for a missing resource and a resource owned by another user. Ownership checks should be shared by callers within the domain; do not reveal another user's identifier or existence.
 3. Translate persistence errors only at an operation that can prove the business condition. A create-if-absent duplicate-key race can recover by reading the intended winner. An unmatched collision retains its cause and becomes 500. `DUPLICATE_RESOURCE` is not a catch-all 409.
 4. Classify dependency failures narrowly. Transport or temporary search unavailability is 503 `SEARCH_UNAVAILABLE`. A search hit without `_source`, an unexpected client response, or a mapping defect is an internal 500. Keep causes for server diagnostics.
+
+Operational error logs should occupy one line. Include a bounded exception class chain and application stack location, together with the request ID where available. Do not log raw exception messages or attach `Throwable` to routine request, cleanup, or CDC failure logs: provider messages can contain secrets and full stack traces obscure the event. Preserve the original cause in the exception object for programmatic recovery and debugging.
 5. Catch only to recover, retry, compensate, or add useful context. Restore the interrupt flag after `InterruptedException`. A primary operation may succeed after secondary cleanup fails only if a durable retry record exists.
 6. Validate configuration at startup. For example, CDC requires `max-attempts >= 1` and `initial-backoff-ms >= 0`; these violations are internal `IllegalArgumentException`s outside the HTTP contract.
 

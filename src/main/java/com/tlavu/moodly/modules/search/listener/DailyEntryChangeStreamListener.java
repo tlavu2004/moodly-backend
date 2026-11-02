@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import com.mongodb.client.model.changestream.FullDocument;
@@ -142,7 +144,7 @@ public class DailyEntryChangeStreamListener {
 		} catch (RuntimeException exception) {
 			recoveryPending = true;
 			monitor.listenerFailed(exception);
-			log.error("Could not restart {} Change Stream from its resume token.", collectionName, exception);
+			log.error("Could not restart {} Change Stream from its resume token: {}", collectionName, ExceptionLogSummary.of(exception));
 		}
 	}
 
@@ -248,19 +250,19 @@ public class DailyEntryChangeStreamListener {
 		if (!isExpiredResumeToken(exception)) {
 			recoveryPending = isTransientMongoFailure(exception);
 			log.error(
-					"{} Change Stream stopped unexpectedly (automaticRecovery={}).",
+					"{} Change Stream stopped unexpectedly (automaticRecovery={}): {}",
 					collectionName,
 					recoveryPending,
-					exception
+					ExceptionLogSummary.of(exception)
 			);
 
 			return;
 		}
 
 		log.warn(
-				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.",
+				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index: {}",
 				collectionName,
-				exception
+				ExceptionLogSummary.of(exception)
 		);
 
 		rebuildPending = true;
@@ -283,9 +285,9 @@ public class DailyEntryChangeStreamListener {
 		} catch (Exception recoveryFailure) {
 			monitor.listenerFailed(recoveryFailure);
 			log.error(
-					"Could not recover {} Change Stream with a full reindex.",
+					"Could not recover {} Change Stream with a full reindex: {}",
 					collectionName,
-					recoveryFailure
+					ExceptionLogSummary.of(recoveryFailure)
 			);
 		}
 	}

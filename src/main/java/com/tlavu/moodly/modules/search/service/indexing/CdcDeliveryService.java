@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.exception.CdcReplayException;
@@ -157,7 +159,7 @@ public class CdcDeliveryService {
 			deadLetterRepository.save(deadLetter);
 		} catch (DataAccessException persistenceFailure) {
 			exception.addSuppressed(persistenceFailure);
-			log.error("Could not persist failed CDC replay state for dead letter {}", deadLetter.getId(), persistenceFailure);
+			log.error("Could not persist failed CDC replay state for dead letter {}: {}", deadLetter.getId(), ExceptionLogSummary.of(persistenceFailure));
 		}
 		monitor.deadLettered(exception);
 	}
@@ -222,12 +224,12 @@ public class CdcDeliveryService {
 		monitor.deadLettered(exception);
 
 		log.error(
-				"CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}",
+				"CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}, cause={}",
 				eventId,
 				operationType,
 				entryId,
 				attemptsMade,
-				exception
+				ExceptionLogSummary.of(exception)
 		);
 	}
 
@@ -314,7 +316,7 @@ public class CdcDeliveryService {
 				attempt,
 				maxAttempts,
 				delay.toMillis(),
-				exception.toString()
+				ExceptionLogSummary.of(exception)
 		);
 
 		retrySleeper.sleep(delay);

@@ -4,6 +4,7 @@ import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
@@ -35,9 +36,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
-
-	private static final int MAX_LOGGED_CAUSE_DEPTH = 4;
-	private static final int MAX_LOGGED_FRAMES_PER_CAUSE = 12;
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiResponse<Void>> handleValidation(
@@ -265,10 +263,9 @@ public class GlobalExceptionHandler {
 	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
 		if (status.is5xxServerError()) {
 			log.error(
-					"Unexpected request failure at {} ({})\n{}",
+					"Unexpected request failure at {}: {}",
 					request.getRequestURI(),
-					exception.getClass().getSimpleName(),
-					sanitizedDiagnosticStack(exception)
+					ExceptionLogSummary.of(exception)
 			);
 		} else {
 			log.warn(
@@ -277,40 +274,6 @@ public class GlobalExceptionHandler {
 					exception.getClass().getSimpleName()
 			);
 		}
-	}
-
-	private String sanitizedDiagnosticStack(Throwable exception) {
-		StringBuilder diagnostic = new StringBuilder();
-		Throwable current = exception;
-		int depth = 0;
-
-		while (current != null && depth < MAX_LOGGED_CAUSE_DEPTH) {
-			if (depth > 0) {
-				diagnostic.append("Caused by: ");
-			}
-
-			diagnostic.append(current.getClass().getName()).append('\n');
-
-			StackTraceElement[] frames = current.getStackTrace();
-			int frameCount = Math.min(frames.length, MAX_LOGGED_FRAMES_PER_CAUSE);
-
-			for (int index = 0; index < frameCount; index++) {
-				diagnostic.append("\tat ").append(frames[index]).append('\n');
-			}
-
-			if (frames.length > frameCount) {
-				diagnostic.append("\t... ").append(frames.length - frameCount).append(" more\n");
-			}
-
-			current = current.getCause();
-			depth++;
-		}
-
-		if (current != null) {
-			diagnostic.append("Caused by: ... additional causes omitted\n");
-		}
-
-		return diagnostic.toString().stripTrailing();
 	}
 
 	private String requestId() {

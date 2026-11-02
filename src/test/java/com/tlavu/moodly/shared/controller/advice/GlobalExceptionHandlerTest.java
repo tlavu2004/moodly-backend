@@ -208,7 +208,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	void logsSanitizedStackLocationsAndRequestIdWithoutExceptionMessages() {
+	void logsCompactLocationsAndRequestIdWithoutExceptionMessages() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
 		Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -229,9 +229,9 @@ class GlobalExceptionHandlerTest {
 		assertThat(events.list).singleElement().satisfies(event -> {
 			assertThat(event.getMDCPropertyMap()).containsEntry(RequestIdFilter.MDC_KEY, "review-test-request");
 			assertThat(event.getFormattedMessage())
-					.contains("Unexpected request failure at /example", "java.lang.IllegalStateException",
-							"Caused by: java.lang.RuntimeException", "GlobalExceptionHandlerTest.java")
-					.doesNotContain("database-password", "access-token", "secret");
+					.contains("Unexpected request failure at /example", "IllegalStateException",
+							"<- RuntimeException", "GlobalExceptionHandlerTest")
+					.doesNotContain("database-password", "access-token", "secret", "\n");
 			assertThat(event.getThrowableProxy()).isNull();
 		});
 	}

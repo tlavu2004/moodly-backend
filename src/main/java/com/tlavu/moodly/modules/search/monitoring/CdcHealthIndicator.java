@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +35,7 @@ public class CdcHealthIndicator implements HealthIndicator {
 			deadLetterCountAvailable = true;
 		} catch (RuntimeException exception) {
 			deadLetterCountAvailable = false;
-			log.warn("Could not refresh CDC dead-letter count: {}", exception.toString());
+			log.warn("Could not refresh CDC dead-letter count: {}", ExceptionLogSummary.of(exception));
 		}
 	}
 

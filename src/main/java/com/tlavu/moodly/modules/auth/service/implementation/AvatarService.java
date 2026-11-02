@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
@@ -215,13 +217,13 @@ public class AvatarService {
 				pendingDeletions.save(pending);
 
 				if (exception instanceof AvatarAssetDeletionException) {
-					log.warn("Cloudinary avatar cleanup queued after profile persistence", exception);
+					log.warn("Cloudinary avatar cleanup queued after profile persistence: {}", ExceptionLogSummary.of(exception));
 				} else {
-					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence", exception);
+					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: {}", ExceptionLogSummary.of(exception));
 				}
 			} catch (RuntimeException schedulingException) {
 				schedulingException.addSuppressed(exception);
-				log.error("Cloudinary avatar cleanup could not be queued after profile persistence", schedulingException);
+				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: {}", ExceptionLogSummary.of(schedulingException));
 			}
 		}
 	}

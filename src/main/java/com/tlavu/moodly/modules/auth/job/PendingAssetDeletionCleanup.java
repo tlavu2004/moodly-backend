@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.job;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
@@ -42,9 +44,9 @@ public class PendingAssetDeletionCleanup {
 				try {
 					pendingDeletions.save(pending);
 					if (exception instanceof AvatarAssetDeletionException || exception instanceof DataAccessException) {
-						log.warn("Cloudinary avatar cleanup retry {} failed", pending.getCleanupAttempts(), exception);
+						log.warn("Cloudinary avatar cleanup retry {} failed: {}", pending.getCleanupAttempts(), ExceptionLogSummary.of(exception));
 					} else {
-						log.error("Unexpected Cloudinary avatar cleanup retry {} failure", pending.getCleanupAttempts(), exception);
+						log.error("Unexpected Cloudinary avatar cleanup retry {} failure: {}", pending.getCleanupAttempts(), ExceptionLogSummary.of(exception));
 					}
 				} catch (RuntimeException persistenceException) {
 					log.error(
