@@ -72,4 +72,15 @@ class CdcMaintenanceControllerTest {
 
 		verify(deliveryService).replay("dead-letter-1");
 	}
+
+	@Test
+	void returnsInternalErrorForAnUnreadableIndexMapping() throws Exception {
+		when(reindexService.reindex()).thenThrow(new IllegalStateException(
+				"Could not read the configured Elasticsearch index mapping", new java.io.IOException("mapping unavailable")));
+
+		mockMvc.perform(post("/internal/cdc/reindex").header("X-Maintenance-Key", "test-key"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error.code").value("INTERNAL_SERVER_ERROR"))
+				.andExpect(jsonPath("$.error.message").value("An unexpected error occurred."));
+	}
 }

@@ -293,7 +293,7 @@ public class CdcDeliveryService {
 			throw lastRuntimeFailure;
 		}
 
-		throw new IOException("CDC delivery failed without an Elasticsearch exception");
+		throw new IllegalStateException("CDC delivery ended without an Elasticsearch failure");
 	}
 
 	private void waitBeforeRetry(

@@ -1,8 +1,10 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,6 +19,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import java.io.IOException;
 import java.util.function.Function;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,6 +70,44 @@ class DailyEntrySearchIndexManagerTest {
 		verify(indicesClient).delete(deleteRequest.capture());
 		assertThat(buildDeleteRequest(deleteRequest.getValue()).index()).containsExactly("entries-test");
 		verify(indicesClient).create(any(Function.class));
+	}
+
+	@Test
+	void doesNotDeleteAnExistingIndexWhenItsMappingCannotBeRead() throws Exception {
+		Resource unreadableMapping = org.mockito.Mockito.mock(Resource.class);
+		when(unreadableMapping.getInputStream()).thenThrow(new IOException("mapping unavailable"));
+		DailyEntrySearchIndexManager manager = new DailyEntrySearchIndexManager(
+				elasticsearchClient, "entries-test", unreadableMapping);
+
+		assertThatThrownBy(manager::recreate)
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessage("Could not read the configured Elasticsearch index mapping")
+				.hasCauseInstanceOf(IOException.class);
+		verifyNoInteractions(elasticsearchClient, indicesClient);
+	}
+
+	@Test
+	void treatsUnreadableMappingAsInternalWhenCreatingAMissingIndex() throws Exception {
+		when(elasticsearchClient.indices()).thenReturn(indicesClient);
+		when(indicesClient.exists(any(Function.class))).thenReturn(new BooleanResponse(false));
+		Resource unreadableMapping = org.mockito.Mockito.mock(Resource.class);
+		when(unreadableMapping.getInputStream()).thenThrow(new IOException("mapping unavailable"));
+		DailyEntrySearchIndexManager manager = new DailyEntrySearchIndexManager(
+				elasticsearchClient, "entries-test", unreadableMapping);
+
+		assertThatThrownBy(manager::createIfMissing)
+				.isInstanceOf(IllegalStateException.class)
+				.hasCauseInstanceOf(IOException.class);
+		verify(indicesClient, never()).create(any(Function.class));
+	}
+
+	@Test
+	void preservesElasticsearchIoFailureForTheCallerToClassify() throws Exception {
+		when(elasticsearchClient.indices()).thenReturn(indicesClient);
+		IOException transportFailure = new IOException("Elasticsearch unavailable");
+		when(indicesClient.exists(any(Function.class))).thenThrow(transportFailure);
+
+		assertThatThrownBy(manager()::createIfMissing).isSameAs(transportFailure);
 	}
 
 	private DailyEntrySearchIndexManager manager() {
