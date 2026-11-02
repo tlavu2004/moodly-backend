@@ -89,7 +89,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
 
    Outside production, the maintenance header is the guard. Production also requires the operator JWT described above.
 
-   Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance header. CDC state and its failed-event count are available at `GET /actuator/health`.
+   Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance header. CDC health is `DEGRADED` while dead letters remain; alert on this status and replay or rebuild the projection. A stopped listener or unavailable dead-letter count reports `DOWN`. In production, health details are hidden from public callers.
 
    `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
 

@@ -18,6 +18,16 @@ class CdcHealthIndicatorTest {
 	private CdcDeadLetterRepository deadLetterRepository;
 
 	@Test
+	void reportsUpOnlyWhenListenerRunsAndNoDeadLettersRemain() {
+		CdcMonitor monitor = new CdcMonitor();
+		monitor.listenerStarted();
+		when(deadLetterRepository.count()).thenReturn(0L);
+		CdcHealthIndicator indicator = new CdcHealthIndicator(monitor, deadLetterRepository);
+		indicator.initializeDeadLetterCount();
+		assertThat(indicator.health().getStatus()).isEqualTo(Health.up().build().getStatus());
+	}
+
+	@Test
 	void readsCachedCountWithoutQueryingMongoOnEveryHealthCheck() {
 		CdcMonitor monitor = new CdcMonitor();
 		monitor.listenerStarted();
@@ -27,7 +37,7 @@ class CdcHealthIndicatorTest {
 		CdcHealthIndicator indicator = new CdcHealthIndicator(monitor, deadLetterRepository);
 
 		indicator.initializeDeadLetterCount();
-		assertThat(indicator.health().getStatus()).isEqualTo(Health.up().build().getStatus());
+		assertThat(indicator.health().getStatus().getCode()).isEqualTo("DEGRADED");
 		assertThat(indicator.health().getDetails()).containsEntry("failedEventCount", 2L);
 		verify(deadLetterRepository).count();
 
@@ -37,7 +47,7 @@ class CdcHealthIndicatorTest {
 		verify(deadLetterRepository, times(2)).count();
 
 		indicator.refreshDeadLetterCount();
-		assertThat(indicator.health().getStatus()).isEqualTo(Health.up().build().getStatus());
+		assertThat(indicator.health().getStatus().getCode()).isEqualTo("DEGRADED");
 		assertThat(indicator.health().getDetails()).containsEntry("failedEventCount", 1L);
 		verify(deadLetterRepository, times(3)).count();
 	}
