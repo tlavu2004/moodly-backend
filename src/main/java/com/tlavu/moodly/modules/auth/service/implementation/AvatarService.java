@@ -17,6 +17,7 @@ import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
+import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,6 +28,7 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 
 @Slf4j
 @Service
@@ -37,6 +39,7 @@ public class AvatarService {
 	private final CurrentUser currentUser;
 	private final UserProfileService userProfileService;
 	private final UserProfileRepository profiles;
+	private final AvatarProfileWriter avatarProfileWriter;
 	private final CloudinaryAssetClient cloudinary;
 	private final PendingAvatarUploadRepository pendingUploads;
 	private final PendingAssetDeletionRepository pendingDeletions;
@@ -50,6 +53,7 @@ public class AvatarService {
 			CurrentUser currentUser,
 			UserProfileService userProfileService,
 			UserProfileRepository profiles,
+			AvatarProfileWriter avatarProfileWriter,
 			CloudinaryAssetClient cloudinary,
 			PendingAvatarUploadRepository pendingUploads,
 			PendingAssetDeletionRepository pendingDeletions,
@@ -62,6 +66,7 @@ public class AvatarService {
 		this.currentUser = currentUser;
 		this.userProfileService = userProfileService;
 		this.profiles = profiles;
+		this.avatarProfileWriter = avatarProfileWriter;
 		this.cloudinary = cloudinary;
 		this.pendingUploads = pendingUploads;
 		this.pendingDeletions = pendingDeletions;
@@ -141,28 +146,24 @@ public class AvatarService {
 			throw AvatarException.invalidMetadata();
 		}
 
-		UserProfile profile = profiles.findByAuth0Subject(subject)
-				.orElseThrow(AvatarProfileMissingException::new);
-		String previousPublicId = profile.getAvatarPublicId();
-		PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
-				? queueObsoleteAsset(previousPublicId)
-				: null;
-
-		profile.replaceAvatar(
-				asset.publicId(),
-				asset.version(),
-				asset.contentType(),
-				asset.sizeBytes(),
-				Instant.now()
-		);
-		profiles.save(profile);
-		pendingUploads.delete(pending);
-
-		if (obsolete != null) {
-			deleteObsoleteAsset(obsolete);
+		for (int attempt = 0; attempt < 5; attempt++) {
+			UserProfile profile = profiles.findByAuth0Subject(subject)
+					.orElseThrow(AvatarProfileMissingException::new);
+			String previousPublicId = profile.getAvatarPublicId();
+			PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
+					? queueObsoleteAsset(previousPublicId)
+					: null;
+			profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
+			if (!avatarProfileWriter.replaceIfCurrent(profile, previousPublicId)) {
+				continue;
+			}
+			pendingUploads.delete(pending);
+			if (obsolete != null) {
+				deleteObsoleteAsset(obsolete);
+			}
+			return avatar(profile);
 		}
-
-		return avatar(profile);
+		throw new ConflictException();
 	}
 
 	public AvatarView current() {
@@ -172,31 +173,32 @@ public class AvatarService {
 	}
 
 	public AvatarView delete() {
-		UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
-
-		if (profile == null || profile.getAvatarPublicId() == null) {
-			return new AvatarView(
-					null,
-					null,
-					null,
-					null
-			);
+		for (int attempt = 0; attempt < 5; attempt++) {
+			UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
+			if (profile == null || profile.getAvatarPublicId() == null) {
+				return new AvatarView(null, null, null, null);
+			}
+			String previousPublicId = profile.getAvatarPublicId();
+			PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
+			profile.clearAvatar(Instant.now());
+			if (!avatarProfileWriter.clearIfCurrent(profile, previousPublicId)) {
+				continue;
+			}
+			deleteObsoleteAsset(obsolete);
+			return new AvatarView(null, null, null, null);
 		}
-
-		String previousPublicId = profile.getAvatarPublicId();
-		PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
-		profile.clearAvatar(Instant.now());
-		profiles.save(profile);
-		deleteObsoleteAsset(obsolete);
-
-		return new AvatarView(null, null, null, null);
+		throw new ConflictException();
 	}
 
 	private PendingAssetDeletion queueObsoleteAsset(String publicId) {
 		return pendingDeletions.findByPublicId(publicId).orElseGet(() -> {
 			PendingAssetDeletion pending = new PendingAssetDeletion(publicId, Instant.now().plusSeconds(60));
-			pendingDeletions.save(pending);
-			return pending;
+			try {
+				pendingDeletions.save(pending);
+				return pending;
+			} catch (DuplicateKeyException race) {
+				return pendingDeletions.findByPublicId(publicId).orElseThrow(() -> race);
+			}
 		});
 	}
 
