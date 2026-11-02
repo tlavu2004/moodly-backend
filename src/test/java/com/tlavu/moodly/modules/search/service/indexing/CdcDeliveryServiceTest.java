@@ -44,6 +44,30 @@ class CdcDeliveryServiceTest {
 	private CdcRetrySleeper retrySleeper;
 
 	@Test
+	void rejectsInvalidRetryConfigurationBeforeStartingDelivery() {
+		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 0, 1))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("moodly.cdc.retry.max-attempts must be at least 1");
+		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 1, -1))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("moodly.cdc.retry.initial-backoff-ms must not be negative");
+		verifyNoInteractions(searchWriter, deadLetterRepository);
+	}
+
+	@Test
+	void acceptsOneAttemptWithZeroBackoff() throws Exception {
+		CdcDeliveryService service = new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 1, 0);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter).delete("entry-1");
+		verifyNoInteractions(retrySleeper, deadLetterRepository);
+	}
+
+	@Test
 	void deliversDeleteWithoutCreatingADeadLetter() throws Exception {
 		CdcDeliveryService service = service();
 
