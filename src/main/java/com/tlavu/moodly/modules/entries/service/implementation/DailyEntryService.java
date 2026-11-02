@@ -4,8 +4,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
-import com.tlavu.moodly.modules.habits.repository.HabitRepository;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
@@ -30,7 +29,7 @@ import org.springframework.dao.DuplicateKeyException;
 @RequiredArgsConstructor
 public class DailyEntryService {
 	private final DailyEntryRepository dailyEntryRepository;
-	private final HabitRepository habitRepository;
+	private final OwnedHabitService ownedHabitService;
 	private final MongoTemplate mongoTemplate;
 
 	public DailyEntryView updateHabitLog(
@@ -38,8 +37,7 @@ public class DailyEntryService {
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		habitRepository.findByIdAndUserId(input.habitId(), userId)
-				.orElseThrow(() -> new ResourceNotFoundException("Habit was not found."));
+		ownedHabitService.require(userId, input.habitId());
 		DailyEntry entry = ensureEntry(userId, date);
 		Query existing = Query.query(Criteria.where("_id").is(entry.getId())
 				.and("habits.habitId").is(input.habitId()));

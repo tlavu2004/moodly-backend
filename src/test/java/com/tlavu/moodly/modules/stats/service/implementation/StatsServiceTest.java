@@ -12,7 +12,7 @@ import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
-import com.tlavu.moodly.modules.habits.repository.HabitRepository;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
@@ -26,7 +26,6 @@ import com.tlavu.moodly.modules.stats.repository.projection.MostMissedHabitProje
 import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,7 +38,7 @@ class StatsServiceTest {
 	@Mock
 	private EntryReadService entryReadService;
 	@Mock
-	private HabitRepository habitRepository;
+	private OwnedHabitService ownedHabitService;
 	@Mock
 	private StatsAggregationRepository statsAggregationRepository;
 	@InjectMocks
@@ -125,7 +124,8 @@ class StatsServiceTest {
 	@Test
 	void rejectsMissingOrAnotherUsersHabitBeforeReadingEntries() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
-		when(habitRepository.findByIdAndUserId("exercise", "user-1")).thenReturn(Optional.empty());
+		when(ownedHabitService.require("user-1", "exercise"))
+				.thenThrow(new ResourceNotFoundException("Habit was not found."));
 
 		assertThatThrownBy(() -> statsService.calculateCurrentStreak("user-1",
 				new CalculateCurrentStreakInput("exercise", today)))
@@ -135,8 +135,8 @@ class StatsServiceTest {
 	}
 
 	private void ownedExercise() {
-		when(habitRepository.findByIdAndUserId("exercise", "user-1"))
-				.thenReturn(Optional.of(new Habit("exercise", "user-1", "Exercise", "walk", TargetFrequency.DAILY, true)));
+		when(ownedHabitService.require("user-1", "exercise"))
+				.thenReturn(new Habit("exercise", "user-1", "Exercise", "walk", TargetFrequency.DAILY, true));
 	}
 
 	@Test

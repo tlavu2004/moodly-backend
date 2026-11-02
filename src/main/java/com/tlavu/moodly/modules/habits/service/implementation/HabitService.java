@@ -7,7 +7,6 @@ import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +16,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class HabitService {
 	private final HabitRepository habitRepository;
+	private final OwnedHabitService ownedHabitService;
 
 	public HabitView create(String userId, CreateHabitInput input) {
 		Habit habit = new Habit(
@@ -46,7 +46,7 @@ public class HabitService {
 	}
 
 	public HabitView update(String userId, String habitId, UpdateHabitInput input) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, input.version());
 		habit.update(input.name(), input.icon());
 
@@ -54,7 +54,7 @@ public class HabitService {
 	}
 
 	public HabitView archive(String userId, String habitId, long version) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, version);
 		habit.archive();
 
@@ -62,16 +62,11 @@ public class HabitService {
 	}
 
 	public HabitView restore(String userId, String habitId, long version) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, version);
 		habit.restore();
 
 		return HabitView.from(habitRepository.save(habit));
-	}
-
-	private Habit ownedHabit(String userId, String habitId) {
-		return habitRepository.findByIdAndUserId(habitId, userId)
-				.orElseThrow(() -> new ResourceNotFoundException("Habit was not found."));
 	}
 
 	private void verifyVersion(Habit habit, long requestedVersion) {

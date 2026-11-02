@@ -10,7 +10,8 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
-import com.tlavu.moodly.modules.habits.repository.HabitRepository;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
+import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,7 +32,7 @@ class DailyEntryServiceTest {
 	@Mock
 	private DailyEntryRepository dailyEntryRepository;
 	@Mock
-	private HabitRepository habitRepository;
+	private OwnedHabitService ownedHabitService;
 	@Mock
 	private MongoTemplate mongoTemplate;
 	@InjectMocks
@@ -51,7 +52,8 @@ class DailyEntryServiceTest {
 	@Test
 	void refusesUnknownHabitBeforeCreatingAnEntry() {
 		LocalDate date = LocalDate.of(2026, 8, 5);
-		when(habitRepository.findByIdAndUserId("other-habit", "user-1")).thenReturn(Optional.empty());
+		when(ownedHabitService.require("user-1", "other-habit"))
+				.thenThrow(new ResourceNotFoundException("Habit was not found."));
 
 		assertThatThrownBy(() -> dailyEntryService.updateHabitLog("user-1", date,
 				new UpdateHabitLogInput("other-habit", true, null)))
