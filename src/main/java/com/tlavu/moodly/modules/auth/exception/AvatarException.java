@@ -4,7 +4,7 @@ import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 
 /** Each factory pairs an avatar-specific 400 code with its safe message for the caller. */
-public class AvatarException extends ApplicationException {
+public final class AvatarException extends ApplicationException {
 	private AvatarException(AuthErrorCode code, String safeMessage) {
 		super(code, safeMessage);
 	}
@@ -49,5 +49,13 @@ public class AvatarException extends ApplicationException {
 				AuthErrorCode.AVATAR_ASSET_INVALID,
 				"Uploaded avatar metadata is invalid."
 		);
+	}
+
+	public static AvatarException invalidVersion() {
+		return new AvatarException(AuthErrorCode.AVATAR_VERSION_INVALID, "Avatar version must be positive.");
+	}
+
+	public static AvatarException conflict() {
+		return new AvatarException(AuthErrorCode.AVATAR_CONFLICT, "The resource was changed by another request.");
 	}
 }

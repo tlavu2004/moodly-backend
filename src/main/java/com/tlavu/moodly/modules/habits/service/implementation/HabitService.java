@@ -6,17 +6,18 @@ import com.tlavu.moodly.modules.habits.service.filter.HabitStatusFilter;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
-import com.tlavu.moodly.shared.error.exception.common.ConflictException;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class HabitService {
 	private final HabitRepository habitRepository;
+	private final OwnedHabitService ownedHabitService;
 
 	public HabitView create(String userId, CreateHabitInput input) {
 		Habit habit = new Habit(
@@ -46,32 +47,27 @@ public class HabitService {
 	}
 
 	public HabitView update(String userId, String habitId, UpdateHabitInput input) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, input.version());
 		habit.update(input.name(), input.icon());
 
-		return HabitView.from(habitRepository.save(habit));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	public HabitView archive(String userId, String habitId, long version) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, version);
 		habit.archive();
 
-		return HabitView.from(habitRepository.save(habit));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	public HabitView restore(String userId, String habitId, long version) {
-		Habit habit = ownedHabit(userId, habitId);
+		Habit habit = ownedHabitService.require(userId, habitId);
 		verifyVersion(habit, version);
 		habit.restore();
 
-		return HabitView.from(habitRepository.save(habit));
-	}
-
-	private Habit ownedHabit(String userId, String habitId) {
-		return habitRepository.findByIdAndUserId(habitId, userId)
-				.orElseThrow(() -> new ResourceNotFoundException("Habit was not found."));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	private void verifyVersion(Habit habit, long requestedVersion) {
@@ -80,7 +76,15 @@ public class HabitService {
 				: habit.getVersion();
 
 		if (currentVersion != requestedVersion) {
-			throw new ConflictException();
+			throw HabitException.conflict();
+		}
+	}
+
+	private Habit saveExisting(Habit habit) {
+		try {
+			return habitRepository.save(habit);
+		} catch (OptimisticLockingFailureException exception) {
+			throw HabitException.optimisticLock(exception);
 		}
 	}
 }

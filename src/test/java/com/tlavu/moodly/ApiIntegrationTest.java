@@ -94,10 +94,29 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.habits[0].habitId").value(habitId))
 				.andExpect(jsonPath("$.data.habits[0].done").value(true));
 
+		String readingResponse = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Reading\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode reading = new tools.jackson.databind.ObjectMapper().readTree(readingResponse).path("data");
+		String readingId = reading.path("id").asString();
+		mockMvc.perform(patch("/entries/today")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"habitId\":\"" + readingId + "\",\"done\":true,\"note\":\"Before archive\"}"))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/habits/{habitId}/archive", readingId)
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"version\":" + reading.path("version").asLong() + "}"))
+				.andExpect(status().isOk());
+
 		mockMvc.perform(patch("/entries/today")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"habitId\":\"reading\",\"done\":false,\"note\":\"Missed\"}"))
+					.content("{\"habitId\":\"" + readingId + "\",\"done\":false,\"note\":\"Missed\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits.length()").value(2));
 
@@ -141,7 +160,7 @@ class ApiIntegrationTest {
 		mockMvc.perform(get("/stats/most-missed-habits")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data[0].habitId").value("reading"))
+				.andExpect(jsonPath("$.data[0].habitId").value(readingId))
 				.andExpect(jsonPath("$.data[0].missedCount").value(1));
 
 		mockMvc.perform(get("/dashboard")
@@ -205,14 +224,22 @@ class ApiIntegrationTest {
 				.path("content").path("application/json").path("examples").path("default").path("value")
 				.path("error").path("status").asInt()).isEqualTo(503);
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("200").isMissingNode()).isFalse();
+		assertThat(openApi.path("paths").path("/entries/today").path("patch").path("responses").path("409").path("$ref").asString())
+				.isEqualTo("#/components/responses/HabitArchived");
+		assertThat(openApi.path("paths").path("/me/avatar/confirm").path("post").path("responses").path("400").path("$ref").asString())
+				.isEqualTo("#/components/responses/BadRequest");
+		assertThat(openApi.path("paths").path("/entries/search").path("get").path("responses").path("400").path("$ref").asString())
+				.isEqualTo("#/components/responses/SearchInvalidRequest");
+		assertThat(openApi.path("paths").path("/internal/cdc/dead-letters/{id}/replay").path("post").path("responses").path("404").path("$ref").asString())
+				.isEqualTo("#/components/responses/CdcDeadLetterNotFound");
 		assertThat(examples.path("SuccessEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())
@@ -264,11 +291,12 @@ class ApiIntegrationTest {
 	void isolatesMongoBackedHabitsAndEntriesBetweenJwtSubjects() throws Exception {
 		String userA = "auth0|mongo-owner";
 		String userB = "auth0|mongo-other";
-		mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
+		String created = mockMvc.perform(post("/habits").with(jwt().jwt(token -> token.subject(userA)))
 					.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Private A\",\"targetFrequency\":\"DAILY\"}"))
-				.andExpect(status().isCreated());
+				.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		String privateHabitId = new tools.jackson.databind.ObjectMapper().readTree(created).path("data").path("id").asString();
 		mockMvc.perform(patch("/entries/today").with(jwt().jwt(token -> token.subject(userA)))
-					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"private-a\",\"done\":true}"))
+					.contentType(MediaType.APPLICATION_JSON).content("{\"habitId\":\"" + privateHabitId + "\",\"done\":true}"))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(userB))))
@@ -290,6 +318,56 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.weeklyMood.averageScore").doesNotExist())
 				.andExpect(jsonPath("$.data.weeklyMood.entryCount").value(0))
 				.andExpect(jsonPath("$.data.bestCurrentStreak").value(0));
+	}
+
+	@Test
+	void rejectsUnknownOrAnotherUsersHabitLogWithoutCreatingAnEntry() throws Exception {
+		String otherUser = "auth0|another-habit-owner";
+		String created = mockMvc.perform(post("/habits")
+					.with(jwt().jwt(token -> token.subject(otherUser)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Private\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		String otherHabitId = new tools.jackson.databind.ObjectMapper().readTree(created)
+				.path("data").path("id").asString();
+
+		for (String habitId : new String[]{"missing-habit", otherHabitId}) {
+			mockMvc.perform(patch("/entries/today")
+						.with(jwt().jwt(token -> token.subject(USER_ID)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"habitId\":\"" + habitId + "\",\"done\":true}"))
+					.andExpect(status().isNotFound())
+					.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"))
+					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
+		}
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
+	}
+
+	@Test
+	void rejectsNewLogForArchivedHabitWithoutCreatingAnEntry() throws Exception {
+		String created = mockMvc.perform(post("/habits")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"Read\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode habit = new tools.jackson.databind.ObjectMapper().readTree(created).path("data");
+		String habitId = habit.path("id").asString();
+		mockMvc.perform(post("/habits/{habitId}/archive", habitId)
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"version\":" + habit.path("version").asLong() + "}"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(patch("/entries/today")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"habitId\":\"" + habitId + "\",\"done\":true}"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.error.code").value("HABIT_ARCHIVED"))
+				.andExpect(jsonPath("$.error.message").value("Archived habits cannot receive new logs."));
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
 	}
 
 	@Test
@@ -324,14 +402,14 @@ class ApiIntegrationTest {
 					.param("from", today.toString())
 					.param("to", today.minusDays(1).toString()))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("ENTRY_INVALID_RANGE"));
 
 		mockMvc.perform(get("/entries")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("from", today.plusDays(1).toString())
 					.param("to", today.plusDays(1).toString()))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("ENTRY_INVALID_RANGE"));
 	}
 
 	@Test
@@ -341,7 +419,7 @@ class ApiIntegrationTest {
 					.param("period", "month"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.error.code").value("STATS_INVALID_PERIOD"))
 				.andExpect(jsonPath("$.error.message").value("Unsupported mood trend period. Supported values: week."));
 	}
 

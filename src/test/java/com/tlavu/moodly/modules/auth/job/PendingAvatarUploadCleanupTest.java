@@ -4,10 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
+import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -21,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PendingAvatarUploadCleanupTest {
 
 	@Mock private PendingAvatarUploadRepository pendingUploads;
+	@Mock private UserProfileRepository profiles;
 	@Mock private CloudinaryAssetClient cloudinary;
 	@InjectMocks private PendingAvatarUploadCleanup cleanup;
 
@@ -41,12 +46,43 @@ class PendingAvatarUploadCleanupTest {
 		PendingAvatarUpload pending = new PendingAvatarUpload(
 				"moodly/test/users/user/avatar/retry", "user", Instant.now().minusSeconds(1));
 		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
-		doThrow(new IllegalStateException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
+		doThrow(new AvatarAssetDeletionException("Cloudinary unavailable")).when(cloudinary).deleteImage(pending.getPublicId());
 
 		cleanup.cleanupExpiredUploads();
 
 		ArgumentCaptor<PendingAvatarUpload> saved = ArgumentCaptor.forClass(PendingAvatarUpload.class);
 		verify(pendingUploads).save(saved.capture());
 		org.assertj.core.api.Assertions.assertThat(saved.getValue().getCleanupAttempts()).isEqualTo(1);
+	}
+
+	@Test
+	void continuesAfterUnexpectedFailureAndRetainsItsPendingUpload() {
+		PendingAvatarUpload failing = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/failing", "user", Instant.now().minusSeconds(1));
+		PendingAvatarUpload healthy = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/healthy", "user", Instant.now().minusSeconds(1));
+		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(failing, healthy));
+		doThrow(new IllegalArgumentException("invalid client state")).when(cloudinary).deleteImage(failing.getPublicId());
+
+		cleanup.cleanupExpiredUploads();
+
+		assertThat(failing.getCleanupAttempts()).isEqualTo(1);
+		verify(pendingUploads).save(failing);
+		verify(pendingUploads, never()).delete(failing);
+		verify(cloudinary).deleteImage(healthy.getPublicId());
+		verify(pendingUploads).delete(healthy);
+	}
+
+	@Test
+	void removesExpiredPendingRecordWithoutDeletingConfirmedAvatar() {
+		PendingAvatarUpload pending = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/active", "user", Instant.now().minusSeconds(1));
+		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
+		when(profiles.existsByAvatarPublicId(pending.getPublicId())).thenReturn(true);
+
+		cleanup.cleanupExpiredUploads();
+
+		verify(cloudinary, org.mockito.Mockito.never()).deleteImage(pending.getPublicId());
+		verify(pendingUploads).delete(pending);
 	}
 }

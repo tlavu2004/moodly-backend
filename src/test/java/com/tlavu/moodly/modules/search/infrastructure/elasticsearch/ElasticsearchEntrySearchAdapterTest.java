@@ -7,6 +7,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
@@ -32,6 +35,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class ElasticsearchEntrySearchAdapterTest {
@@ -90,6 +94,33 @@ class ElasticsearchEntrySearchAdapterTest {
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("Elasticsearch search is unavailable")
 				.hasCauseInstanceOf(IOException.class);
+	}
+
+	@Test
+	void rejectsAHitWithoutSourceInsteadOfReturningAnIncompletePage() throws Exception {
+		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
+		when(response.hits()).thenReturn(hits);
+		when(hits.hits()).thenReturn(List.of(hit));
+		when(hit.id()).thenReturn("entry-1");
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+		Logger logger = (Logger) LoggerFactory.getLogger(ElasticsearchEntrySearchAdapter.class);
+		ListAppender<ILoggingEvent> events = new ListAppender<>();
+		events.start();
+		logger.addAppender(events);
+
+		try {
+			assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("private-query", null, null, 0, 50), 0))
+					.isInstanceOf(IllegalStateException.class)
+					.hasMessage("Elasticsearch hit entry-1 has no source");
+			assertThat(events.list).singleElement().satisfies(event -> {
+				assertThat(event.getFormattedMessage()).contains("hitId=entry-1", "rebuild the index")
+						.doesNotContain("private-query", "user-1");
+				assertThat(event.getThrowableProxy()).isNull();
+			});
+		} finally {
+			logger.detachAppender(events);
+			events.stop();
+		}
 	}
 
 	@Test

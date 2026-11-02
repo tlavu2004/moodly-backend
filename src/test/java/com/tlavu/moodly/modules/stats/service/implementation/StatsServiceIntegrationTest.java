@@ -6,6 +6,9 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.model.Habit;
+import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
@@ -33,12 +36,15 @@ class StatsServiceIntegrationTest {
 
 	@Autowired
 	private DailyEntryRepository dailyEntryRepository;
+	@Autowired
+	private HabitRepository habitRepository;
 
 	@Autowired
 	private StatsService statsService;
 
 	@BeforeEach
 	void seedEntries() {
+		habitRepository.save(new Habit("exercise", TEST_USER_ID, "Exercise", "walk", TargetFrequency.DAILY, true));
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 1),
 				3,
@@ -61,6 +67,7 @@ class StatsServiceIntegrationTest {
 	@AfterEach
 	void cleanUp() {
 		dailyEntryRepository.deleteByUserId(TEST_USER_ID);
+		habitRepository.deleteAll(habitRepository.findByUserId(TEST_USER_ID));
 	}
 
 	@Test

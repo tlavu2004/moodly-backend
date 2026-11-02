@@ -1,7 +1,10 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
+import com.tlavu.moodly.modules.search.exception.CdcReplayException;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
@@ -9,12 +12,13 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.search.exception.SearchException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -41,6 +45,12 @@ public class CdcDeliveryService {
 			@Value("${moodly.cdc.retry.max-attempts}") int maxAttempts,
 			@Value("${moodly.cdc.retry.initial-backoff-ms}") long initialBackoffMs
 	) {
+		if (maxAttempts < 1) {
+			throw new IllegalArgumentException("moodly.cdc.retry.max-attempts must be at least 1");
+		}
+		if (initialBackoffMs < 0) {
+			throw new IllegalArgumentException("moodly.cdc.retry.initial-backoff-ms must not be negative");
+		}
 		this.searchWriter = searchWriter;
 		this.deadLetterRepository = deadLetterRepository;
 		this.monitor = monitor;
@@ -78,7 +88,7 @@ public class CdcDeliveryService {
 
 	public void replay(String deadLetterId) {
 		CdcDeadLetter deadLetter = deadLetterRepository.findById(deadLetterId)
-				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
+				.orElseThrow(SearchException::deadLetterNotFound);
 		replayDeadLetter(deadLetter);
 	}
 
@@ -112,7 +122,7 @@ public class CdcDeliveryService {
 			Thread.currentThread().interrupt();
 			handleReplayFailure(deadLetter, exception, attempts.value());
 
-			throw new IllegalStateException(
+			throw new CdcReplayException(
 					"CDC dead-letter replay was interrupted " + deadLetter.getId(),
 					exception
 			);
@@ -127,14 +137,14 @@ public class CdcDeliveryService {
 				throw SearchInfrastructureUnavailableException.duringReplay(exception);
 			}
 
-			throw new IllegalStateException(
+			throw new CdcReplayException(
 					"Could not replay CDC dead-letter event " + deadLetter.getId(),
 					exception
 			);
 		} catch (RuntimeException exception) {
 			handleReplayFailure(deadLetter, exception, attempts.value());
 
-			throw new IllegalStateException(
+			throw new CdcReplayException(
 					"Could not replay CDC dead-letter event " + deadLetter.getId(),
 					exception
 			);
@@ -145,7 +155,12 @@ public class CdcDeliveryService {
 		deadLetter.setAttempts(deadLetter.getAttempts() + attemptsMade);
 		deadLetter.setError(exception.getMessage());
 		deadLetter.setFailedAt(Instant.now());
-		deadLetterRepository.save(deadLetter);
+		try {
+			deadLetterRepository.save(deadLetter);
+		} catch (DataAccessException persistenceFailure) {
+			exception.addSuppressed(persistenceFailure);
+			log.error("Could not persist failed CDC replay state for dead letter {}: {}", deadLetter.getId(), ExceptionLogSummary.of(persistenceFailure));
+		}
 		monitor.deadLettered(exception);
 	}
 
@@ -170,7 +185,7 @@ public class CdcDeliveryService {
 					exception,
 					attempts.value()
 			);
-		} catch (IOException | RuntimeException exception) {
+		} catch (IOException | ElasticsearchException exception) {
 			saveDeadLetter(
 					eventId,
 					operationType,
@@ -190,26 +205,31 @@ public class CdcDeliveryService {
 			Exception exception,
 			int attemptsMade
 	) {
-		deadLetterRepository.save(
-				new CdcDeadLetter(
-						eventId,
-						operationType,
-						entryId,
-						payload,
-						exception.getMessage(),
-						attemptsMade,
-						Instant.now()
-				)
-		);
+		try {
+			deadLetterRepository.save(
+					new CdcDeadLetter(
+							eventId,
+							operationType,
+							entryId,
+							payload,
+							exception.getMessage(),
+							attemptsMade,
+							Instant.now()
+					)
+			);
+		} catch (DataAccessException persistenceFailure) {
+			persistenceFailure.addSuppressed(exception);
+			throw persistenceFailure;
+		}
 		monitor.deadLettered(exception);
 
 		log.error(
-				"CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}",
+				"CDC event moved to dead letter: eventId={}, operation={}, entryId={}, attempts={}, cause={}",
 				eventId,
 				operationType,
 				entryId,
 				attemptsMade,
-				exception
+				ExceptionLogSummary.of(exception)
 		);
 	}
 
@@ -221,7 +241,7 @@ public class CdcDeliveryService {
 			AttemptCount attempts
 	) throws IOException, InterruptedException {
 		IOException lastIoFailure = null;
-		RuntimeException lastRuntimeFailure = null;
+		ElasticsearchException lastRuntimeFailure = null;
 
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 			attempts.record(attempt);
@@ -247,7 +267,7 @@ public class CdcDeliveryService {
 						attempt,
 						exception
 				);
-			} catch (RuntimeException exception) {
+			} catch (ElasticsearchException exception) {
 				if (isNonTransient(exception)) {
 					throw exception;
 				}
@@ -275,7 +295,7 @@ public class CdcDeliveryService {
 			throw lastRuntimeFailure;
 		}
 
-		throw new IOException("CDC delivery failed without an Elasticsearch exception");
+		throw new IllegalStateException("CDC delivery ended without an Elasticsearch failure");
 	}
 
 	private void waitBeforeRetry(
@@ -296,7 +316,7 @@ public class CdcDeliveryService {
 				attempt,
 				maxAttempts,
 				delay.toMillis(),
-				exception.toString()
+				ExceptionLogSummary.of(exception)
 		);
 
 		retrySleeper.sleep(delay);

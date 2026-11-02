@@ -4,6 +4,8 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
@@ -11,42 +13,54 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.dao.DuplicateKeyException;
 
 @Service
 @RequiredArgsConstructor
 public class DailyEntryService {
 	private final DailyEntryRepository dailyEntryRepository;
+	private final OwnedHabitService ownedHabitService;
+	private final MongoTemplate mongoTemplate;
 
 	public DailyEntryView updateHabitLog(
 			String userId,
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		DailyEntry entry = getOrCreate(userId, date);
-		Optional<HabitLog> existing = entry.getHabits().stream()
-				.filter(log -> log.getHabitId().equals(input.habitId()))
-				.findFirst();
-
-		if (existing.isPresent()) {
-			HabitLog log = existing.get();
-			log.setDone(input.done());
-			log.setNote(input.note());
-		} else {
-			entry.getHabits().add(
-					new HabitLog(
-							input.habitId(),
-							input.done(),
-							input.note()
-					)
-			);
+		var habit = ownedHabitService.require(userId, input.habitId());
+		if (!habit.isActive() && !dailyEntryRepository.findByUserIdAndDate(userId, date)
+				.map(existing -> existing.getHabits().stream()
+						.anyMatch(log -> input.habitId().equals(log.getHabitId())))
+				.orElse(false)) {
+			throw HabitException.archived();
 		}
-
-		return DailyEntryView.from(save(entry));
+		DailyEntry entry = ensureEntry(userId, date);
+		Query existing = Query.query(Criteria.where("_id").is(entry.getId())
+				.and("habits.habitId").is(input.habitId()));
+		Update replace = new Update().set("habits.$.done", input.done())
+				.set("habits.$.note", input.note()).set("updatedAt", Instant.now());
+		if (mongoTemplate.updateFirst(existing, replace, DailyEntry.class).getMatchedCount() == 0) {
+			Query missing = Query.query(Criteria.where("_id").is(entry.getId())
+					.and("habits.habitId").ne(input.habitId()));
+			Update append = new Update().push("habits", new HabitLog(input.habitId(), input.done(), input.note()))
+					.set("updatedAt", Instant.now());
+			if (mongoTemplate.updateFirst(missing, append, DailyEntry.class).getMatchedCount() == 0) {
+				mongoTemplate.updateFirst(existing, replace, DailyEntry.class);
+			}
+		}
+		return DailyEntryView.from(dailyEntryRepository.findById(entry.getId())
+				.orElseThrow(() -> new IllegalStateException("Daily entry disappeared after habit update")));
 	}
 
 	public DailyEntryView setMood(
@@ -54,16 +68,13 @@ public class DailyEntryService {
 			LocalDate date,
 			SetMoodInput input
 	) {
-		DailyEntry entry = getOrCreate(userId, date);
-		entry.setMood(
-				new Mood(
-						input.score(),
-						input.tags(),
-						input.note()
-				)
-		);
-
-		return DailyEntryView.from(save(entry));
+		DailyEntry entry = ensureEntry(userId, date);
+		DailyEntry updated = mongoTemplate.findAndModify(
+				Query.query(Criteria.where("_id").is(entry.getId())),
+				new Update().set("mood", new Mood(input.score(), input.tags(), input.note()))
+						.set("updatedAt", Instant.now()),
+				FindAndModifyOptions.options().returnNew(true), DailyEntry.class);
+		return DailyEntryView.from(Objects.requireNonNull(updated, "Daily entry disappeared during mood update"));
 	}
 
 	public List<DailyEntryView> findBetween(
@@ -95,20 +106,19 @@ public class DailyEntryService {
 				.map(DailyEntryView::from);
 	}
 
-	private DailyEntry getOrCreate(String userId, LocalDate date) {
-		return dailyEntryRepository.findByUserIdAndDate(userId, date)
-				.orElseGet(() -> new DailyEntry(userId, date));
-	}
-
-	private DailyEntry save(DailyEntry entry) {
+	private DailyEntry ensureEntry(String userId, LocalDate date) {
 		Instant now = Instant.now();
-
-		if (entry.getCreatedAt() == null) {
-			entry.setCreatedAt(now);
+		try {
+			return Objects.requireNonNull(mongoTemplate.findAndModify(
+					Query.query(Criteria.where("userId").is(userId).and("date").is(date)),
+					new Update().setOnInsert("userId", userId).setOnInsert("date", date)
+							.setOnInsert("habits", List.of()).setOnInsert("createdAt", now)
+							.setOnInsert("updatedAt", now),
+					FindAndModifyOptions.options().upsert(true).returnNew(true), DailyEntry.class));
+		} catch (DuplicateKeyException race) {
+			return dailyEntryRepository.findByUserIdAndDate(userId, date)
+					.orElseThrow(() -> new IllegalStateException(
+							"Daily entry collided without an existing entry for the same user and date", race));
 		}
-
-		entry.setUpdatedAt(now);
-
-		return dailyEntryRepository.save(entry);
 	}
 }

@@ -34,7 +34,16 @@ jobs:
         run: chmod +x mvnw
 
       - name: Run tests
-        run: ./mvnw --batch-mode verify
+        run: ./mvnw --batch-mode -Dmaven.test.redirectTestOutputToFile=true verify
+
+      - name: Upload test diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: moodly-test-diagnostics
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Summarize coverage
         if: success()

@@ -8,7 +8,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -31,6 +35,7 @@ import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
@@ -50,6 +55,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import org.bson.BsonTimestamp;
+import org.bson.Document;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -84,6 +93,8 @@ class CdcSearchInfrastructureIntegrationTest {
 	@Autowired
 	private CdcHealthIndicator cdcHealthIndicator;
 	@Autowired
+	private CdcMonitor monitor;
+	@Autowired
 	private MockMvc mockMvc;
 	@Autowired
 	private EntrySearchService entrySearchService;
@@ -91,8 +102,12 @@ class CdcSearchInfrastructureIntegrationTest {
 	private DailyEntryChangeStreamListener listener;
 	@Autowired
 	private CdcResumeTokenRepository resumeTokenRepository;
+	@Autowired
+	private MongoTemplate mongoTemplate;
 	@MockitoSpyBean
 	private DailyEntryReindexService reindexService;
+	@MockitoSpyBean
+	private DailyEntrySearchWriter searchWriter;
 
 	@BeforeEach
 	void prepareState() throws Exception {
@@ -110,7 +125,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
-	void healthCountsPersistedDeadLettersAfterFailedReplayAndNewMonitorInstance() {
+	void healthCountsPersistedDeadLettersAfterFailedReplayAndNewMonitorInstance() throws Exception {
 		assertThat(cdcHealthIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 0L);
 
@@ -120,6 +135,9 @@ class CdcSearchInfrastructureIntegrationTest {
 		cdcHealthIndicator.refreshDeadLetterCount();
 		assertThat(cdcHealthIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 1L);
+		mockMvc.perform(get("/actuator/health"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("DEGRADED"));
 
 		assertThatThrownBy(() -> deliveryService.replay(deadLetter.getId()))
 				.isInstanceOf(IllegalStateException.class);
@@ -272,6 +290,23 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
+	void bootstrapsExistingMongoEntriesBeforeListeningForNewChanges() throws Exception {
+		listener.stop();
+		cdcSearchTestSupport.clearState();
+		DailyEntry existing = cdcSearchTestSupport.save(entry(
+				cdcSearchTestSupport.newUserId(), "before first listener", List.of(), "walk", 3));
+		clearInvocations(reindexService);
+
+		listener.start();
+		awaitChangeStreamRegistration();
+		cdcSearchTestSupport.awaitIndexed(existing.getId());
+		verify(reindexService).reindex();
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test"))
+				.hasValueSatisfying(checkpoint -> assertThat(
+						checkpoint.getResumeAt() != null || checkpoint.getToken() != null).isTrue());
+	}
+
+	@Test
 	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
 		DailyEntry first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
 		cdcSearchTestSupport.awaitIndexed(first.getId());
@@ -289,6 +324,56 @@ class CdcSearchInfrastructureIntegrationTest {
 		elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
 		assertThat(elasticsearchClient.count(request -> request.index(indexManager.getIndexName())).count()).isEqualTo(2);
 		verify(reindexService, never()).reindex();
+	}
+
+	@Test
+	void retainsResumeTokenAndReplaysAfterUnexpectedWriterFailure() throws Exception {
+		DailyEntry first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before failure", List.of(), "habit", 3));
+		cdcSearchTestSupport.awaitIndexed(first.getId());
+		String tokenBeforeFailure = awaitResumeToken();
+
+		DailyEntry failing = entry(cdcSearchTestSupport.newUserId(), "after failure", List.of(), "habit", 4);
+		failing.setId("cdc-failing-" + UUID.randomUUID());
+		doThrow(new IllegalArgumentException("invalid writer state"))
+				.when(searchWriter).index(eq(failing.getId()), any(DailyEntrySearchDocument.class));
+		cdcSearchTestSupport.save(failing);
+
+		com.tlavu.moodly.support.AsyncTestAwaiter.until("CDC listener to report the writer failure",
+				() -> !monitor.isListenerHealthy(), () -> "listenerHealthy=" + monitor.isListenerHealthy());
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+				.contains(tokenBeforeFailure);
+		assertThat(deadLetterRepository.findAll()).isEmpty();
+		assertThat(elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(failing.getId()),
+				DailyEntrySearchDocument.class).found()).isFalse();
+
+		listener.stop();
+		reset(searchWriter);
+		listener.start();
+		awaitChangeStreamRegistration();
+		cdcSearchTestSupport.awaitIndexed(failing.getId());
+		com.tlavu.moodly.support.AsyncTestAwaiter.until("CDC resume token to advance after replay",
+				() -> resumeTokenRepository.findById("daily_entries_cdc_test")
+						.map(CdcResumeToken::getToken).filter(token -> !token.equals(tokenBeforeFailure)).isPresent(),
+				() -> "streamId=daily_entries_cdc_test");
+		assertThat(monitor.isListenerHealthy()).isTrue();
+	}
+
+	@Test
+	void replaysChangesFromPersistedRebuildOperationTimeAfterRestart() throws Exception {
+		listener.stop();
+		BsonTimestamp serverTime = mongoTemplate.executeCommand(new Document("ping", 1))
+				.get("operationTime", BsonTimestamp.class);
+		assertThat(serverTime).isNotNull();
+		resumeTokenRepository.save(CdcResumeToken.fromOperationTime("daily_entries_cdc_test",
+				Instant.ofEpochSecond(serverTime.getTime()), Instant.now()));
+		DailyEntry entry = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(),
+				"written while stopped", List.of(), "habit", 4));
+
+		listener.start();
+		awaitChangeStreamRegistration();
+		cdcSearchTestSupport.awaitIndexed(entry.getId());
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+				.isPresent();
 	}
 
 	private DailyEntry entry(String userId, String note, List<String> tags, String habitNote, int score) {

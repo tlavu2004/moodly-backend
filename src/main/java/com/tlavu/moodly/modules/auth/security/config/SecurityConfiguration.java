@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -20,6 +22,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -40,7 +43,10 @@ import static java.util.Objects.requireNonNullElse;
 @EnableWebSecurity
 public class SecurityConfiguration {
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+			Environment environment,
+			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority) {
+		boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
 		http.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -48,12 +54,17 @@ public class SecurityConfiguration {
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers(
 								"/actuator/health",
-								"/internal/cdc/**",
 								"/internal/e2e/**",
 								"/swagger-ui.html",
 								"/swagger-ui/**",
 								"/v3/api-docs/**"
 						).permitAll()
+						.requestMatchers("/internal/cdc/**")
+								.access((authentication, context) -> new AuthorizationDecision(
+										!production || (authentication.get().isAuthenticated() &&
+												authentication.get().getAuthorities().stream()
+														.anyMatch(authority -> authority.getAuthority().equals(cdcAdminAuthority)))
+								))
 						.anyRequest()
 						.authenticated()
 				)

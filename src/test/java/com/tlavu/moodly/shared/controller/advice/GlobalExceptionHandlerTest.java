@@ -8,7 +8,15 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
+import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
+import com.tlavu.moodly.modules.search.exception.CdcReplayException;
 import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
+import com.tlavu.moodly.modules.habits.code.HabitErrorCode;
+import com.tlavu.moodly.modules.entries.code.EntryErrorCode;
+import com.tlavu.moodly.modules.stats.code.StatsErrorCode;
+import com.tlavu.moodly.modules.search.code.SearchErrorCode;
+import com.tlavu.moodly.modules.e2e.code.E2eErrorCode;
+import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
@@ -24,18 +32,50 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class GlobalExceptionHandlerTest {
+	@RestController
+	static class DuplicateController {
+		@GetMapping("/test-duplicate")
+		void fail() {
+			throw new DuplicateKeyException("internal index name and key");
+		}
+	}
+
+	@Test
+	void mvcDispatchKeepsUnknownDuplicateInternal() throws Exception {
+		MockMvcBuilders.standaloneSetup(new DuplicateController())
+				.setControllerAdvice(new GlobalExceptionHandler())
+				.build()
+				.perform(get("/test-duplicate"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error.code").value("INTERNAL_SERVER_ERROR"))
+				.andExpect(jsonPath("$.error.message").value("An unexpected error occurred."));
+	}
 
 	@Test
 	void keepsTheErrorCodeCatalogUnique() {
-		List<String> codes = Stream.concat(
+		List<ErrorCode> catalog = Stream.of(
 				Arrays.stream(GlobalErrorCode.values()),
-				Arrays.stream(AuthErrorCode.values())
-		).map(code -> code.getCode()).toList();
-		assertThat(codes).doesNotHaveDuplicates();
-		assertThat(Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getStatus)).doesNotContainNull();
-		assertThat(Arrays.stream(AuthErrorCode.values()).map(AuthErrorCode::getStatus)).doesNotContainNull();
+				Arrays.stream(AuthErrorCode.values()),
+				Arrays.stream(HabitErrorCode.values()),
+				Arrays.stream(EntryErrorCode.values()),
+				Arrays.stream(StatsErrorCode.values()),
+				Arrays.stream(SearchErrorCode.values()),
+				Arrays.stream(E2eErrorCode.values())
+		).flatMap(stream -> stream).map(code -> (ErrorCode) code).toList();
+		assertThat(catalog).extracting(ErrorCode::getCode).doesNotHaveDuplicates();
+		assertThat(catalog).allSatisfy(code -> {
+			assertThat(code.getStatus()).isNotNull();
+			assertThat(code.getDefaultMessage()).isNotBlank();
+		});
 	}
 
 	@Test
@@ -89,6 +129,7 @@ class GlobalExceptionHandlerTest {
 	void doesNotExposeUnexpectedExceptionDetails() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
+		when(request.getMethod()).thenReturn("GET");
 
 		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleUnexpectedException(
 				new IllegalStateException("database-password=secret"), request);
@@ -119,6 +160,36 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	void leavesUnclassifiedDuplicateKeysAsInternalFailures() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/entries/today");
+
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleUnexpectedException(
+				new DuplicateKeyException("internal index name and key"), request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+		assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+		assertThat(response.getBody().error().message()).doesNotContain("internal index name");
+	}
+
+	@Test
+	void keepsInternalModuleFailuresAtFiveHundredWithoutLeakingDetails() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/internal/cdc/dead-letters/secret/replay");
+		GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+		for (Exception exception : List.of(
+				new AvatarProfileMissingException(),
+				new CdcReplayException("sensitive dead letter", new IllegalArgumentException("secret"))
+		)) {
+			ResponseEntity<ApiResponse<Void>> response = handler.handleUnexpectedException(exception, request);
+			assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+			assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+			assertThat(response.getBody().error().message()).isEqualTo("An unexpected error occurred.");
+		}
+	}
+
+	@Test
 	void mapsControllerSecurityFailuresWithoutExposingTheirMessages() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/habits");
@@ -138,9 +209,10 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	void logsSanitizedStackLocationsAndRequestIdWithoutExceptionMessages() {
+	void logsCompactLocationsAndRequestIdWithoutExceptionMessages() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
+		when(request.getMethod()).thenReturn("GET");
 		Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
 		ListAppender<ILoggingEvent> events = new ListAppender<>();
 		events.start();
@@ -159,9 +231,10 @@ class GlobalExceptionHandlerTest {
 		assertThat(events.list).singleElement().satisfies(event -> {
 			assertThat(event.getMDCPropertyMap()).containsEntry(RequestIdFilter.MDC_KEY, "review-test-request");
 			assertThat(event.getFormattedMessage())
-					.contains("Unexpected request failure at /example", "java.lang.IllegalStateException",
-							"Caused by: java.lang.RuntimeException", "GlobalExceptionHandlerTest.java")
-					.doesNotContain("database-password", "access-token", "secret");
+					.contains("Unexpected request failure at /example", "method=GET", "status=500",
+							"code=INTERNAL_SERVER_ERROR", "IllegalStateException",
+							"<- RuntimeException", "GlobalExceptionHandlerTest")
+					.doesNotContain("database-password", "access-token", "secret", "\n");
 			assertThat(event.getThrowableProxy()).isNull();
 		});
 	}

@@ -1,9 +1,11 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -11,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -20,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 
 @Component
 public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
@@ -93,7 +97,10 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				throw AvatarException.uploadNotFound();
 			}
 			if (response.statusCode() != 200) {
-				throw new AvatarServiceUnavailableException(new IllegalStateException("Cloudinary verification returned HTTP " + response.statusCode()));
+				throw new AvatarServiceUnavailableException(
+						new IllegalStateException("Cloudinary verification failed"),
+						response.statusCode()
+				);
 			}
 
 			JsonNode asset = objectMapper.readTree(response.body());
@@ -114,7 +121,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			throw new AvatarServiceUnavailableException(exception);
 		} catch (AvatarException | AvatarServiceUnavailableException exception) {
 			throw exception;
-		} catch (Exception exception) {
+		} catch (IOException | JacksonException exception) {
 			throw new AvatarServiceUnavailableException(exception);
 		}
 	}
@@ -149,17 +156,19 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 
 			if (response.statusCode() >= 300) {
-				throw new IllegalStateException("Cloudinary deletion failed.");
+				throw new AvatarAssetDeletionException("Cloudinary deletion failed.", response.statusCode());
 			}
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 
-			throw new IllegalStateException(
+			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion was interrupted.",
 					exception
 			);
-		} catch (Exception exception) {
-			throw new IllegalStateException(
+		} catch (AvatarAssetDeletionException exception) {
+			throw exception;
+		} catch (IOException exception) {
+			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion failed.",
 					exception
 			);
@@ -172,7 +181,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				MessageDigest.getInstance("SHA-1")
 						.digest(value.getBytes(StandardCharsets.UTF_8))
 			);
-		} catch (Exception exception) {
+		} catch (NoSuchAlgorithmException exception) {
 			throw new IllegalStateException(exception);
 		}
 	}

@@ -14,21 +14,23 @@ import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
-import com.tlavu.moodly.shared.error.exception.common.ConflictException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
 class HabitServiceTest {
 
 	@Mock
 	private HabitRepository habitRepository;
+	@Mock
+	private OwnedHabitService ownedHabitService;
 
 	@InjectMocks
 	private HabitService habitService;
@@ -65,7 +67,7 @@ class HabitServiceTest {
 	@Test
 	void updatesAndArchivesOnlyAnOwnedHabitAtTheExpectedVersion() {
 		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
-		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
+		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
 		when(habitRepository.save(habit)).thenReturn(habit);
 
 		HabitView updated = habitService.update(
@@ -80,13 +82,28 @@ class HabitServiceTest {
 	}
 
 	@Test
-	void rejectsAStaleHabitVersionWithTheSharedConflictCode() {
+	void rejectsAStaleHabitVersionWithTheHabitConflictCode() {
 		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
-		when(habitRepository.findByIdAndUserId("habit-1", "user-1")).thenReturn(Optional.of(habit));
+		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
 
-		ConflictException exception = assertThrows(ConflictException.class, () -> habitService.archive("user-1", "habit-1", 1L));
+		HabitException exception = assertThrows(HabitException.class, () -> habitService.archive("user-1", "habit-1", 1L));
 
-		assertEquals("CONFLICT", exception.getCode().getCode());
+		assertEquals("HABIT_CONFLICT", exception.getCode().getCode());
 		verify(habitRepository, org.mockito.Mockito.never()).save(habit);
+	}
+
+	@Test
+	void translatesAConcurrentRepositoryWriteToTheHabitConflictCode() {
+		Habit habit = new Habit("habit-1", "user-1", "Read", null, TargetFrequency.DAILY, true);
+		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
+		OptimisticLockingFailureException race = new OptimisticLockingFailureException("stale Mongo version");
+		when(habitRepository.save(habit)).thenThrow(race);
+
+		HabitException exception = assertThrows(HabitException.class,
+				() -> habitService.archive("user-1", "habit-1", 0L));
+
+		assertEquals("HABIT_CONFLICT", exception.getCode().getCode());
+		assertEquals("Resource was changed by another request. Refresh and retry.", exception.getMessage());
+		assertEquals(race, exception.getCause());
 	}
 }

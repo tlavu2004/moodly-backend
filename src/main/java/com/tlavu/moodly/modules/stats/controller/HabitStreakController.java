@@ -8,6 +8,7 @@ import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,16 @@ public class HabitStreakController {
 			summary = "Get a habit's current streak",
 			description = "Calculates the current consecutive-completion streak for one of the authenticated user's habits."
 	)
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "200",
+					description = "OK"
+			),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "404",
+					ref = "#/components/responses/HabitNotFound"
+			)
+	})
 	public ApiResponse<HabitStreakResponse> currentStreak(
 			@PathVariable String habitId
 	) {

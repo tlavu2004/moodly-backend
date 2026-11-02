@@ -18,12 +18,24 @@
   ],
   "tags": [
     {
-      "name": "Dashboard",
-      "description": "Authenticated user's current dashboard summary"
-    },
-    {
       "name": "Authentication",
       "description": "Authenticated user profile operations"
+    },
+    {
+      "name": "Avatar",
+      "description": "Avatar upload and retrieval for the authenticated user"
+    },
+    {
+      "name": "CDC maintenance",
+      "description": "Internal operations require X-Maintenance-Key; production additionally requires an operator JWT."
+    },
+    {
+      "name": "Daily entries",
+      "description": "Daily mood and habit-log entries for the authenticated user"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Authenticated user's current dashboard summary"
     },
     {
       "name": "Entry search",
@@ -34,20 +46,8 @@
       "description": "Statistics for the authenticated user's habits"
     },
     {
-      "name": "CDC maintenance",
-      "description": "Internal operations protected by the X-Maintenance-Key header"
-    },
-    {
       "name": "Habits",
       "description": "Habit management for the authenticated user"
-    },
-    {
-      "name": "Avatar",
-      "description": "Avatar upload and retrieval for the authenticated user"
-    },
-    {
-      "name": "Daily entries",
-      "description": "Daily mood and habit-log entries for the authenticated user"
     },
     {
       "name": "Statistics",
@@ -251,6 +251,9 @@
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
           },
+          "409": {
+            "$ref": "#/components/responses/AvatarConflict"
+          },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
@@ -269,7 +272,7 @@
           "CDC maintenance"
         ],
         "summary": "Reindex daily entries",
-        "description": "Rebuilds the daily-entry search index. Requires the X-Maintenance-Key header.",
+        "description": "Rebuilds the daily-entry search index. Requires X-Maintenance-Key; production also requires an operator JWT.",
         "operationId": "reindex",
         "parameters": [
           {
@@ -297,7 +300,7 @@
             "$ref": "#/components/responses/BadRequest"
           },
           "403": {
-            "$ref": "#/components/responses/MaintenanceKeyRequired"
+            "$ref": "#/components/responses/CdcMaintenanceForbidden"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -328,7 +331,7 @@
           "CDC maintenance"
         ],
         "summary": "Replay a CDC dead letter",
-        "description": "Replays a failed CDC delivery by ID. Requires the X-Maintenance-Key header.",
+        "description": "Replays a failed CDC delivery by ID. Requires X-Maintenance-Key; production also requires an operator JWT.",
         "operationId": "replay",
         "parameters": [
           {
@@ -357,10 +360,10 @@
             "$ref": "#/components/responses/BadRequest"
           },
           "403": {
-            "$ref": "#/components/responses/MaintenanceKeyRequired"
+            "$ref": "#/components/responses/CdcMaintenanceForbidden"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "$ref": "#/components/responses/CdcDeadLetterNotFound"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -421,7 +424,7 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/HabitInvalidStatus"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -550,7 +553,7 @@
             "$ref": "#/components/responses/NotAcceptable"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "$ref": "#/components/responses/HabitConflict"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -616,7 +619,7 @@
             "$ref": "#/components/responses/NotAcceptable"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "$ref": "#/components/responses/HabitConflict"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -682,7 +685,7 @@
             "$ref": "#/components/responses/NotAcceptable"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "$ref": "#/components/responses/HabitConflict"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -740,7 +743,7 @@
           "Daily entries"
         ],
         "summary": "Update today's habit log",
-        "description": "Marks or unmarks a habit in the authenticated user's entry for today.",
+        "description": "Marks or unmarks a habit in the authenticated user's entry for today. Existing logs can be corrected after archiving; new logs for archived habits are rejected.",
         "operationId": "updateTodayHabit",
         "requestBody": {
           "content": {
@@ -772,11 +775,17 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "404": {
+            "$ref": "#/components/responses/HabitNotFound"
+          },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
           },
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
+          },
+          "409": {
+            "$ref": "#/components/responses/HabitArchived"
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
@@ -863,7 +872,7 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/StatsInvalidPeriod"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -964,6 +973,9 @@
           "406": {
             "$ref": "#/components/responses/NotAcceptable"
           },
+          "409": {
+            "$ref": "#/components/responses/AvatarConflict"
+          },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
           },
@@ -1013,6 +1025,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/HabitNotFound"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -1089,7 +1104,7 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/EntryInvalidRange"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1180,7 +1195,7 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/SearchInvalidRequest"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -2517,6 +2532,303 @@
           }
         }
       },
+      "HabitArchived": {
+        "description": "A new log cannot be created for an archived habit.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 409,
+                    "code": "HABIT_ARCHIVED",
+                    "message": "Archived habits cannot receive new logs.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HabitNotFound": {
+        "description": "Habit is missing or does not belong to this user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 404,
+                    "code": "HABIT_NOT_FOUND",
+                    "message": "Habit was not found.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HabitConflict": {
+        "description": "The habit version is stale.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 409,
+                    "code": "HABIT_CONFLICT",
+                    "message": "The resource was changed by another request.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HabitInvalidStatus": {
+        "description": "The habit status filter is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "HABIT_INVALID_STATUS",
+                    "message": "status must be one of: active, archived, all",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EntryInvalidRange": {
+        "description": "The entry date range or pagination is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "ENTRY_INVALID_RANGE",
+                    "message": "The 'from' date must not be after the 'to' date.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "StatsInvalidPeriod": {
+        "description": "The mood trend period is unsupported.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "STATS_INVALID_PERIOD",
+                    "message": "Unsupported mood trend period. Supported values: week.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SearchInvalidRequest": {
+        "description": "The search query or pagination is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 400,
+                    "code": "SEARCH_INVALID_REQUEST",
+                    "message": "The 'q' parameter must not be blank.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CdcMaintenanceForbidden": {
+        "description": "A valid maintenance key is required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 403,
+                    "code": "CDC_MAINTENANCE_FORBIDDEN",
+                    "message": "You are not allowed to perform this operation.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CdcDeadLetterNotFound": {
+        "description": "The CDC dead letter was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 404,
+                    "code": "CDC_DEAD_LETTER_NOT_FOUND",
+                    "message": "CDC dead letter was not found.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "E2eResetForbidden": {
+        "description": "A valid E2E reset token is required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 403,
+                    "code": "E2E_RESET_FORBIDDEN",
+                    "message": "You are not allowed to perform this operation.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AvatarConflict": {
+        "description": "The avatar changed during this request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponseApiError"
+            },
+            "examples": {
+              "default": {
+                "value": {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "status": 409,
+                    "code": "AVATAR_CONFLICT",
+                    "message": "The resource was changed by another request.",
+                    "path": "/example",
+                    "errors": [],
+                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
+                  },
+                  "timestamp": "2026-09-12T10:00:00Z"
+                }
+              }
+            }
+          }
+        }
+      },
       "AvatarUploadNotFound": {
         "description": "The avatar upload is unknown, expired, or belongs to another user.",
         "content": {
@@ -2753,7 +3065,7 @@
       },
       "maintenanceKey": {
         "type": "apiKey",
-        "description": "Internal maintenance credential. This is not an Auth0 bearer token.",
+        "description": "Internal maintenance credential. Production also requires an operator Auth0 bearer token.",
         "name": "X-Maintenance-Key",
         "in": "header"
       }

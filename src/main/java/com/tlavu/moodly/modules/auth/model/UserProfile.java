@@ -20,6 +20,7 @@ public class UserProfile {
 	private String auth0Subject;
 
 	private String email;
+	@Indexed(name = "avatar_public_id_idx")
 	private String avatarPublicId;
 	private Long avatarVersion;
 	private String avatarContentType;

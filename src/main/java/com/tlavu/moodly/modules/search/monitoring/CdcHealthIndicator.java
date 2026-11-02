@@ -1,10 +1,13 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,16 +35,16 @@ public class CdcHealthIndicator implements HealthIndicator {
 			deadLetterCountAvailable = true;
 		} catch (RuntimeException exception) {
 			deadLetterCountAvailable = false;
-			log.warn("Could not refresh CDC dead-letter count: {}", exception.toString());
+			log.warn("Could not refresh CDC dead-letter count: {}", ExceptionLogSummary.of(exception));
 		}
 	}
 
 	@Override
 	public Health health() {
 		boolean listenerHealthy = monitor.isListenerHealthy();
-		Health.Builder builder = listenerHealthy && deadLetterCountAvailable
-				? Health.up()
-				: Health.down();
+		Health.Builder builder = !listenerHealthy || !deadLetterCountAvailable
+				? Health.down()
+				: failedEventCount > 0 ? Health.status(new Status("DEGRADED")) : Health.up();
 		builder.withDetail("listenerHealthy", listenerHealthy)
 				.withDetail("failedEventCount", failedEventCount);
 

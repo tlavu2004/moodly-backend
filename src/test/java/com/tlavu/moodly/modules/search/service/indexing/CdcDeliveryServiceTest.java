@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +42,30 @@ class CdcDeliveryServiceTest {
 	private ObjectMapper objectMapper;
 	@Mock
 	private CdcRetrySleeper retrySleeper;
+
+	@Test
+	void rejectsInvalidRetryConfigurationBeforeStartingDelivery() {
+		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 0, 1))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("moodly.cdc.retry.max-attempts must be at least 1");
+		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 1, -1))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("moodly.cdc.retry.initial-backoff-ms must not be negative");
+		verifyNoInteractions(searchWriter, deadLetterRepository);
+	}
+
+	@Test
+	void acceptsOneAttemptWithZeroBackoff() throws Exception {
+		CdcDeliveryService service = new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 1, 0);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter).delete("entry-1");
+		verifyNoInteractions(retrySleeper, deadLetterRepository);
+	}
 
 	@Test
 	void deliversDeleteWithoutCreatingADeadLetter() throws Exception {
@@ -127,6 +152,20 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void surfacesDeadLetterPersistenceFailureWithTheOriginalDeliveryFailure() throws Exception {
+		IOException deliveryFailure = new IOException("Elasticsearch unavailable");
+		DataAccessResourceFailureException persistenceFailure =
+				new DataAccessResourceFailureException("Mongo unavailable");
+		doThrow(deliveryFailure).when(searchWriter).delete("entry-1");
+		when(deadLetterRepository.save(any(CdcDeadLetter.class))).thenThrow(persistenceFailure);
+
+		assertThatThrownBy(() -> service().deliverDelete("event-1", "entry-1"))
+				.isSameAs(persistenceFailure)
+				.satisfies(failure -> assertThat(failure.getSuppressed()).containsExactly(deliveryFailure));
+		verifyNoInteractions(monitor);
+	}
+
+	@Test
 	void storesSerializedUpsertPayloadInTheDeadLetter() throws Exception {
 		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
@@ -157,6 +196,17 @@ class CdcDeliveryServiceTest {
 		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(1);
 		verify(searchWriter).delete("entry-1");
 		verifyNoInteractions(retrySleeper);
+	}
+
+	@Test
+	void doesNotAcknowledgeUnexpectedWriterProgrammingFailureAsDeadLettered() throws Exception {
+		doThrow(new IllegalArgumentException("invalid writer state"))
+				.when(searchWriter).delete("entry-1");
+
+		assertThatThrownBy(() -> service().deliverDelete("event-1", "entry-1"))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid writer state");
+		verifyNoInteractions(deadLetterRepository, monitor, retrySleeper);
 	}
 
 	@Test
@@ -229,6 +279,23 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void keepsReplayFailureClassificationWhenItsStateCannotBePersisted() throws Exception {
+		IOException deliveryFailure = new IOException("Elasticsearch unavailable");
+		DataAccessResourceFailureException persistenceFailure =
+				new DataAccessResourceFailureException("Mongo unavailable");
+		doThrow(deliveryFailure).when(searchWriter).delete("entry-1");
+		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
+		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
+		when(deadLetterRepository.save(deadLetter)).thenThrow(persistenceFailure);
+
+		assertThatThrownBy(() -> service().replay("dead-letter-1"))
+				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException.class)
+				.hasCause(deliveryFailure);
+		assertThat(deliveryFailure.getSuppressed()).containsExactly(persistenceFailure);
+		verify(monitor).deadLettered(deliveryFailure);
+	}
+
+	@Test
 	void reportsElasticsearchBadRequestAsAnInternalReplayFailure() throws Exception {
 		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(badRequest.status()).thenReturn(400);
@@ -238,7 +305,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("dead-letter-1"))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.CdcReplayException.class)
 				.hasCause(badRequest);
 		assertThat(deadLetter.getAttempts()).isEqualTo(4);
 		verify(deadLetterRepository).save(deadLetter);
@@ -253,7 +320,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("dead-letter-1"))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.CdcReplayException.class)
 				.hasMessageContaining("Could not replay");
 
 		assertThat(deadLetter.getAttempts()).isEqualTo(3);
@@ -267,7 +334,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("missing"))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.SearchException.class)
 				.hasMessage("CDC dead letter was not found.");
 		verifyNoInteractions(searchWriter);
 	}

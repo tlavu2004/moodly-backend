@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import java.io.IOException;
@@ -59,7 +60,9 @@ class CloudinaryHttpAssetClientTest {
 
 		assertThat(client.findImage(PUBLIC_ID).contentType()).isEqualTo("image/png");
 		assertThatThrownBy(() -> client.findImage(PUBLIC_ID)).isInstanceOf(AvatarException.class);
-		assertThatThrownBy(() -> client.findImage(PUBLIC_ID)).isInstanceOf(AvatarServiceUnavailableException.class);
+		assertThatThrownBy(() -> client.findImage(PUBLIC_ID))
+				.isInstanceOf(AvatarServiceUnavailableException.class)
+				.satisfies(failure -> assertThat(((AvatarServiceUnavailableException) failure).providerHttpStatus()).isEqualTo(503));
 	}
 
 	@Test
@@ -74,6 +77,19 @@ class CloudinaryHttpAssetClientTest {
 				.hasCauseInstanceOf(IOException.class);
 		assertThatThrownBy(() -> client.findImage(PUBLIC_ID))
 				.isInstanceOf(AvatarServiceUnavailableException.class);
+	}
+
+	@Test
+	void doesNotPresentUnexpectedClientProgrammingFailureAsProviderOutage() throws Exception {
+		doThrow(new IllegalArgumentException("invalid client state"))
+				.when(httpClient).send(any(HttpRequest.class), any());
+
+		assertThatThrownBy(() -> client.findImage(PUBLIC_ID))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid client state");
+		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("invalid client state");
 	}
 
 	@Test
@@ -104,8 +120,9 @@ class CloudinaryHttpAssetClientTest {
 		assertThat(request.getValue().headers().firstValue("Content-Type"))
 				.contains("application/x-www-form-urlencoded");
 		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
-				.isInstanceOf(IllegalStateException.class)
-				.hasMessage("Cloudinary deletion failed.");
+				.isInstanceOf(AvatarAssetDeletionException.class)
+				.hasMessage("Cloudinary deletion failed.")
+				.satisfies(failure -> assertThat(((AvatarAssetDeletionException) failure).providerHttpStatus()).isEqualTo(503));
 	}
 
 	@Test
@@ -114,7 +131,7 @@ class CloudinaryHttpAssetClientTest {
 
 		try {
 			assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
-					.isInstanceOf(IllegalStateException.class)
+					.isInstanceOf(AvatarAssetDeletionException.class)
 					.hasCauseInstanceOf(InterruptedException.class);
 			assertThat(Thread.currentThread().isInterrupted()).isTrue();
 		} finally {

@@ -11,9 +11,10 @@ import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.controller.dto.response.PageResponse;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
+import com.tlavu.moodly.modules.entries.exception.EntryException;
 import com.tlavu.moodly.shared.time.MoodlyTime;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Clock;
@@ -42,8 +43,19 @@ public class DailyEntryController {
 	@PatchMapping("/today")
 	@Operation(
 			summary = "Update today's habit log",
-			description = "Marks or unmarks a habit in the authenticated user's entry for today."
+			description = "Marks or unmarks a habit in the authenticated user's entry for today. Existing logs can be corrected after archiving; new logs for archived habits are rejected."
 	)
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "404",
+					ref = "#/components/responses/HabitNotFound"
+			),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "409",
+					ref = "#/components/responses/HabitArchived"
+			)
+	})
 	public ApiResponse<DailyEntryResponse> updateTodayHabit(
 			@Valid @RequestBody UpdateHabitLogRequest request
 	) {
@@ -94,19 +106,19 @@ public class DailyEntryController {
 			@RequestParam(defaultValue = "20") int size
 	) {
 		if (page < 0) {
-			throw new InvalidRequestException("The 'page' parameter must be at least 0.");
+			throw EntryException.invalidRange("The 'page' parameter must be at least 0.");
 		}
 		if (size < 1 || size > 100) {
-			throw new InvalidRequestException("The 'size' parameter must be between 1 and 100.");
+			throw EntryException.invalidRange("The 'size' parameter must be between 1 and 100.");
 		}
 		if (from.isAfter(to)) {
-			throw new InvalidRequestException("The 'from' date must not be after the 'to' date.");
+			throw EntryException.invalidRange("The 'from' date must not be after the 'to' date.");
 		}
 		if (
 				from.isAfter(MoodlyTime.today(clock)) ||
 				to.isAfter(MoodlyTime.today(clock))
 		) {
-			throw new InvalidRequestException("Entry dates must not be in the future.");
+			throw EntryException.invalidRange("Entry dates must not be in the future.");
 		}
 
 		Page<DailyEntryView> views = dailyEntryService.findBetween(

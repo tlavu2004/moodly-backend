@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.stats.service.implementation;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StatsService {
 	private final EntryReadService entryReadService;
+	private final OwnedHabitService ownedHabitService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
 	public List<MoodTrendView> findMoodTrend(String userId, FindMoodTrendInput input) {
@@ -47,6 +49,7 @@ public class StatsService {
 			String userId,
 			CalculateCurrentStreakInput input
 	) {
+		ownedHabitService.require(userId, input.habitId());
 		List<DailyEntryView> entries = entryReadService.findOnOrBefore(userId, input.today());
 		String habitId = input.habitId();
 		Map<String, Integer> streaks = calculateCurrentStreaks(

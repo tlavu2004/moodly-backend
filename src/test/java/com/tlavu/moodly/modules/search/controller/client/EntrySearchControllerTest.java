@@ -84,7 +84,7 @@ class EntrySearchControllerTest {
 					.param("q", "   "))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("SEARCH_INVALID_REQUEST"));
 
 		verifyNoInteractions(entrySearchService);
 	}
@@ -96,7 +96,7 @@ class EntrySearchControllerTest {
 					.param("from", "2026-08-31")
 					.param("to", "2026-08-01"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("SEARCH_INVALID_REQUEST"));
 
 		verifyNoInteractions(entrySearchService);
 	}
@@ -114,10 +114,21 @@ class EntrySearchControllerTest {
 	}
 
 	@Test
+	void returnsInternalErrorWhenSearchHitHasNoSource() throws Exception {
+		when(entrySearchService.search(USER_ID, new EntrySearchInput("tired", null, null, 0, 20)))
+				.thenThrow(new IllegalStateException("Elasticsearch hit entry-1 has no source"));
+
+		mockMvc.perform(get("/entries/search").param("q", "tired"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error.code").value("INTERNAL_SERVER_ERROR"))
+				.andExpect(jsonPath("$.error.message").value("An unexpected error occurred."));
+	}
+
+	@Test
 	void rejectsPageSizesAboveTheSharedMaximum() throws Exception {
 		mockMvc.perform(get("/entries/search").param("q", "tired").param("size", "101"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("SEARCH_INVALID_REQUEST"));
 		verifyNoInteractions(entrySearchService);
 	}
 
@@ -128,7 +139,7 @@ class EntrySearchControllerTest {
 					.param("page", Integer.toString(Integer.MAX_VALUE))
 					.param("size", "100"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("SEARCH_INVALID_REQUEST"));
 		verifyNoInteractions(entrySearchService);
 	}
 
@@ -136,7 +147,7 @@ class EntrySearchControllerTest {
 	void rejectsQueriesLongerThanTwoHundredCharacters() throws Exception {
 		mockMvc.perform(get("/entries/search").param("q", "x".repeat(201)))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("SEARCH_INVALID_REQUEST"));
 		verifyNoInteractions(entrySearchService);
 	}
 }

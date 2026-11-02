@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import lombok.Getter;
@@ -33,23 +34,30 @@ public class DailyEntrySearchIndexManager {
 						.exists(request -> request.index(indexName))
 						.value()
 		) {
-			create();
+			create(readMapping());
 		}
 	}
 
 	public void recreate() throws IOException {
+		byte[] mappingBytes = readMapping();
 		if (elasticsearchClient.indices().exists(request -> request.index(indexName)).value()) {
 			elasticsearchClient.indices().delete(request -> request.index(indexName));
 		}
 
-		create();
+		create(mappingBytes);
 	}
 
-	private void create() throws IOException {
+	private byte[] readMapping() {
 		try (InputStream mappingStream = mapping.getInputStream()) {
-			elasticsearchClient.indices()
-					.create(request -> request.index(indexName)
-					.withJson(mappingStream));
+			return mappingStream.readAllBytes();
+		} catch (IOException exception) {
+			throw new IllegalStateException("Could not read the configured Elasticsearch index mapping", exception);
 		}
+	}
+
+	private void create(byte[] mappingBytes) throws IOException {
+		elasticsearchClient.indices()
+				.create(request -> request.index(indexName)
+					.withJson(new ByteArrayInputStream(mappingBytes)));
 	}
 }

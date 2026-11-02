@@ -1,6 +1,10 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
+import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
@@ -14,9 +18,9 @@ import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Set;
@@ -24,6 +28,7 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 
 @Slf4j
 @Service
@@ -34,6 +39,7 @@ public class AvatarService {
 	private final CurrentUser currentUser;
 	private final UserProfileService userProfileService;
 	private final UserProfileRepository profiles;
+	private final AvatarProfileWriter avatarProfileWriter;
 	private final CloudinaryAssetClient cloudinary;
 	private final PendingAvatarUploadRepository pendingUploads;
 	private final PendingAssetDeletionRepository pendingDeletions;
@@ -47,6 +53,7 @@ public class AvatarService {
 			CurrentUser currentUser,
 			UserProfileService userProfileService,
 			UserProfileRepository profiles,
+			AvatarProfileWriter avatarProfileWriter,
 			CloudinaryAssetClient cloudinary,
 			PendingAvatarUploadRepository pendingUploads,
 			PendingAssetDeletionRepository pendingDeletions,
@@ -59,6 +66,7 @@ public class AvatarService {
 		this.currentUser = currentUser;
 		this.userProfileService = userProfileService;
 		this.profiles = profiles;
+		this.avatarProfileWriter = avatarProfileWriter;
 		this.cloudinary = cloudinary;
 		this.pendingUploads = pendingUploads;
 		this.pendingDeletions = pendingDeletions;
@@ -119,7 +127,7 @@ public class AvatarService {
 			throw AvatarException.uploadNotFound();
 		}
 		if (version < 1) {
-			throw new InvalidRequestException("Avatar version must be positive.");
+			throw AvatarException.invalidVersion();
 		}
 
 		PendingAvatarUpload pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
@@ -138,27 +146,24 @@ public class AvatarService {
 			throw AvatarException.invalidMetadata();
 		}
 
-		UserProfile profile = profiles.findByAuth0Subject(subject).orElseThrow();
-		String previousPublicId = profile.getAvatarPublicId();
-
-		profile.replaceAvatar(
-				asset.publicId(),
-				asset.version(),
-				asset.contentType(),
-				asset.sizeBytes(),
-				Instant.now()
-		);
-		profiles.save(profile);
-		pendingUploads.delete(pending);
-
-		if (
-				previousPublicId != null &&
-				!previousPublicId.equals(asset.publicId())
-		) {
-			deleteObsoleteAsset(previousPublicId);
+		for (int attempt = 0; attempt < 5; attempt++) {
+			UserProfile profile = profiles.findByAuth0Subject(subject)
+					.orElseThrow(AvatarProfileMissingException::new);
+			String previousPublicId = profile.getAvatarPublicId();
+			PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
+					? queueObsoleteAsset(previousPublicId)
+					: null;
+			profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
+			if (!avatarProfileWriter.replaceIfCurrent(profile, previousPublicId)) {
+				continue;
+			}
+			pendingUploads.delete(pending);
+			if (obsolete != null) {
+				deleteObsoleteAsset(obsolete);
+			}
+			return avatar(profile);
 		}
-
-		return avatar(profile);
+		throw AvatarException.conflict();
 	}
 
 	public AvatarView current() {
@@ -168,45 +173,57 @@ public class AvatarService {
 	}
 
 	public AvatarView delete() {
-		UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
-
-		if (profile == null || profile.getAvatarPublicId() == null) {
-			return new AvatarView(
-					null,
-					null,
-					null,
-					null
-			);
+		for (int attempt = 0; attempt < 5; attempt++) {
+			UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
+			if (profile == null || profile.getAvatarPublicId() == null) {
+				return new AvatarView(null, null, null, null);
+			}
+			String previousPublicId = profile.getAvatarPublicId();
+			PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
+			profile.clearAvatar(Instant.now());
+			if (!avatarProfileWriter.clearIfCurrent(profile, previousPublicId)) {
+				continue;
+			}
+			deleteObsoleteAsset(obsolete);
+			return new AvatarView(null, null, null, null);
 		}
-
-		String previousPublicId = profile.getAvatarPublicId();
-		profile.clearAvatar(Instant.now());
-		profiles.save(profile);
-		deleteObsoleteAsset(previousPublicId);
-
-		return new AvatarView(null, null, null, null);
+		throw AvatarException.conflict();
 	}
 
-	private void deleteObsoleteAsset(String publicId) {
+	private PendingAssetDeletion queueObsoleteAsset(String publicId) {
+		return pendingDeletions.findByPublicId(publicId).orElseGet(() -> {
+			PendingAssetDeletion pending = new PendingAssetDeletion(publicId, Instant.now().plusSeconds(60));
+			try {
+				pendingDeletions.save(pending);
+				return pending;
+			} catch (DuplicateKeyException race) {
+				return pendingDeletions.findByPublicId(publicId)
+						.orElseThrow(() -> new IllegalStateException(
+								"Avatar cleanup task collided without a task for the same asset", race));
+			}
+		});
+	}
+
+	private void deleteObsoleteAsset(PendingAssetDeletion pending) {
 		try {
-			cloudinary.deleteImage(publicId);
+			if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
+				return;
+			}
+			cloudinary.deleteImage(pending.getPublicId());
+			pendingDeletions.delete(pending);
 		} catch (RuntimeException exception) {
 			try {
-				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
-						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
-
 				pending.recordFailure(Instant.now());
 				pendingDeletions.save(pending);
 
-				log.warn(
-						"Cloudinary avatar cleanup queued after profile persistence ({})",
-						exception.getClass().getSimpleName()
-				);
+				if (exception instanceof AvatarAssetDeletionException) {
+					log.warn("Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+				} else {
+					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+				}
 			} catch (RuntimeException schedulingException) {
-				log.error(
-						"Cloudinary avatar cleanup could not be queued after profile persistence ({})",
-						schedulingException.getClass().getSimpleName()
-				);
+				schedulingException.addSuppressed(exception);
+				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(schedulingException));
 			}
 		}
 	}
@@ -242,7 +259,7 @@ public class AvatarService {
 			return HexFormat.of()
 					.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(value.getBytes(StandardCharsets.UTF_8)));
-		} catch (Exception e) {
+		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);
 		}
 	}

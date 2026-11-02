@@ -1,6 +1,8 @@
 package com.tlavu.moodly.modules.stats.service.implementation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -8,6 +10,9 @@ import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
+import com.tlavu.moodly.modules.habits.model.Habit;
+import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
+import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
 import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
@@ -18,6 +23,7 @@ import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import com.tlavu.moodly.modules.stats.repository.projection.MoodTrendProjection;
 import com.tlavu.moodly.modules.stats.repository.projection.MostMissedHabitProjection;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -31,6 +37,8 @@ class StatsServiceTest {
 
 	@Mock
 	private EntryReadService entryReadService;
+	@Mock
+	private OwnedHabitService ownedHabitService;
 	@Mock
 	private StatsAggregationRepository statsAggregationRepository;
 	@InjectMocks
@@ -58,6 +66,7 @@ class StatsServiceTest {
 	@Test
 	void calculatesStreakUntilMissingDayOrIncompleteHabit() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
+		ownedExercise();
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(
 				entry(today, true),
 				entry(today.minusDays(1), true),
@@ -73,6 +82,7 @@ class StatsServiceTest {
 	@Test
 	void stopsStreakWhenDateIsMissing() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
+		ownedExercise();
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(
 				entry(today, true),
 				entry(today.minusDays(2), true)
@@ -88,6 +98,7 @@ class StatsServiceTest {
 	@Test
 	void returnsZeroStreakWhenNoEntriesExist() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
+		ownedExercise();
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of());
 
 		assertEquals(0, statsService.calculateCurrentStreak(
@@ -99,6 +110,7 @@ class StatsServiceTest {
 	@Test
 	void returnsZeroStreakWhenTodayDoesNotContainTheHabitLog() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
+		ownedExercise();
 		DailyEntry entry = new DailyEntry("user-1", today);
 		entry.getHabits().add(new HabitLog("reading", true, null));
 		when(entryReadService.findOnOrBefore("user-1", today)).thenReturn(List.of(DailyEntryView.from(entry)));
@@ -107,6 +119,24 @@ class StatsServiceTest {
 				"user-1",
 				new CalculateCurrentStreakInput("exercise", today)
 		).currentStreak());
+	}
+
+	@Test
+	void rejectsMissingOrAnotherUsersHabitBeforeReadingEntries() {
+		LocalDate today = LocalDate.of(2026, 8, 5);
+		when(ownedHabitService.require("user-1", "exercise"))
+				.thenThrow(HabitException.notFound());
+
+		assertThatThrownBy(() -> statsService.calculateCurrentStreak("user-1",
+				new CalculateCurrentStreakInput("exercise", today)))
+				.isInstanceOf(HabitException.class)
+				.hasMessage("Habit was not found.");
+		verifyNoInteractions(entryReadService);
+	}
+
+	private void ownedExercise() {
+		when(ownedHabitService.require("user-1", "exercise"))
+				.thenReturn(new Habit("exercise", "user-1", "Exercise", "walk", TargetFrequency.DAILY, true));
 	}
 
 	@Test

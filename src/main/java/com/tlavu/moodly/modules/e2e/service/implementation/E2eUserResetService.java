@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
@@ -130,7 +129,8 @@ public class E2eUserResetService {
 			elasticsearchClient.indices()
 					.refresh(request -> request.index(indexManager.getIndexName()));
 
-			for (String entryId : ENTRY_IDS) {
+			for (DailyEntry entry : entries) {
+				String entryId = entry.getId();
 				GetResponse<DailyEntrySearchDocument> indexed = elasticsearchClient.get(
 						request -> request
 								.index(indexManager.getIndexName())
@@ -140,7 +140,8 @@ public class E2eUserResetService {
 
 				if (
 						!indexed.found() ||
-						!userId.equals(Objects.requireNonNull(indexed.source()).userId())
+						indexed.source() == null ||
+					!DailyEntrySearchDocument.from(entry).equals(indexed.source())
 				) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId)

@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceTest {
@@ -55,5 +57,29 @@ class UserProfileServiceTest {
 
 		assertThat(service.synchronizeCurrent()).isEqualTo(ProfileView.from(existing));
 		verify(profiles, never()).save(any());
+	}
+
+	@Test
+	void recoversFromConcurrentProfileCreation() {
+		UserProfile winner = new UserProfile("auth0|user-123", "user@example.com", Instant.now());
+		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
+		when(profiles.findByAuth0Subject("auth0|user-123"))
+				.thenReturn(Optional.empty(), Optional.of(winner));
+		when(profiles.save(any(UserProfile.class))).thenThrow(new DuplicateKeyException("subject index"));
+
+		assertThat(service.synchronizeCurrent()).isEqualTo(ProfileView.from(winner));
+	}
+
+	@Test
+	void reportsAnUnrelatedProfileCollisionAsAnInternalFailure() {
+		DuplicateKeyException collision = new DuplicateKeyException("different unique index");
+		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
+		when(profiles.findByAuth0Subject("auth0|user-123"))
+				.thenReturn(Optional.empty());
+		when(profiles.save(any(UserProfile.class))).thenThrow(collision);
+
+		assertThatThrownBy(service::synchronizeCurrent)
+				.isInstanceOf(IllegalStateException.class)
+				.hasCause(collision);
 	}
 }

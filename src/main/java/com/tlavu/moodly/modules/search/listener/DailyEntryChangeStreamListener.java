@@ -1,10 +1,15 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
+import com.mongodb.MongoSocketException;
+import com.mongodb.MongoTimeoutException;
+import com.mongodb.MongoException;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
@@ -13,10 +18,12 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
 import org.bson.Document;
+import org.bson.BsonTimestamp;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,6 +35,9 @@ import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
 import org.springframework.data.mongodb.core.messaging.DefaultMessageListenerContainer;
 import org.springframework.data.mongodb.core.messaging.Message;
 import org.springframework.data.mongodb.core.messaging.Subscription;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Maintains Elasticsearch as an asynchronous, rebuildable projection of daily_entries. */
@@ -42,7 +52,10 @@ public class DailyEntryChangeStreamListener {
 	private final CdcMonitor monitor;
 	private final String collectionName;
 	private final String streamId;
+	private final Supplier<Instant> operationTime;
 	private Subscription subscription;
+	private boolean recoveryPending;
+	private boolean rebuildPending;
 
 	@Autowired
 	public DailyEntryChangeStreamListener(
@@ -61,7 +74,8 @@ public class DailyEntryChangeStreamListener {
 				reindexService,
 				monitor,
 				collectionName,
-				streamId
+				streamId,
+				() -> mongoOperationTime(mongoTemplate)
 		);
 	}
 
@@ -72,7 +86,8 @@ public class DailyEntryChangeStreamListener {
 			DailyEntryReindexService reindexService,
 			CdcMonitor monitor,
 			String collectionName,
-			String streamId
+			String streamId,
+			Supplier<Instant> operationTime
 	) {
 		this.listenerContainer = listenerContainer;
 		this.resumeTokenRepository = resumeTokenRepository;
@@ -81,24 +96,56 @@ public class DailyEntryChangeStreamListener {
 		this.monitor = monitor;
 		this.collectionName = collectionName;
 		this.streamId = streamId;
+		this.operationTime = operationTime;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
 	public synchronized void start() {
+		recoveryPending = false;
+		rebuildPending = false;
+		CdcResumeToken checkpoint = resumeTokenRepository.findById(streamId).orElse(null);
+		if (checkpoint == null) {
+			Instant baseline = Objects.requireNonNull(operationTime.get(), "MongoDB did not return an operation time");
+			reindexService.reindex();
+			checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
+			resumeTokenRepository.save(checkpoint);
+		}
 		listenerContainer.start();
-		register(resumeTokenRepository.findById(streamId)
-				.map(CdcResumeToken::getToken)
-				.orElse(null));
+		register(checkpoint);
 		monitor.listenerStarted();
 	}
 
 	/** Stops the stream without deleting its persisted resume token. */
 	public synchronized void stop() {
+		recoveryPending = false;
+		rebuildPending = false;
 		if (subscription != null) {
 			listenerContainer.remove(subscription);
 			subscription = null;
 		}
 		listenerContainer.stop();
+	}
+
+	/** Retries transient MongoDB failures and incomplete history-lost rebuilds. */
+	@Scheduled(fixedDelayString = "${moodly.cdc.recovery-delay-ms:30000}")
+	public synchronized void recoverTransientFailure() {
+		if (rebuildPending) {
+			rebuildAfterHistoryLost();
+			return;
+		}
+		if (!recoveryPending) {
+			return;
+		}
+
+		recoveryPending = false;
+		try {
+			stop();
+			start();
+		} catch (RuntimeException exception) {
+			recoveryPending = true;
+			monitor.listenerFailed(exception);
+			log.error("Could not restart {} Change Stream from its resume token: {}", collectionName, ExceptionLogSummary.of(exception));
+		}
 	}
 
 	/** Waits until the registered change-stream subscription is active. */
@@ -107,14 +154,16 @@ public class DailyEntryChangeStreamListener {
 				subscription.await(timeout);
 	}
 
-	private void register(String resumeToken) {
+	private void register(CdcResumeToken checkpoint) {
 		ChangeStreamRequest.ChangeStreamRequestBuilder<DailyEntry> builder =
 				ChangeStreamRequest.builder(this::onMessage)
 						.collection(collectionName)
 						.fullDocumentLookup(FullDocument.UPDATE_LOOKUP);
 
-		if (resumeToken != null) {
-			builder.resumeAfter(BsonDocument.parse(resumeToken));
+		if (checkpoint != null && checkpoint.getToken() != null) {
+			builder.resumeAfter(BsonDocument.parse(checkpoint.getToken()));
+		} else if (checkpoint != null && checkpoint.getResumeAt() != null) {
+			builder.resumeAt(checkpoint.getResumeAt());
 		}
 
 		subscription = listenerContainer.register(
@@ -126,9 +175,9 @@ public class DailyEntryChangeStreamListener {
 		log.info(
 				"Started {} Change Stream{}.",
 				collectionName,
-				resumeToken == null
+				checkpoint == null
 						? ""
-						: " from its resume token"
+						: " from its persisted checkpoint"
 		);
 	}
 
@@ -199,40 +248,72 @@ public class DailyEntryChangeStreamListener {
 		monitor.listenerFailed(exception);
 
 		if (!isExpiredResumeToken(exception)) {
+			recoveryPending = isTransientMongoFailure(exception);
 			log.error(
-					"{} Change Stream stopped unexpectedly.",
+					"{} Change Stream stopped unexpectedly (automaticRecovery={}): {}",
 					collectionName,
-					exception
+					recoveryPending,
+					ExceptionLogSummary.of(exception)
 			);
 
 			return;
 		}
 
 		log.warn(
-				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index.",
+				"The {} Change Stream resume token has expired; rebuilding the Elasticsearch index: {}",
 				collectionName,
-				exception
+				ExceptionLogSummary.of(exception)
 		);
 
+		rebuildPending = true;
+		rebuildAfterHistoryLost();
+	}
+
+	private void rebuildAfterHistoryLost() {
 		try {
-			listenerContainer.remove(subscription);
-			resumeTokenRepository.deleteById(streamId);
+			if (subscription != null) {
+				listenerContainer.remove(subscription);
+				subscription = null;
+			}
+			Instant baseline = Objects.requireNonNull(operationTime.get(), "MongoDB did not return an operation time");
 			reindexService.reindex();
-			register(null);
+			CdcResumeToken checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
+			resumeTokenRepository.save(checkpoint);
+			register(checkpoint);
+			rebuildPending = false;
 			monitor.listenerStarted();
 		} catch (Exception recoveryFailure) {
+			monitor.listenerFailed(recoveryFailure);
 			log.error(
-					"Could not recover {} Change Stream with a full reindex.",
+					"Could not recover {} Change Stream with a full reindex: {}",
 					collectionName,
-					recoveryFailure
+					ExceptionLogSummary.of(recoveryFailure)
 			);
 		}
 	}
 
+	private boolean isTransientMongoFailure(Throwable exception) {
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof MongoSocketException || cause instanceof MongoTimeoutException ||
+					cause instanceof TransientDataAccessException || cause instanceof DataAccessResourceFailureException) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private boolean isExpiredResumeToken(Throwable exception) {
-		String message = exception.getMessage();
-		return message != null &&
-				(message.contains("ChangeStreamHistoryLost") ||
-				message.contains("code 286"));
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof MongoException mongoException && mongoException.getCode() == 286) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static Instant mongoOperationTime(MongoTemplate mongoTemplate) {
+		Document response = mongoTemplate.executeCommand(new Document("ping", 1));
+		BsonTimestamp timestamp = response.get("operationTime", BsonTimestamp.class);
+		return timestamp == null ? null : Instant.ofEpochSecond(timestamp.getTime());
 	}
 }

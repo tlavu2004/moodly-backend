@@ -12,6 +12,8 @@ public enum AuthErrorCode implements ErrorCode {
 	AVATAR_FILE_TOO_LARGE("AVATAR_FILE_TOO_LARGE", "The avatar file exceeds the allowed size.", HttpStatus.BAD_REQUEST),
 	AVATAR_UPLOAD_NOT_FOUND("AVATAR_UPLOAD_NOT_FOUND", "The avatar upload was not found or has expired.", HttpStatus.BAD_REQUEST),
 	AVATAR_ASSET_INVALID("AVATAR_ASSET_INVALID", "The uploaded avatar could not be verified.", HttpStatus.BAD_REQUEST),
+	AVATAR_VERSION_INVALID("AVATAR_VERSION_INVALID", "Avatar version must be positive.", HttpStatus.BAD_REQUEST),
+	AVATAR_CONFLICT("AVATAR_CONFLICT", "The resource was changed by another request.", HttpStatus.CONFLICT),
 	AVATAR_SERVICE_UNAVAILABLE("AVATAR_SERVICE_UNAVAILABLE", "Avatar service is temporarily unavailable.", HttpStatus.SERVICE_UNAVAILABLE);
 
 	private final String code;

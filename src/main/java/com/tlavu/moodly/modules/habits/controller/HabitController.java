@@ -11,7 +11,7 @@ import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -146,7 +146,7 @@ public class HabitController {
 			case "active" -> HabitStatusFilter.ACTIVE;
 			case "archived" -> HabitStatusFilter.ARCHIVED;
 			case "all" -> HabitStatusFilter.ALL;
-			default -> throw new InvalidRequestException("status must be one of: active, archived, all");
+			default -> throw HabitException.invalidStatus();
 		};
 	}
 }
