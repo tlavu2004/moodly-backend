@@ -84,5 +84,22 @@ class PendingAssetDeletionCleanupTest {
 
 		verify(cloudinary, never()).deleteImage(pending.getPublicId());
 		verify(pendingDeletions, never()).delete(pending);
+		verify(pendingDeletions).save(pending);
+		assertThat(pending.getNextAttemptAt()).isAfter(Instant.now());
+	}
+
+	@Test
+	void removesExpiredTaskForAnAssetThatIsStillActiveWithoutDeletingTheAsset() {
+		PendingAssetDeletion pending = new PendingAssetDeletion(
+				"moodly/test/users/user/avatar/active", Instant.now().minusSeconds(1));
+		org.springframework.test.util.ReflectionTestUtils.setField(
+				pending, "createdAt", Instant.now().minusSeconds(25 * 3600));
+		when(pendingDeletions.findByNextAttemptAtBefore(any())).thenReturn(List.of(pending));
+		when(profiles.existsByAvatarPublicId(pending.getPublicId())).thenReturn(true);
+
+		cleanup.cleanupObsoleteAssets();
+
+		verify(pendingDeletions).delete(pending);
+		verify(cloudinary, never()).deleteImage(pending.getPublicId());
 	}
 }

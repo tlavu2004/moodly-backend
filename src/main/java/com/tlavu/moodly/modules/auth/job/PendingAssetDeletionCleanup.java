@@ -28,6 +28,11 @@ public class PendingAssetDeletionCleanup {
 		for (PendingAssetDeletion pending : pendingDeletions.findByNextAttemptAtBefore(Instant.now())) {
 			try {
 				if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
+					if (pending.recordStillActive(Instant.now())) {
+						pendingDeletions.save(pending);
+					} else {
+						pendingDeletions.delete(pending);
+					}
 					continue;
 				}
 				cloudinary.deleteImage(pending.getPublicId());

@@ -93,6 +93,8 @@ Before starting the Phase 3 backend, configure the hosted development services a
 
    `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
 
+   Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
+
    The CDC verification scenarios in `docs/testing/moodly.http` cover insert, update, reindex/duplicate delivery, dead-letter replay, and health. The delete scenario uses `mongosh` until an entry-delete API is introduced.
 
 4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
@@ -121,7 +123,7 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 
 `POST /habits` creates a new UUID for every accepted request and does not accept an idempotency key. A client must not automatically replay it after a timeout or lost response; it should read the habit list before a user chooses to submit it again. `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current habit before deciding on another change.
 
-`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state. Repeating the same body leaves the same visible mood or habit-log state, but updates metadata and can emit another CDC event. These entry writes have no version check against concurrent changes. Avatar upload signature/confirmation also has no general replay guarantee; each signature allocates a new public ID and confirmation consumes its pending upload.
+`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state. Repeating the same body leaves the same visible mood or habit-log state, but updates metadata and can emit another CDC event. Concurrent updates to different fields or habit logs are applied atomically; simultaneous updates to the same field follow last-writer-wins semantics. Avatar replacement uses a conditional profile update and retries competing replacements. Avatar upload signature/confirmation still has no general replay guarantee; each signature allocates a new public ID and confirmation consumes its pending upload.
 
 ### Habit streak query cost
 
