@@ -6,11 +6,11 @@ This is the single Moodly exception standard. NovaCart was a design reference; i
 
 ## 1. Failure categories and boundaries
 
-| Category | Examples | Where to decide | Result |
-| --- | --- | --- | --- |
-| Request/framework failure | Validation, malformed JSON or parameters, unsupported method/media type | Spring MVC and `GlobalExceptionHandler` | Existing safe 4xx response |
+| Category                     | Examples                                                                          | Where to decide                                                 | Result                                                 |
+|------------------------------|-----------------------------------------------------------------------------------|-----------------------------------------------------------------|--------------------------------------------------------|
+| Request/framework failure    | Validation, malformed JSON or parameters, unsupported method/media type           | Spring MVC and `GlobalExceptionHandler`                         | Existing safe 4xx response                             |
 | Expected application failure | Missing owned habit, stale version, invalid avatar, unavailable search dependency | Service or infrastructure adapter throws `ApplicationException` | Status, code, and safe message selected by `ErrorCode` |
-| Unexpected failure | Defect, broken invariant, unknown unique constraint, unclassified library failure | Nearest system boundary | Generic 500; preserve diagnostic cause |
+| Unexpected failure           | Defect, broken invariant, unknown unique constraint, unclassified library failure | Nearest system boundary                                         | Generic 500; preserve diagnostic cause                 |
 
 Controllers validate transport input and delegate business decisions. Services interpret domain and persistence outcomes. Repositories return data or native persistence exceptions; they do not build HTTP responses. MVC advice cannot catch failures in security filters, scheduled jobs, or change-stream callbacks. Those boundaries need their own response, retry, dead-letter, health, and logging policies.
 
@@ -20,14 +20,14 @@ Normal API errors use `ApiResponse.error(ApiError)` with `status`, stable `code`
 
 `ErrorCode` is the single source for machine code, default message, and HTTP status. `ApplicationException` stores the code and optional safe message and cause; its status derives from the code. Do not repeat status in constructors or call sites. Clients branch on code, not message text.
 
-| HTTP | Current codes |
-| --- | --- |
-| 400 | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID` |
-| 401 / 403 / 404 | `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND` |
-| 405 / 406 / 415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE` |
-| 409 | `CONFLICT`, `HABIT_ARCHIVED`; `DUPLICATE_RESOURCE` remains reserved and the generic handler does not emit it |
-| 503 | `SEARCH_UNAVAILABLE`, `AVATAR_SERVICE_UNAVAILABLE` |
-| 500 | `INTERNAL_SERVER_ERROR` |
+| HTTP            | Current codes                                                                                                                                                                    |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 400             | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID` |
+| 401 / 403 / 404 | `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`                                                                                                                                         |
+| 405 / 406 / 415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE`                                                                                                                 |
+| 409             | `CONFLICT`, `HABIT_ARCHIVED`; `DUPLICATE_RESOURCE` remains reserved and the generic handler does not emit it                                                                      |
+| 503             | `SEARCH_UNAVAILABLE`, `AVATAR_SERVICE_UNAVAILABLE`                                                                                                                               |
+| 500             | `INTERNAL_SERVER_ERROR`                                                                                                                                                          |
 
 Codes must be unique across enums, stable after publication, and never reused for another meaning. Add a module code only when clients need to distinguish its recovery action from other failures with the same status. Use a named exception or factory when it fixes code, safe message, and cause together. Do not create one exception class per endpoint or module merely for symmetry. Keep shared meanings in `GlobalErrorCode`.
 
@@ -52,14 +52,14 @@ Use `final` for a concrete exception only when extension is intentionally prohib
 
 ## 5. Module rules
 
-| Area | Current behavior and rule |
-| --- | --- |
-| `auth` / avatar | Security owns the 401/403 envelope. Avatar-specific codes live in `AuthErrorCode`. Cleanup exceptions are internal to durable jobs; they do not need public codes. |
-| `habits` | Missing/unowned habit is 404 `NOT_FOUND`; stale version is 409 `CONFLICT`; bad status filter is 400 `INVALID_REQUEST`. |
-| `entries` | Bad date/pagination is 400 `INVALID_REQUEST`; DTO violations are 400 `VALIDATION_FAILED`. A new log for an archived habit is 409 `HABIT_ARCHIVED`; an existing log remains editable. |
-| `stats` / `dashboard` | Streak for missing/unowned habit is 404 `NOT_FOUND`; a valid habit with no log has streak zero. Propagate genuine dependency failures. |
-| `search` / CDC | Bad search request is 400. Classified search infrastructure failures are 503 `SEARCH_UNAVAILABLE`. CDC retries transient delivery, records dead letters, and does not advance a checkpoint after an unrecorded failure. |
-| `e2e` | Reset is disabled in production; bad credentials are 403; classified indexing/verification failure is 503; unexpected persistence failure is 500. |
+| Area                  | Current behavior and rule                                                                                                                                                                                               |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `auth` / avatar       | Security owns the 401/403 envelope. Avatar-specific codes live in `AuthErrorCode`. Cleanup exceptions are internal to durable jobs; they do not need public codes.                                                      |
+| `habits`              | Missing/unowned habit is 404 `NOT_FOUND`; stale version is 409 `CONFLICT`; bad status filter is 400 `INVALID_REQUEST`.                                                                                                  |
+| `entries`             | Bad date/pagination is 400 `INVALID_REQUEST`; DTO violations are 400 `VALIDATION_FAILED`. A new log for an archived habit is 409 `HABIT_ARCHIVED`; an existing log remains editable.                              |
+| `stats` / `dashboard` | Streak for missing/unowned habit is 404 `NOT_FOUND`; a valid habit with no log has streak zero. Propagate genuine dependency failures.                                                                                  |
+| `search` / CDC        | Bad search request is 400. Classified search infrastructure failures are 503 `SEARCH_UNAVAILABLE`. CDC retries transient delivery, records dead letters, and does not advance a checkpoint after an unrecorded failure. |
+| `e2e`                 | Reset is disabled in production; bad credentials are 403; classified indexing/verification failure is 503; unexpected persistence failure is 500.                                                                       |
 
 ## 6. Safe diagnostics and verification
 
