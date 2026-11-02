@@ -101,9 +101,8 @@ class ElasticsearchEntrySearchAdapterTest {
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
-				.isInstanceOf(SearchInfrastructureUnavailableException.class)
-				.hasMessage("Elasticsearch search is unavailable")
-				.hasCauseInstanceOf(IllegalStateException.class);
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessage("Elasticsearch hit entry-1 has no source");
 	}
 
 	@Test

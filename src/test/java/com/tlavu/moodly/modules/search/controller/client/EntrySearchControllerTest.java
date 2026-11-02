@@ -114,6 +114,17 @@ class EntrySearchControllerTest {
 	}
 
 	@Test
+	void returnsInternalErrorWhenSearchHitHasNoSource() throws Exception {
+		when(entrySearchService.search(USER_ID, new EntrySearchInput("tired", null, null, 0, 20)))
+				.thenThrow(new IllegalStateException("Elasticsearch hit entry-1 has no source"));
+
+		mockMvc.perform(get("/entries/search").param("q", "tired"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error.code").value("INTERNAL_SERVER_ERROR"))
+				.andExpect(jsonPath("$.error.message").value("An unexpected error occurred."));
+	}
+
+	@Test
 	void rejectsPageSizesAboveTheSharedMaximum() throws Exception {
 		mockMvc.perform(get("/entries/search").param("q", "tired").param("size", "101"))
 				.andExpect(status().isBadRequest())
