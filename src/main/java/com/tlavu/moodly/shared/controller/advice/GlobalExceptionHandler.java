@@ -241,7 +241,7 @@ public class GlobalExceptionHandler {
 	) {
 		HttpStatus status = errorCode.getStatus();
 		logByStatus(
-				status,
+				errorCode,
 				request,
 				exception
 		);
@@ -260,17 +260,23 @@ public class GlobalExceptionHandler {
 				.body(ApiResponse.error(error));
 	}
 
-	private void logByStatus(HttpStatus status, HttpServletRequest request, Throwable exception) {
-		if (status.is5xxServerError()) {
+	private void logByStatus(ErrorCode code, HttpServletRequest request, Throwable exception) {
+		if (code.getStatus().is5xxServerError()) {
 			log.error(
-					"Unexpected request failure at {}: {}",
+					"Unexpected request failure at {}: method={}, status={}, code={}, cause={}",
 					request.getRequestURI(),
+					request.getMethod(),
+					code.getStatus().value(),
+					code.getCode(),
 					ExceptionLogSummary.of(exception)
 			);
 		} else {
 			log.warn(
-					"Request rejected at {} ({})",
+					"Request rejected at {}: method={}, status={}, code={}, exception={}",
 					request.getRequestURI(),
+					request.getMethod(),
+					code.getStatus().value(),
+					code.getCode(),
 					exception.getClass().getSimpleName()
 			);
 		}

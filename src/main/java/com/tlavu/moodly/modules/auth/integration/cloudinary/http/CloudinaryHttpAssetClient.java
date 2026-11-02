@@ -97,7 +97,10 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				throw AvatarException.uploadNotFound();
 			}
 			if (response.statusCode() != 200) {
-				throw new AvatarServiceUnavailableException(new IllegalStateException("Cloudinary verification returned HTTP " + response.statusCode()));
+				throw new AvatarServiceUnavailableException(
+						new IllegalStateException("Cloudinary verification failed"),
+						response.statusCode()
+				);
 			}
 
 			JsonNode asset = objectMapper.readTree(response.body());
@@ -153,7 +156,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			);
 
 			if (response.statusCode() >= 300) {
-				throw new AvatarAssetDeletionException("Cloudinary deletion failed.");
+				throw new AvatarAssetDeletionException("Cloudinary deletion failed.", response.statusCode());
 			}
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();

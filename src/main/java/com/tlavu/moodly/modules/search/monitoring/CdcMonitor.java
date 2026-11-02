@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
+import com.tlavu.moodly.shared.error.ExceptionLogSummary;
 import java.time.Instant;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
@@ -18,11 +19,11 @@ public class CdcMonitor {
 	public void listenerFailed(Throwable exception) {
 		listenerHealthy = false;
 		lastFailureAt = Instant.now();
-		lastFailure = exception.getMessage();
+		lastFailure = ExceptionLogSummary.of(exception);
 	}
 
 	public void deadLettered(Throwable exception) {
 		lastFailureAt = Instant.now();
-		lastFailure = exception.getMessage();
+		lastFailure = ExceptionLogSummary.of(exception);
 	}
 }

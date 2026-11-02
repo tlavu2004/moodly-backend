@@ -51,4 +51,17 @@ class CdcHealthIndicatorTest {
 		assertThat(indicator.health().getDetails()).containsEntry("failedEventCount", 1L);
 		verify(deadLetterRepository, times(3)).count();
 	}
+
+	@Test
+	void exposesSafeFailureSummaryInsteadOfRawExceptionMessage() {
+		CdcMonitor monitor = new CdcMonitor();
+		monitor.listenerFailed(new IllegalStateException("access-token=secret"));
+		when(deadLetterRepository.count()).thenReturn(0L);
+		CdcHealthIndicator indicator = new CdcHealthIndicator(monitor, deadLetterRepository);
+		indicator.initializeDeadLetterCount();
+
+		assertThat(indicator.health().getDetails().get("lastFailure").toString())
+				.contains("IllegalStateException")
+				.doesNotContain("access-token", "secret");
+	}
 }

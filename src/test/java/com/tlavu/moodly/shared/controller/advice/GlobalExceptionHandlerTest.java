@@ -129,6 +129,7 @@ class GlobalExceptionHandlerTest {
 	void doesNotExposeUnexpectedExceptionDetails() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
+		when(request.getMethod()).thenReturn("GET");
 
 		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleUnexpectedException(
 				new IllegalStateException("database-password=secret"), request);
@@ -211,6 +212,7 @@ class GlobalExceptionHandlerTest {
 	void logsCompactLocationsAndRequestIdWithoutExceptionMessages() {
 		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
 		when(request.getRequestURI()).thenReturn("/example");
+		when(request.getMethod()).thenReturn("GET");
 		Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
 		ListAppender<ILoggingEvent> events = new ListAppender<>();
 		events.start();
@@ -229,7 +231,8 @@ class GlobalExceptionHandlerTest {
 		assertThat(events.list).singleElement().satisfies(event -> {
 			assertThat(event.getMDCPropertyMap()).containsEntry(RequestIdFilter.MDC_KEY, "review-test-request");
 			assertThat(event.getFormattedMessage())
-					.contains("Unexpected request failure at /example", "IllegalStateException",
+					.contains("Unexpected request failure at /example", "method=GET", "status=500",
+							"code=INTERNAL_SERVER_ERROR", "IllegalStateException",
 							"<- RuntimeException", "GlobalExceptionHandlerTest")
 					.doesNotContain("database-password", "access-token", "secret", "\n");
 			assertThat(event.getThrowableProxy()).isNull();

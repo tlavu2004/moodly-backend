@@ -41,9 +41,10 @@ This code migration is intentional and requires consumer review before merge. Pr
 3. Translate persistence errors only at an operation that can prove the business condition. A create-if-absent duplicate-key race can recover by reading the intended winner. An unmatched collision retains its cause and becomes 500. `DUPLICATE_RESOURCE` is not a catch-all 409.
 4. Classify dependency failures narrowly. Transport or temporary search unavailability is 503 `SEARCH_UNAVAILABLE`. A search hit without `_source`, an unexpected client response, or a mapping defect is an internal 500. Keep causes for server diagnostics.
 
-Operational error logs should occupy one line. Include a bounded exception class chain and application stack location, together with the request ID where available. Do not log raw exception messages or attach `Throwable` to routine request, cleanup, or CDC failure logs: provider messages can contain secrets and full stack traces obscure the event. Preserve the original cause in the exception object for programmatic recovery and debugging.
 5. Catch only to recover, retry, compensate, or add useful context. Restore the interrupt flag after `InterruptedException`. A primary operation may succeed after secondary cleanup fails only if a durable retry record exists.
 6. Validate configuration at startup. For example, CDC requires `max-attempts >= 1` and `initial-backoff-ms >= 0`; these violations are internal `IllegalArgumentException`s outside the HTTP contract.
+
+Operational error logs should occupy one line. Include the HTTP status and public error code for requests, a bounded exception class chain, the first application and external stack locations, and the request ID where available. Include numeric provider HTTP status or MongoDB error code only when supplied by a typed exception. Background failures should include a safe job or event identifier when available. Do not log raw exception messages or attach `Throwable` to routine request, cleanup, or CDC failure logs: provider messages can contain secrets and full stack traces obscure the event. Preserve the original cause in the exception object for programmatic recovery and debugging. CDC health details also use the safe summary rather than raw exception messages.
 
 ## 4. Checked and unchecked exceptions
 

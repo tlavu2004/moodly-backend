@@ -217,13 +217,13 @@ public class AvatarService {
 				pendingDeletions.save(pending);
 
 				if (exception instanceof AvatarAssetDeletionException) {
-					log.warn("Cloudinary avatar cleanup queued after profile persistence: {}", ExceptionLogSummary.of(exception));
+					log.warn("Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
 				} else {
-					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: {}", ExceptionLogSummary.of(exception));
+					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
 				}
 			} catch (RuntimeException schedulingException) {
 				schedulingException.addSuppressed(exception);
-				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: {}", ExceptionLogSummary.of(schedulingException));
+				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(schedulingException));
 			}
 		}
 	}

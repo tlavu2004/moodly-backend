@@ -60,7 +60,9 @@ class CloudinaryHttpAssetClientTest {
 
 		assertThat(client.findImage(PUBLIC_ID).contentType()).isEqualTo("image/png");
 		assertThatThrownBy(() -> client.findImage(PUBLIC_ID)).isInstanceOf(AvatarException.class);
-		assertThatThrownBy(() -> client.findImage(PUBLIC_ID)).isInstanceOf(AvatarServiceUnavailableException.class);
+		assertThatThrownBy(() -> client.findImage(PUBLIC_ID))
+				.isInstanceOf(AvatarServiceUnavailableException.class)
+				.satisfies(failure -> assertThat(((AvatarServiceUnavailableException) failure).providerHttpStatus()).isEqualTo(503));
 	}
 
 	@Test
@@ -119,7 +121,8 @@ class CloudinaryHttpAssetClientTest {
 				.contains("application/x-www-form-urlencoded");
 		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
 				.isInstanceOf(AvatarAssetDeletionException.class)
-				.hasMessage("Cloudinary deletion failed.");
+				.hasMessage("Cloudinary deletion failed.")
+				.satisfies(failure -> assertThat(((AvatarAssetDeletionException) failure).providerHttpStatus()).isEqualTo(503));
 	}
 
 	@Test
