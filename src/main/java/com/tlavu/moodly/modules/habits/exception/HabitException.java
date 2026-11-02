@@ -28,4 +28,8 @@ public final class HabitException extends ApplicationException {
 	public static HabitException invalidStatus() {
 		return new HabitException(HabitErrorCode.HABIT_INVALID_STATUS);
 	}
+
+	public static HabitException archived() {
+		return new HabitException(HabitErrorCode.HABIT_ARCHIVED);
+	}
 }

@@ -55,7 +55,7 @@ All concrete exception classes are `final` leaves. Add a non-final intermediate 
 RuntimeException
 ├── ApplicationException (abstract; expected public API failure)
 │   ├── auth: AvatarException, AvatarServiceUnavailableException
-│   ├── habits: HabitException, ArchivedHabitException
+│   ├── habits: HabitException (including archived())
 │   ├── entries: EntryException
 │   ├── stats: StatsException
 │   ├── search: SearchException; SearchInfrastructureUnavailableException

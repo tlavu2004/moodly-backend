@@ -8,7 +8,8 @@ import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
-import com.tlavu.moodly.modules.habits.exception.ArchivedHabitException;
+import com.tlavu.moodly.modules.habits.code.HabitErrorCode;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -91,7 +92,10 @@ class DailyEntryConcurrencyIntegrationTest {
 					() -> {
 						try {
 							service.updateHabitLog(USER, date, new UpdateHabitLogInput(habitId, true, null));
-						} catch (ArchivedHabitException expected) {
+						} catch (HabitException expected) {
+							if (expected.getCode() != HabitErrorCode.HABIT_ARCHIVED) {
+								throw expected;
+							}
 							rejected.set(true);
 						}
 					});
