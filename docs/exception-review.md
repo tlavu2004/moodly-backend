@@ -34,3 +34,10 @@ This table records the first review; the follow-up fixes below supersede the row
 - CDC delivery retries and dead-letters `IOException` and `ElasticsearchException`. An unexpected writer runtime failure reaches the listener without advancing its resume token. A failed dead-letter write retains the original delivery failure as a suppressed cause. A failed replay-state write no longer hides the replay failure or its HTTP classification.
 - E2E reset compares each seeded search document with the expected projection. A missing source or stale content is failed verification and returns the existing `SEARCH_UNAVAILABLE` 503 response.
 - The CDC listener schedules a restart after transient MongoDB failures and resumes from its persisted token. It keeps a programming failure unhealthy without automatic replay of the same poison event.
+
+## Recovery follow-up
+
+- A history-lost CDC stream now records a MongoDB operation-time checkpoint captured before rebuilding the search index. The previous token remains persisted if the rebuild fails. A successful rebuild saves the operation-time checkpoint before registering the stream, so a process restart can replay changes made during the rebuild. MongoDB error code 286 is identified from the exception cause chain rather than message text.
+- Expired avatar uploads are cleaned independently. Unexpected client failures retain their pending record and do not stop cleanup of later uploads. A confirmed avatar remains protected if deletion of its pending-upload record failed.
+- Avatar replacement and deletion persist the obsolete asset's cleanup record before changing the profile. If that write fails, the profile is left unchanged. Cleanup checks for a still-referenced avatar before deleting its Cloudinary asset.
+- A search hit without its source fails the request with the existing `SEARCH_UNAVAILABLE` 503 response instead of silently shrinking the result page.
