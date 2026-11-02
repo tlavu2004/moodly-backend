@@ -125,7 +125,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
-	void healthCountsPersistedDeadLettersAfterFailedReplayAndNewMonitorInstance() {
+	void healthCountsPersistedDeadLettersAfterFailedReplayAndNewMonitorInstance() throws Exception {
 		assertThat(cdcHealthIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 0L);
 
@@ -135,6 +135,9 @@ class CdcSearchInfrastructureIntegrationTest {
 		cdcHealthIndicator.refreshDeadLetterCount();
 		assertThat(cdcHealthIndicator.health().getDetails())
 				.containsEntry("failedEventCount", 1L);
+		mockMvc.perform(get("/actuator/health"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("DEGRADED"));
 
 		assertThatThrownBy(() -> deliveryService.replay(deadLetter.getId()))
 				.isInstanceOf(IllegalStateException.class);

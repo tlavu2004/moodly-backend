@@ -45,6 +45,8 @@ management:
     health:
       show-components: when_authorized
       show-details: when_authorized
+      status:
+        order: down,out-of-service,degraded,up,unknown
 
 logging:
   level:
