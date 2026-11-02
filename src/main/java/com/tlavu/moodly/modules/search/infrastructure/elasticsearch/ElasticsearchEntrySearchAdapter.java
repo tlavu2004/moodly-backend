@@ -22,8 +22,10 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
@@ -106,6 +108,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 					.map(hit -> {
 						DailyEntrySearchDocument source = hit.source();
 						if (source == null) {
+							log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", hit.id());
 							throw new IllegalStateException("Elasticsearch hit " + hit.id() + " has no source");
 						}
 						Map<String, List<HighlightFragmentView>> highlights = normalizeHighlights(hit.highlight());

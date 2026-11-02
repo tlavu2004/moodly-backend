@@ -73,7 +73,7 @@ RuntimeException
 - A new habit log after archive returns 409 `HABIT_ARCHIVED`; correction of an existing log remains allowed. A request overlapping archive observes the state at validation time. Requests begun after archive finishes see the archived state.
 - Known stale habit versions and optimistic-lock failures at habit writes use `HABIT_CONFLICT`. The service retains the previous 409 message for a repository race. Spring's shared optimistic-lock handler remains a fallback for failures outside a service-specific translation.
 - Unexpected Mongo uniqueness failures are 500, including a create race that cannot find its intended winner. Only a proven client-actionable conflict deserves a module 409.
-- Search hit missing `_source` is a 500 defect or index inconsistency. Classified temporary search transport failures remain 503. CDC invalid retry settings fail startup before any delivery attempt.
+- Search hit missing `_source` is a 500 defect or index inconsistency. The adapter logs the hit ID for an operator to inspect or rebuild the index; it never logs the user's query or returns the ID to the client. Classified temporary search transport failures remain 503. CDC invalid retry settings fail startup before any delivery attempt.
 - CDC listeners, cleanup jobs, and security filters are outside MVC advice. Their local retry, durable record, health, and envelope rules remain explicit.
 
 ## 6. Verification and change procedure
