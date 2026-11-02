@@ -235,7 +235,7 @@ class ApiIntegrationTest {
 		assertThat(openApi.path("paths").path("/entries/today").path("patch").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/HabitArchived");
 		assertThat(openApi.path("paths").path("/me/avatar/confirm").path("post").path("responses").path("400").path("$ref").asString())
-				.isEqualTo("#/components/responses/AvatarVersionInvalid");
+				.isEqualTo("#/components/responses/BadRequest");
 		assertThat(openApi.path("paths").path("/entries/search").path("get").path("responses").path("400").path("$ref").asString())
 				.isEqualTo("#/components/responses/SearchInvalidRequest");
 		assertThat(openApi.path("paths").path("/internal/cdc/dead-letters/{id}/replay").path("post").path("responses").path("404").path("$ref").asString())

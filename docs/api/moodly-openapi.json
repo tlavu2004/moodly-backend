@@ -237,7 +237,7 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/AvatarVersionInvalid"
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -2818,33 +2818,6 @@
                     "status": 409,
                     "code": "AVATAR_CONFLICT",
                     "message": "The resource was changed by another request.",
-                    "path": "/example",
-                    "errors": [],
-                    "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"
-                  },
-                  "timestamp": "2026-09-12T10:00:00Z"
-                }
-              }
-            }
-          }
-        }
-      },
-      "AvatarVersionInvalid": {
-        "description": "The avatar version is invalid; other avatar validation errors may also return 400.",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ApiResponseApiError"
-            },
-            "examples": {
-              "default": {
-                "value": {
-                  "success": false,
-                  "data": null,
-                  "error": {
-                    "status": 400,
-                    "code": "AVATAR_VERSION_INVALID",
-                    "message": "Avatar version must be positive.",
                     "path": "/example",
                     "errors": [],
                     "requestId": "2ea18f35-e92e-4ed0-a629-c3f2fbffc45d"

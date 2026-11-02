@@ -24,7 +24,7 @@ Each module owns codes for its **expected application failures**. Shared framewo
 | Owner | Public codes and conditions |
 | --- | --- |
 | Global | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, `NOT_ACCEPTABLE`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_SERVER_ERROR`; `DUPLICATE_RESOURCE` is reserved for legacy clients and is not emitted by a generic Mongo handler. |
-| Auth/avatar | `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID`, `AVATAR_VERSION_INVALID`, `AVATAR_CONFLICT`, `AVATAR_SERVICE_UNAVAILABLE`. Security-filter 401/403 remains global. |
+| Auth/avatar | `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID`, `AVATAR_CONFLICT`, `AVATAR_SERVICE_UNAVAILABLE`. `AVATAR_VERSION_INVALID` guards direct service calls; HTTP `version <= 0` is rejected first by Bean Validation as global `VALIDATION_FAILED`. Security-filter 401/403 remains global. |
 | Habits | `HABIT_NOT_FOUND` for missing or unowned habit, `HABIT_CONFLICT` for stale version, `HABIT_INVALID_STATUS` for an unsupported filter, `HABIT_ARCHIVED` for a new log on an archived habit. |
 | Entries | `ENTRY_INVALID_RANGE` for application-level date and pagination rules. Bean Validation and malformed request syntax remain global. |
 | Stats | `STATS_INVALID_PERIOD` for an unsupported mood trend period. Streak ownership failures use `HABIT_NOT_FOUND`. |

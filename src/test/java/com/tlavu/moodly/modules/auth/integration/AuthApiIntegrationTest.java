@@ -67,6 +67,17 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
+	void rejectsNonPositiveAvatarVersionAtTheValidationBoundary() throws Exception {
+		mockMvc.perform(post("/me/avatar/confirm")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"publicId\":\"asset\",\"version\":0}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+		verify(cloudinary, never()).findImage(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
 	void confirmsOnlyTheAuthenticatedUsersPendingAvatar() throws Exception {
 		String userA = "auth0|avatar-owner";
 		String userB = "auth0|avatar-other";

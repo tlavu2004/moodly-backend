@@ -191,7 +191,6 @@ public class OpenApiConfiguration {
 		components.addResponses("CdcDeadLetterNotFound", errorResponse("The CDC dead letter was not found.", SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND, SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND.getDefaultMessage()));
 		components.addResponses("E2eResetForbidden", errorResponse("A valid E2E reset token is required.", E2eErrorCode.E2E_RESET_FORBIDDEN, E2eErrorCode.E2E_RESET_FORBIDDEN.getDefaultMessage()));
 		components.addResponses("AvatarConflict", errorResponse("The avatar changed during this request.", AuthErrorCode.AVATAR_CONFLICT, AuthErrorCode.AVATAR_CONFLICT.getDefaultMessage()));
-		components.addResponses("AvatarVersionInvalid", errorResponse("The avatar version is invalid; other avatar validation errors may also return 400.", AuthErrorCode.AVATAR_VERSION_INVALID, AuthErrorCode.AVATAR_VERSION_INVALID.getDefaultMessage()));
 		components.addResponses(
 				"AvatarUploadNotFound",
 				errorResponse(
@@ -303,7 +302,6 @@ public class OpenApiConfiguration {
 		addResponse(openApi, "/stats/mood-trend", PathItem.HttpMethod.GET, "400", "StatsInvalidPeriod");
 		addResponse(openApi, "/entries/search", PathItem.HttpMethod.GET, "400", "SearchInvalidRequest");
 		addResponse(openApi, "/me/avatar/confirm", PathItem.HttpMethod.POST, "409", "AvatarConflict");
-		addResponse(openApi, "/me/avatar/confirm", PathItem.HttpMethod.POST, "400", "AvatarVersionInvalid");
 		addResponse(openApi, "/me/avatar", PathItem.HttpMethod.DELETE, "409", "AvatarConflict");
 		addResponse(openApi, "/internal/e2e/reset", PathItem.HttpMethod.POST, "403", "E2eResetForbidden");
 		openApi.getPaths().forEach((path, item) -> {
