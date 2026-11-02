@@ -27,8 +27,32 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class GlobalExceptionHandlerTest {
+	@RestController
+	static class DuplicateController {
+		@GetMapping("/test-duplicate")
+		void fail() {
+			throw new DuplicateKeyException("internal index name and key");
+		}
+	}
+
+	@Test
+	void mvcDispatchKeepsUnknownDuplicateInternal() throws Exception {
+		MockMvcBuilders.standaloneSetup(new DuplicateController())
+				.setControllerAdvice(new GlobalExceptionHandler())
+				.build()
+				.perform(get("/test-duplicate"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error.code").value("INTERNAL_SERVER_ERROR"))
+				.andExpect(jsonPath("$.error.message").value("An unexpected error occurred."));
+	}
 
 	@Test
 	void keepsTheErrorCodeCatalogUnique() {
