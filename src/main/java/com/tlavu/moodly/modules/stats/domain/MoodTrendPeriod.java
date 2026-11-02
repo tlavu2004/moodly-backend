@@ -1,7 +1,7 @@
 package com.tlavu.moodly.modules.stats.domain;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
+import com.tlavu.moodly.modules.stats.exception.StatsException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
@@ -26,7 +26,7 @@ public enum MoodTrendPeriod {
 				return period;
 			}
 		}
-		throw new InvalidRequestException("Unsupported mood trend period. Supported values: week.");
+		throw StatsException.invalidPeriod();
 	}
 
 	public LocalDate startDate(LocalDate date) {
