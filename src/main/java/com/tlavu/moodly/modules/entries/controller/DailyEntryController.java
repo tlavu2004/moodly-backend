@@ -49,7 +49,7 @@ public class DailyEntryController {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "404",
-					ref = "#/components/responses/NotFound"
+					ref = "#/components/responses/HabitNotFound"
 			),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "409",

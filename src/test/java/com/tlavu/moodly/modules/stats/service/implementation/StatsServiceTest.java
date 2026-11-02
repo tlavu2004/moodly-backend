@@ -23,7 +23,7 @@ import com.tlavu.moodly.modules.stats.service.view.MostMissedHabitView;
 import com.tlavu.moodly.modules.stats.repository.contract.StatsAggregationRepository;
 import com.tlavu.moodly.modules.stats.repository.projection.MoodTrendProjection;
 import com.tlavu.moodly.modules.stats.repository.projection.MostMissedHabitProjection;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -125,11 +125,11 @@ class StatsServiceTest {
 	void rejectsMissingOrAnotherUsersHabitBeforeReadingEntries() {
 		LocalDate today = LocalDate.of(2026, 8, 5);
 		when(ownedHabitService.require("user-1", "exercise"))
-				.thenThrow(new ResourceNotFoundException("Habit was not found."));
+				.thenThrow(HabitException.notFound());
 
 		assertThatThrownBy(() -> statsService.calculateCurrentStreak("user-1",
 				new CalculateCurrentStreakInput("exercise", today)))
-				.isInstanceOf(ResourceNotFoundException.class)
+				.isInstanceOf(HabitException.class)
 				.hasMessage("Habit was not found.");
 		verifyNoInteractions(entryReadService);
 	}

@@ -224,16 +224,22 @@ class ApiIntegrationTest {
 				.path("content").path("application/json").path("examples").path("default").path("value")
 				.path("error").path("status").asInt()).isEqualTo(503);
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}").path("patch").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}/archive").path("post").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("409").path("$ref").asString())
-				.isEqualTo("#/components/responses/Conflict");
+				.isEqualTo("#/components/responses/HabitConflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("200").isMissingNode()).isFalse();
 		assertThat(openApi.path("paths").path("/entries/today").path("patch").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/HabitArchived");
+		assertThat(openApi.path("paths").path("/me/avatar/confirm").path("post").path("responses").path("400").path("$ref").asString())
+				.isEqualTo("#/components/responses/AvatarVersionInvalid");
+		assertThat(openApi.path("paths").path("/entries/search").path("get").path("responses").path("400").path("$ref").asString())
+				.isEqualTo("#/components/responses/SearchInvalidRequest");
+		assertThat(openApi.path("paths").path("/internal/cdc/dead-letters/{id}/replay").path("post").path("responses").path("404").path("$ref").asString())
+				.isEqualTo("#/components/responses/CdcDeadLetterNotFound");
 		assertThat(examples.path("SuccessEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())

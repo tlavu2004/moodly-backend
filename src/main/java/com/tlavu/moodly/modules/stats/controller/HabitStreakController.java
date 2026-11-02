@@ -38,7 +38,7 @@ public class HabitStreakController {
 			),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "404",
-					ref = "#/components/responses/NotFound"
+					ref = "#/components/responses/HabitNotFound"
 			)
 	})
 	public ApiResponse<HabitStreakResponse> currentStreak(
