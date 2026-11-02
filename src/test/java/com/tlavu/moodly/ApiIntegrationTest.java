@@ -332,7 +332,7 @@ class ApiIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"habitId\":\"" + habitId + "\",\"done\":true}"))
 					.andExpect(status().isNotFound())
-					.andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+					.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"))
 					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
 		}
 		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();

@@ -6,7 +6,7 @@ import com.tlavu.moodly.modules.habits.service.filter.HabitStatusFilter;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
-import com.tlavu.moodly.shared.error.exception.common.ConflictException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -75,7 +75,7 @@ public class HabitService {
 				: habit.getVersion();
 
 		if (currentVersion != requestedVersion) {
-			throw new ConflictException();
+			throw HabitException.conflict();
 		}
 	}
 }

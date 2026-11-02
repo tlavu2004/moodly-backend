@@ -63,7 +63,7 @@ class HabitApiIntegrationTest {
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.param("status", "invalid"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("HABIT_INVALID_STATUS"));
 	}
 
 	@Test
@@ -79,7 +79,7 @@ class HabitApiIntegrationTest {
 			mockMvc.perform(get("/habits/{habitId}/streak", habitId)
 						.with(jwt().jwt(token -> token.subject(USER_ID))))
 					.andExpect(status().isNotFound())
-					.andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+					.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"))
 					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
 		}
 	}
@@ -123,7 +123,7 @@ class HabitApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"Stale update\",\"icon\":\"books\",\"version\":" + (version - 1) + "}"))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
+				.andExpect(jsonPath("$.error.code").value("HABIT_CONFLICT"));
 
 		response = mockMvc.perform(post("/habits/{habitId}/archive", habitId)
 					.with(jwt().jwt(token -> token.subject(USER_ID)))

@@ -14,7 +14,7 @@ import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.service.input.CreateHabitInput;
 import com.tlavu.moodly.modules.habits.service.input.UpdateHabitInput;
 import com.tlavu.moodly.modules.habits.service.view.HabitView;
-import com.tlavu.moodly.shared.error.exception.common.ConflictException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -85,9 +85,9 @@ class HabitServiceTest {
 		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
 		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
 
-		ConflictException exception = assertThrows(ConflictException.class, () -> habitService.archive("user-1", "habit-1", 1L));
+		HabitException exception = assertThrows(HabitException.class, () -> habitService.archive("user-1", "habit-1", 1L));
 
-		assertEquals("CONFLICT", exception.getCode().getCode());
+		assertEquals("HABIT_CONFLICT", exception.getCode().getCode());
 		verify(habitRepository, org.mockito.Mockito.never()).save(habit);
 	}
 }

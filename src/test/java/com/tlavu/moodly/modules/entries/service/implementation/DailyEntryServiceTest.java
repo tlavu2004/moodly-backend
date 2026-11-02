@@ -11,7 +11,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.habits.exception.HabitException;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
 import java.time.LocalDate;
 import java.util.List;
@@ -53,11 +53,11 @@ class DailyEntryServiceTest {
 	void refusesUnknownHabitBeforeCreatingAnEntry() {
 		LocalDate date = LocalDate.of(2026, 8, 5);
 		when(ownedHabitService.require("user-1", "other-habit"))
-				.thenThrow(new ResourceNotFoundException("Habit was not found."));
+				.thenThrow(HabitException.notFound());
 
 		assertThatThrownBy(() -> dailyEntryService.updateHabitLog("user-1", date,
 				new UpdateHabitLogInput("other-habit", true, null)))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException.class)
+				.isInstanceOf(HabitException.class)
 				.hasMessage("Habit was not found.");
 		org.mockito.Mockito.verifyNoInteractions(mongoTemplate);
 	}
