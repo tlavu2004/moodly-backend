@@ -334,7 +334,7 @@ class CdcDeliveryServiceTest {
 		CdcDeliveryService service = service();
 
 		assertThatThrownBy(() -> service.replay("missing"))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException.class)
+				.isInstanceOf(com.tlavu.moodly.modules.search.exception.SearchException.class)
 				.hasMessage("CDC dead letter was not found.");
 		verifyNoInteractions(searchWriter);
 	}

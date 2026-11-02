@@ -1,6 +1,6 @@
 package com.tlavu.moodly.shared.error.exception.common;
 
-import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.modules.search.code.SearchErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 
 /**
@@ -10,7 +10,7 @@ import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 public final class SearchInfrastructureUnavailableException extends ApplicationException {
 
 	private SearchInfrastructureUnavailableException(String safeMessage, Throwable cause) {
-		super(GlobalErrorCode.SEARCH_UNAVAILABLE, safeMessage, cause);
+		super(SearchErrorCode.SEARCH_UNAVAILABLE, safeMessage, cause);
 	}
 
 	public static SearchInfrastructureUnavailableException duringSearch(Throwable cause) {

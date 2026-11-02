@@ -2,6 +2,7 @@ package com.tlavu.moodly.shared.config;
 
 import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
 import com.tlavu.moodly.modules.habits.code.HabitErrorCode;
+import com.tlavu.moodly.modules.search.code.SearchErrorCode;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import io.swagger.v3.oas.models.Components;
@@ -220,7 +221,7 @@ public class OpenApiConfiguration {
 				"SearchUnavailable",
 				errorResponse(
 						"Search is temporarily unavailable.",
-						GlobalErrorCode.SEARCH_UNAVAILABLE,
+						SearchErrorCode.SEARCH_UNAVAILABLE,
 						"Search is temporarily unavailable."
 				)
 		);

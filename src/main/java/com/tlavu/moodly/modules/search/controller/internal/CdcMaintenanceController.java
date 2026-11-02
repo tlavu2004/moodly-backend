@@ -3,7 +3,7 @@ package com.tlavu.moodly.modules.search.controller.internal;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.dto.response.CdcReindexResponse;
-import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
+import com.tlavu.moodly.modules.search.exception.SearchException;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -49,7 +49,7 @@ public class CdcMaintenanceController {
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
-			throw new ForbiddenException();
+			throw SearchException.maintenanceForbidden();
 		}
 
 		return ResponseEntity.ok(ApiResponse.success(CdcReindexResponse.from(reindexService.reindex())));
@@ -77,7 +77,7 @@ public class CdcMaintenanceController {
 			@RequestHeader(value = "X-Maintenance-Key", required = false) String suppliedKey
 	) {
 		if (hasInvalidMaintenanceKey(suppliedKey)) {
-			throw new ForbiddenException();
+			throw SearchException.maintenanceForbidden();
 		}
 		deliveryService.replay(id);
 

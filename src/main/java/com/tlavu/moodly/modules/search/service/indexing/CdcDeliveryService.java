@@ -10,7 +10,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.shared.error.exception.common.ResourceNotFoundException;
+import com.tlavu.moodly.modules.search.exception.SearchException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -86,7 +86,7 @@ public class CdcDeliveryService {
 
 	public void replay(String deadLetterId) {
 		CdcDeadLetter deadLetter = deadLetterRepository.findById(deadLetterId)
-				.orElseThrow(() -> new ResourceNotFoundException("CDC dead letter was not found."));
+				.orElseThrow(SearchException::deadLetterNotFound);
 		replayDeadLetter(deadLetter);
 	}
 

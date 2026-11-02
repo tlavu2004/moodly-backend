@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
+import com.tlavu.moodly.modules.search.exception.SearchException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +39,7 @@ class EntrySearchServiceTest {
 		EntrySearchInput input = new EntrySearchInput("tired", null, null, Integer.MAX_VALUE, 100);
 
 		assertThatThrownBy(() -> new EntrySearchService(queryPort).search("user-1", input))
-				.isInstanceOf(InvalidRequestException.class)
+				.isInstanceOf(SearchException.class)
 				.hasMessageContaining("result window");
 		verifyNoInteractions(queryPort);
 	}

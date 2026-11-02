@@ -21,7 +21,6 @@ public enum GlobalErrorCode implements ErrorCode {
 	UNAUTHORIZED("UNAUTHORIZED", "Authentication is required or the access token is invalid.", HttpStatus.UNAUTHORIZED),
 	FORBIDDEN("FORBIDDEN", "You are not allowed to perform this operation.", HttpStatus.FORBIDDEN),
 	NOT_FOUND("NOT_FOUND", "The requested resource was not found.", HttpStatus.NOT_FOUND),
-	SEARCH_UNAVAILABLE("SEARCH_UNAVAILABLE", "Search is temporarily unavailable.", HttpStatus.SERVICE_UNAVAILABLE),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
 
 	private final String code;
