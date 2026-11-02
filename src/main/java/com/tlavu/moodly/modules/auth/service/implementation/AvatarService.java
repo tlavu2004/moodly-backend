@@ -144,6 +144,9 @@ public class AvatarService {
 		UserProfile profile = profiles.findByAuth0Subject(subject)
 				.orElseThrow(AvatarProfileMissingException::new);
 		String previousPublicId = profile.getAvatarPublicId();
+		PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
+				? queueObsoleteAsset(previousPublicId)
+				: null;
 
 		profile.replaceAvatar(
 				asset.publicId(),
@@ -155,11 +158,8 @@ public class AvatarService {
 		profiles.save(profile);
 		pendingUploads.delete(pending);
 
-		if (
-				previousPublicId != null &&
-				!previousPublicId.equals(asset.publicId())
-		) {
-			deleteObsoleteAsset(previousPublicId);
+		if (obsolete != null) {
+			deleteObsoleteAsset(obsolete);
 		}
 
 		return avatar(profile);
@@ -184,21 +184,31 @@ public class AvatarService {
 		}
 
 		String previousPublicId = profile.getAvatarPublicId();
+		PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
 		profile.clearAvatar(Instant.now());
 		profiles.save(profile);
-		deleteObsoleteAsset(previousPublicId);
+		deleteObsoleteAsset(obsolete);
 
 		return new AvatarView(null, null, null, null);
 	}
 
-	private void deleteObsoleteAsset(String publicId) {
+	private PendingAssetDeletion queueObsoleteAsset(String publicId) {
+		return pendingDeletions.findByPublicId(publicId).orElseGet(() -> {
+			PendingAssetDeletion pending = new PendingAssetDeletion(publicId, Instant.now().plusSeconds(60));
+			pendingDeletions.save(pending);
+			return pending;
+		});
+	}
+
+	private void deleteObsoleteAsset(PendingAssetDeletion pending) {
 		try {
-			cloudinary.deleteImage(publicId);
+			if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
+				return;
+			}
+			cloudinary.deleteImage(pending.getPublicId());
+			pendingDeletions.delete(pending);
 		} catch (RuntimeException exception) {
 			try {
-				PendingAssetDeletion pending = pendingDeletions.findByPublicId(publicId)
-						.orElseGet(() -> new PendingAssetDeletion(publicId, Instant.now()));
-
 				pending.recordFailure(Instant.now());
 				pendingDeletions.save(pending);
 

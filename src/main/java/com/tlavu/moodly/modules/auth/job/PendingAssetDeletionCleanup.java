@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAsset
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
+import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.dao.DataAccessException;
 @ConditionalOnProperty(name = "moodly.cloudinary.pending-cleanup.enabled", havingValue = "true", matchIfMissing = true)
 public class PendingAssetDeletionCleanup {
 	private final PendingAssetDeletionRepository pendingDeletions;
+	private final UserProfileRepository profiles;
 	private final CloudinaryAssetClient cloudinary;
 
 	@Scheduled(fixedDelayString = "${moodly.cloudinary.pending-cleanup-delay-ms:300000}")
@@ -25,6 +27,9 @@ public class PendingAssetDeletionCleanup {
 
 		for (PendingAssetDeletion pending : pendingDeletions.findByNextAttemptAtBefore(Instant.now())) {
 			try {
+				if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
+					continue;
+				}
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingDeletions.delete(pending);
 			} catch (RuntimeException exception) {

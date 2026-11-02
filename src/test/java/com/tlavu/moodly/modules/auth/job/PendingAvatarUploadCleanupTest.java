@@ -11,6 +11,7 @@ import com.tlavu.moodly.modules.auth.model.PendingAvatarUpload;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAvatarUploadRepository;
+import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PendingAvatarUploadCleanupTest {
 
 	@Mock private PendingAvatarUploadRepository pendingUploads;
+	@Mock private UserProfileRepository profiles;
 	@Mock private CloudinaryAssetClient cloudinary;
 	@InjectMocks private PendingAvatarUploadCleanup cleanup;
 
@@ -69,5 +71,18 @@ class PendingAvatarUploadCleanupTest {
 		verify(pendingUploads, never()).delete(failing);
 		verify(cloudinary).deleteImage(healthy.getPublicId());
 		verify(pendingUploads).delete(healthy);
+	}
+
+	@Test
+	void removesExpiredPendingRecordWithoutDeletingConfirmedAvatar() {
+		PendingAvatarUpload pending = new PendingAvatarUpload(
+				"moodly/test/users/user/avatar/active", "user", Instant.now().minusSeconds(1));
+		when(pendingUploads.findByExpiresAtBefore(any())).thenReturn(List.of(pending));
+		when(profiles.existsByAvatarPublicId(pending.getPublicId())).thenReturn(true);
+
+		cleanup.cleanupExpiredUploads();
+
+		verify(cloudinary, org.mockito.Mockito.never()).deleteImage(pending.getPublicId());
+		verify(pendingUploads).delete(pending);
 	}
 }

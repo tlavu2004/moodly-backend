@@ -11,6 +11,7 @@ import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.repository.PendingAssetDeletionRepository;
+import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PendingAssetDeletionCleanupTest {
 
 	@Mock private PendingAssetDeletionRepository pendingDeletions;
+	@Mock private UserProfileRepository profiles;
 	@Mock private CloudinaryAssetClient cloudinary;
 	@InjectMocks private PendingAssetDeletionCleanup cleanup;
 
@@ -69,5 +71,18 @@ class PendingAssetDeletionCleanupTest {
 		assertThat(failing.getCleanupAttempts()).isEqualTo(1);
 		verify(cloudinary).deleteImage(healthy.getPublicId());
 		verify(pendingDeletions).delete(healthy);
+	}
+
+	@Test
+	void retainsQueuedAssetWhileAProfileStillReferencesIt() {
+		PendingAssetDeletion pending = new PendingAssetDeletion(
+				"moodly/test/users/user/avatar/active", Instant.now().minusSeconds(1));
+		when(pendingDeletions.findByNextAttemptAtBefore(any())).thenReturn(List.of(pending));
+		when(profiles.existsByAvatarPublicId(pending.getPublicId())).thenReturn(true);
+
+		cleanup.cleanupObsoleteAssets();
+
+		verify(cloudinary, never()).deleteImage(pending.getPublicId());
+		verify(pendingDeletions, never()).delete(pending);
 	}
 }
