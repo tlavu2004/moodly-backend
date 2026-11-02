@@ -93,6 +93,20 @@ class ElasticsearchEntrySearchAdapterTest {
 	}
 
 	@Test
+	void rejectsAHitWithoutSourceInsteadOfReturningAnIncompletePage() throws Exception {
+		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
+		when(response.hits()).thenReturn(hits);
+		when(hits.hits()).thenReturn(List.of(hit));
+		when(hit.id()).thenReturn("entry-1");
+		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
+
+		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
+				.isInstanceOf(SearchInfrastructureUnavailableException.class)
+				.hasMessage("Elasticsearch search is unavailable")
+				.hasCauseInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
 	void propagatesElasticsearchBadRequestAsAnInternalFailure() throws Exception {
 		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(badRequest.status()).thenReturn(400);

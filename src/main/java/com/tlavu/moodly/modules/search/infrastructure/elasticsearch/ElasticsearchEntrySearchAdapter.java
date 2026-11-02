@@ -103,13 +103,17 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 							DailyEntrySearchDocument.class);
 
 			List<EntrySearchView> items = response.hits().hits().stream()
-					.filter(hit -> hit.source() != null)
 					.map(hit -> {
+						DailyEntrySearchDocument source = hit.source();
+						if (source == null) {
+							throw SearchInfrastructureUnavailableException.duringSearch(
+									new IllegalStateException("Elasticsearch hit " + hit.id() + " has no source"));
+						}
 						Map<String, List<HighlightFragmentView>> highlights = normalizeHighlights(hit.highlight());
 
 						return new EntrySearchView(
 								hit.id(),
-								hit.source().date(),
+								source.date(),
 								highlights
 						);
 					}).toList();
