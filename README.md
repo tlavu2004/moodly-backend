@@ -80,7 +80,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
-   The Change Stream listener resumes from its MongoDB-stored checkpoint after a restart. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+   On its first start without a checkpoint, the Change Stream listener rebuilds the derived index from MongoDB before listening for changes. It resumes from its MongoDB-stored checkpoint after a restart. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
 
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/reindex \

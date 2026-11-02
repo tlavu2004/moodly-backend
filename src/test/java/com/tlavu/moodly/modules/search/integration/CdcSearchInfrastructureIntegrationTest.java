@@ -287,6 +287,23 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
+	void bootstrapsExistingMongoEntriesBeforeListeningForNewChanges() throws Exception {
+		listener.stop();
+		cdcSearchTestSupport.clearState();
+		DailyEntry existing = cdcSearchTestSupport.save(entry(
+				cdcSearchTestSupport.newUserId(), "before first listener", List.of(), "walk", 3));
+		clearInvocations(reindexService);
+
+		listener.start();
+		awaitChangeStreamRegistration();
+		cdcSearchTestSupport.awaitIndexed(existing.getId());
+		verify(reindexService).reindex();
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test"))
+				.hasValueSatisfying(checkpoint -> assertThat(
+						checkpoint.getResumeAt() != null || checkpoint.getToken() != null).isTrue());
+	}
+
+	@Test
 	void resumesFromPersistedTokenAfterListenerRestart() throws Exception {
 		DailyEntry first = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "before restart", List.of(), "habit", 3));
 		cdcSearchTestSupport.awaitIndexed(first.getId());

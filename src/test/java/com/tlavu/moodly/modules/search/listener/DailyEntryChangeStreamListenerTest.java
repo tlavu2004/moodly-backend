@@ -157,7 +157,8 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void rebuildsAfterExpiredResumeTokenButNotAfterOtherFailures() throws Exception {
-		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.of(
+				new CdcResumeToken("stream-test", "{_data: 'existing'}", Instant.now())));
 		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
 		listener.start();
 
@@ -196,7 +197,8 @@ class DailyEntryChangeStreamListenerTest {
 
 	@Test
 	void restartsTransientMongoFailureFromPersistedToken() throws Exception {
-		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.of(
+				new CdcResumeToken("stream-test", "{_data: 'existing'}", Instant.now())));
 		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
 		listener.start();
 
@@ -208,6 +210,32 @@ class DailyEntryChangeStreamListenerTest {
 		verify(listenerContainer, org.mockito.Mockito.times(2)).start();
 		verify(resumeTokenRepository, org.mockito.Mockito.times(2)).findById("stream-test");
 		verify(monitor, org.mockito.Mockito.times(2)).listenerStarted();
+	}
+
+	@Test
+	void bootstrapsIndexBeforeRegisteringWhenNoCheckpointExists() {
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+		when(listenerContainer.register(any(), eq(DailyEntry.class), any())).thenReturn(subscription);
+
+		listener.start();
+
+		org.mockito.InOrder order = org.mockito.Mockito.inOrder(reindexService, resumeTokenRepository, listenerContainer);
+		order.verify(reindexService).reindex();
+		order.verify(resumeTokenRepository).save(any(CdcResumeToken.class));
+		order.verify(listenerContainer).register(any(), eq(DailyEntry.class), any());
+		ArgumentCaptor<CdcResumeToken> checkpoint = ArgumentCaptor.forClass(CdcResumeToken.class);
+		verify(resumeTokenRepository).save(checkpoint.capture());
+		assertThat(checkpoint.getValue().getResumeAt()).isEqualTo(Instant.parse("2026-11-02T00:00:00Z"));
+	}
+
+	@Test
+	void failedFirstReindexDoesNotPersistCheckpointOrStartListener() {
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+		org.mockito.Mockito.when(reindexService.reindex()).thenThrow(new IllegalStateException("index unavailable"));
+
+		assertThatThrownBy(listener::start).isInstanceOf(IllegalStateException.class);
+		verify(resumeTokenRepository, never()).save(any(CdcResumeToken.class));
+		verifyNoInteractions(listenerContainer);
 	}
 
 	@Test
