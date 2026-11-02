@@ -1,6 +1,7 @@
 package com.tlavu.moodly.shared.config;
 
 import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
+import com.tlavu.moodly.modules.habits.code.HabitErrorCode;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import io.swagger.v3.oas.models.Components;
@@ -165,6 +166,14 @@ public class OpenApiConfiguration {
 						"The resource conflicts with its current state.",
 						GlobalErrorCode.CONFLICT,
 						"Refresh the resource and retry."
+				)
+		);
+		components.addResponses(
+				"HabitArchived",
+				errorResponse(
+						"A new log cannot be created for an archived habit.",
+						HabitErrorCode.HABIT_ARCHIVED,
+						"Archived habits cannot receive new logs."
 				)
 		);
 		components.addResponses(

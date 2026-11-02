@@ -43,13 +43,17 @@ public class DailyEntryController {
 	@PatchMapping("/today")
 	@Operation(
 			summary = "Update today's habit log",
-			description = "Marks or unmarks a habit in the authenticated user's entry for today."
+			description = "Marks or unmarks a habit in the authenticated user's entry for today. Existing logs can be corrected after archiving; new logs for archived habits are rejected."
 	)
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "404",
 					ref = "#/components/responses/NotFound"
+			),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(
+					responseCode = "409",
+					ref = "#/components/responses/HabitArchived"
 			)
 	})
 	public ApiResponse<DailyEntryResponse> updateTodayHabit(

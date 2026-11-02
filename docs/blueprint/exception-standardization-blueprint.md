@@ -25,7 +25,7 @@ Normal API errors use `ApiResponse.error(ApiError)` with `status`, stable `code`
 | 400 | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID` |
 | 401 / 403 / 404 | `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND` |
 | 405 / 406 / 415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE` |
-| 409 | `CONFLICT`; `DUPLICATE_RESOURCE` remains in the catalog but the generic handler no longer emits it |
+| 409 | `CONFLICT`, `HABIT_ARCHIVED`; `DUPLICATE_RESOURCE` remains reserved and the generic handler does not emit it |
 | 503 | `SEARCH_UNAVAILABLE`, `AVATAR_SERVICE_UNAVAILABLE` |
 | 500 | `INTERNAL_SERVER_ERROR` |
 
@@ -56,7 +56,7 @@ Use `final` for a concrete exception only when extension is intentionally prohib
 | --- | --- |
 | `auth` / avatar | Security owns the 401/403 envelope. Avatar-specific codes live in `AuthErrorCode`. Cleanup exceptions are internal to durable jobs; they do not need public codes. |
 | `habits` | Missing/unowned habit is 404 `NOT_FOUND`; stale version is 409 `CONFLICT`; bad status filter is 400 `INVALID_REQUEST`. |
-| `entries` | Bad date/pagination is 400 `INVALID_REQUEST`; DTO violations are 400 `VALIDATION_FAILED`. An owned habit is required before a habit log creates an entry. Archived owned habits are currently accepted. |
+| `entries` | Bad date/pagination is 400 `INVALID_REQUEST`; DTO violations are 400 `VALIDATION_FAILED`. A new log for an archived habit is 409 `HABIT_ARCHIVED`; an existing log remains editable. |
 | `stats` / `dashboard` | Streak for missing/unowned habit is 404 `NOT_FOUND`; a valid habit with no log has streak zero. Propagate genuine dependency failures. |
 | `search` / CDC | Bad search request is 400. Classified search infrastructure failures are 503 `SEARCH_UNAVAILABLE`. CDC retries transient delivery, records dead letters, and does not advance a checkpoint after an unrecorded failure. |
 | `e2e` | Reset is disabled in production; bad credentials are 403; classified indexing/verification failure is 503; unexpected persistence failure is 500. |
@@ -70,8 +70,8 @@ Use `final` for a concrete exception only when extension is intentionally prohib
 ## 7. Reviewed direction for remaining decisions
 
 1. **Duplicate key:** Keep unclassified Mongo uniqueness failures at 500. Translate only a proven user-actionable duplicate at its service to an explicit 409 exception/code. Retain `DUPLICATE_RESOURCE` as a legacy catalog value until client usage and deprecation are reviewed; do not restore the generic Mongo handler.
-2. **Missing or unowned habit:** Keep the same 404 and public message for streak and today's habit log so the ID cannot reveal another user's data. Centralize the owned-habit lookup if further call sites justify it. Keep `NOT_FOUND` until a client needs a distinct module code.
-3. **Archived habit log:** Preserve current accepted writes for now. Preferred future rule: permit correction of an existing log for an archived habit, but reject creating a new log after archive. This needs a race-safe policy across the habit and entry records, a reviewed 409 code/message, archive/write race tests, and updated OpenAPI. If product policy allows every historical correction, document that decision instead.
+2. **Missing or unowned habit:** Use the shared owned-habit lookup and the same 404 and public message for streak, habit management, and today's habit log. Keep `NOT_FOUND` until a client needs a distinct module code.
+3. **Archived habit log:** Permit correction of an existing log; reject creating a new log after archive with 409 `HABIT_ARCHIVED`. A log request that observes an active habit may complete while archive overlaps it; the state read at validation decides the outcome. Requests started after archive completes observe the archived state. Keep the HTTP test and OpenAPI response synchronized.
 
 ## 8. Change procedure
 

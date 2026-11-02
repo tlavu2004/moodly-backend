@@ -7,6 +7,8 @@ import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
+import com.tlavu.moodly.modules.habits.service.implementation.HabitService;
+import com.tlavu.moodly.modules.habits.exception.ArchivedHabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.support.MongoTestConfiguration;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,8 @@ class DailyEntryConcurrencyIntegrationTest {
 	private DailyEntryRepository repository;
 	@Autowired
 	private HabitRepository habitRepository;
+	@Autowired
+	private HabitService habitService;
 
 	@BeforeEach
 	void seedHabits() {
@@ -72,6 +77,29 @@ class DailyEntryConcurrencyIntegrationTest {
 				() -> service.updateHabitLog(USER, date, new UpdateHabitLogInput("read", true, "Done")));
 		assertThat(repository.findByUserIdAndDate(USER, date).orElseThrow().getHabits())
 				.extracting("habitId").containsExactlyInAnyOrder("walk", "read");
+	}
+
+	@Test
+	void archiveAndNewLogRaceHasOnlyAcceptedOrArchivedOutcomes() throws Exception {
+		for (int round = 0; round < 5; round++) {
+			String habitId = "race-" + round;
+			LocalDate date = LocalDate.of(2026, 10, 1).plusDays(round);
+			habitRepository.save(new Habit(habitId, USER, "Race", "run", TargetFrequency.DAILY, true));
+			AtomicBoolean rejected = new AtomicBoolean();
+			runTogether(
+					() -> habitService.archive(USER, habitId, 0L),
+					() -> {
+						try {
+							service.updateHabitLog(USER, date, new UpdateHabitLogInput(habitId, true, null));
+						} catch (ArchivedHabitException expected) {
+							rejected.set(true);
+						}
+					});
+			assertThat(habitRepository.findById(habitId).orElseThrow().isActive()).isFalse();
+			assertThat(repository.findByUserIdAndDate(USER, date)
+					.map(entry -> entry.getHabits().stream().anyMatch(log -> habitId.equals(log.getHabitId())))
+					.orElse(false)).isNotEqualTo(rejected.get());
+		}
 	}
 
 	private void runTogether(Runnable first, Runnable second) throws Exception {

@@ -11,6 +11,7 @@ import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.search.exception.CdcReplayException;
 import com.tlavu.moodly.modules.auth.code.AuthErrorCode;
+import com.tlavu.moodly.modules.habits.code.HabitErrorCode;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.common.ConflictException;
@@ -56,13 +57,15 @@ class GlobalExceptionHandlerTest {
 
 	@Test
 	void keepsTheErrorCodeCatalogUnique() {
-		List<String> codes = Stream.concat(
+		List<String> codes = Stream.of(
 				Arrays.stream(GlobalErrorCode.values()),
-				Arrays.stream(AuthErrorCode.values())
-		).map(code -> code.getCode()).toList();
+				Arrays.stream(AuthErrorCode.values()),
+				Arrays.stream(HabitErrorCode.values())
+		).flatMap(stream -> stream).map(code -> code.getCode()).toList();
 		assertThat(codes).doesNotHaveDuplicates();
 		assertThat(Arrays.stream(GlobalErrorCode.values()).map(GlobalErrorCode::getStatus)).doesNotContainNull();
 		assertThat(Arrays.stream(AuthErrorCode.values()).map(AuthErrorCode::getStatus)).doesNotContainNull();
+		assertThat(Arrays.stream(HabitErrorCode.values()).map(HabitErrorCode::getStatus)).doesNotContainNull();
 	}
 
 	@Test

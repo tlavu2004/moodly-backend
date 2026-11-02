@@ -5,6 +5,7 @@ import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
+import com.tlavu.moodly.modules.habits.exception.ArchivedHabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
 import com.tlavu.moodly.modules.entries.service.input.UpdateHabitLogInput;
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
@@ -37,7 +38,13 @@ public class DailyEntryService {
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		ownedHabitService.require(userId, input.habitId());
+		var habit = ownedHabitService.require(userId, input.habitId());
+		if (!habit.isActive() && !dailyEntryRepository.findByUserIdAndDate(userId, date)
+				.map(existing -> existing.getHabits().stream()
+						.anyMatch(log -> input.habitId().equals(log.getHabitId())))
+				.orElse(false)) {
+			throw new ArchivedHabitException();
+		}
 		DailyEntry entry = ensureEntry(userId, date);
 		Query existing = Query.query(Criteria.where("_id").is(entry.getId())
 				.and("habits.habitId").is(input.habitId()));

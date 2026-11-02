@@ -102,6 +102,11 @@ class ApiIntegrationTest {
 				.andReturn().getResponse().getContentAsString();
 		JsonNode reading = new tools.jackson.databind.ObjectMapper().readTree(readingResponse).path("data");
 		String readingId = reading.path("id").asString();
+		mockMvc.perform(patch("/entries/today")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"habitId\":\"" + readingId + "\",\"done\":true,\"note\":\"Before archive\"}"))
+				.andExpect(status().isOk());
 		mockMvc.perform(post("/habits/{habitId}/archive", readingId)
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
 					.contentType(MediaType.APPLICATION_JSON)
@@ -227,6 +232,8 @@ class ApiIntegrationTest {
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("409").path("$ref").asString())
 				.isEqualTo("#/components/responses/Conflict");
 		assertThat(openApi.path("paths").path("/habits/{habitId}/restore").path("post").path("responses").path("200").isMissingNode()).isFalse();
+		assertThat(openApi.path("paths").path("/entries/today").path("patch").path("responses").path("409").path("$ref").asString())
+				.isEqualTo("#/components/responses/HabitArchived");
 		assertThat(examples.path("SuccessEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())
@@ -328,6 +335,32 @@ class ApiIntegrationTest {
 					.andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
 					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
 		}
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
+	}
+
+	@Test
+	void rejectsNewLogForArchivedHabitWithoutCreatingAnEntry() throws Exception {
+		String created = mockMvc.perform(post("/habits")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"Read\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode habit = new tools.jackson.databind.ObjectMapper().readTree(created).path("data");
+		String habitId = habit.path("id").asString();
+		mockMvc.perform(post("/habits/{habitId}/archive", habitId)
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"version\":" + habit.path("version").asLong() + "}"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(patch("/entries/today")
+				.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"habitId\":\"" + habitId + "\",\"done\":true}"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.error.code").value("HABIT_ARCHIVED"))
+				.andExpect(jsonPath("$.error.message").value("Archived habits cannot receive new logs."));
 		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
 	}
 
