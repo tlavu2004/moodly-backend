@@ -240,8 +240,10 @@ class AvatarServiceTest {
 	void rejectsANonPositiveConfirmationVersionBeforeLookingUpCloudinary() {
 		when(currentUser.id()).thenReturn(SUBJECT);
 		assertThatThrownBy(() -> service.confirm(new ConfirmAvatarInput(NAMESPACE + "invalid-version", 0)))
-				.isInstanceOf(com.tlavu.moodly.shared.error.exception.common.InvalidRequestException.class)
-				.hasMessageContaining("must be positive");
+				.isInstanceOfSatisfying(AvatarException.class, exception -> {
+					assertThat(exception.getCode().getCode()).isEqualTo("AVATAR_VERSION_INVALID");
+					assertThat(exception).hasMessage("Avatar version must be positive.");
+				});
 		verify(cloudinary, never()).findImage(any());
 	}
 

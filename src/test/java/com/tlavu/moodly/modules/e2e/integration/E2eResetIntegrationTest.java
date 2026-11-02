@@ -101,9 +101,11 @@ class E2eResetIntegrationTest {
 		cdcSearchTestSupport.awaitIndexed(otherEntry.getId());
 
 		mockMvc.perform(post("/internal/e2e/reset"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error.code").value("E2E_RESET_FORBIDDEN"));
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "wrong"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error.code").value("E2E_RESET_FORBIDDEN"));
 		mockMvc.perform(post("/internal/e2e/reset").header("Authorization", "Bearer wrong"))
 				.andExpect(status().isUnauthorized());
 		assertThat(habitRepository.findById(targetHabit.getId())).isPresent();

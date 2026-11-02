@@ -16,8 +16,6 @@ import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
-import com.tlavu.moodly.shared.error.exception.common.InvalidRequestException;
-import com.tlavu.moodly.shared.error.exception.common.ConflictException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -127,7 +125,7 @@ public class AvatarService {
 			throw AvatarException.uploadNotFound();
 		}
 		if (version < 1) {
-			throw new InvalidRequestException("Avatar version must be positive.");
+			throw AvatarException.invalidVersion();
 		}
 
 		PendingAvatarUpload pending = pendingUploads.findByPublicIdAndAuth0Subject(publicId, subject)
@@ -163,7 +161,7 @@ public class AvatarService {
 			}
 			return avatar(profile);
 		}
-		throw new ConflictException();
+		throw AvatarException.conflict();
 	}
 
 	public AvatarView current() {
@@ -187,7 +185,7 @@ public class AvatarService {
 			deleteObsoleteAsset(obsolete);
 			return new AvatarView(null, null, null, null);
 		}
-		throw new ConflictException();
+		throw AvatarException.conflict();
 	}
 
 	private PendingAssetDeletion queueObsoleteAsset(String publicId) {

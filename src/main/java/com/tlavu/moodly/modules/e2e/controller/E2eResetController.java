@@ -3,7 +3,7 @@ package com.tlavu.moodly.modules.e2e.controller;
 import com.tlavu.moodly.modules.e2e.dto.response.E2eResetResponse;
 import com.tlavu.moodly.modules.e2e.service.implementation.E2eUserResetService;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
-import com.tlavu.moodly.shared.error.exception.common.ForbiddenException;
+import com.tlavu.moodly.modules.e2e.exception.E2eException;
 import io.swagger.v3.oas.annotations.Operation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -49,7 +49,7 @@ public class E2eResetController {
 						suppliedToken.getBytes(StandardCharsets.UTF_8)
 				)
 		) {
-			throw new ForbiddenException();
+			throw E2eException.resetForbidden();
 		}
 
 		return ResponseEntity.ok(
