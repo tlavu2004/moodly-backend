@@ -22,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
 class HabitServiceTest {
@@ -81,7 +82,7 @@ class HabitServiceTest {
 	}
 
 	@Test
-	void rejectsAStaleHabitVersionWithTheSharedConflictCode() {
+	void rejectsAStaleHabitVersionWithTheHabitConflictCode() {
 		Habit habit = new Habit("habit-1", "user-1", "Read", "📚", TargetFrequency.DAILY, true);
 		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
 
@@ -89,5 +90,20 @@ class HabitServiceTest {
 
 		assertEquals("HABIT_CONFLICT", exception.getCode().getCode());
 		verify(habitRepository, org.mockito.Mockito.never()).save(habit);
+	}
+
+	@Test
+	void translatesAConcurrentRepositoryWriteToTheHabitConflictCode() {
+		Habit habit = new Habit("habit-1", "user-1", "Read", null, TargetFrequency.DAILY, true);
+		when(ownedHabitService.require("user-1", "habit-1")).thenReturn(habit);
+		OptimisticLockingFailureException race = new OptimisticLockingFailureException("stale Mongo version");
+		when(habitRepository.save(habit)).thenThrow(race);
+
+		HabitException exception = assertThrows(HabitException.class,
+				() -> habitService.archive("user-1", "habit-1", 0L));
+
+		assertEquals("HABIT_CONFLICT", exception.getCode().getCode());
+		assertEquals("Resource was changed by another request. Refresh and retry.", exception.getMessage());
+		assertEquals(race, exception.getCause());
 	}
 }

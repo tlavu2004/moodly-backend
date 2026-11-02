@@ -8,12 +8,21 @@ public final class HabitException extends ApplicationException {
 		super(code);
 	}
 
+	private HabitException(HabitErrorCode code, String safeMessage, Throwable cause) {
+		super(code, safeMessage, cause);
+	}
+
 	public static HabitException notFound() {
 		return new HabitException(HabitErrorCode.HABIT_NOT_FOUND);
 	}
 
 	public static HabitException conflict() {
 		return new HabitException(HabitErrorCode.HABIT_CONFLICT);
+	}
+
+	public static HabitException optimisticLock(Throwable cause) {
+		return new HabitException(HabitErrorCode.HABIT_CONFLICT,
+				"Resource was changed by another request. Refresh and retry.", cause);
 	}
 
 	public static HabitException invalidStatus() {

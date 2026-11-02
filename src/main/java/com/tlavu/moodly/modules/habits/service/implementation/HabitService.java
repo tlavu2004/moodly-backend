@@ -10,6 +10,7 @@ import com.tlavu.moodly.modules.habits.exception.HabitException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -50,7 +51,7 @@ public class HabitService {
 		verifyVersion(habit, input.version());
 		habit.update(input.name(), input.icon());
 
-		return HabitView.from(habitRepository.save(habit));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	public HabitView archive(String userId, String habitId, long version) {
@@ -58,7 +59,7 @@ public class HabitService {
 		verifyVersion(habit, version);
 		habit.archive();
 
-		return HabitView.from(habitRepository.save(habit));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	public HabitView restore(String userId, String habitId, long version) {
@@ -66,7 +67,7 @@ public class HabitService {
 		verifyVersion(habit, version);
 		habit.restore();
 
-		return HabitView.from(habitRepository.save(habit));
+		return HabitView.from(saveExisting(habit));
 	}
 
 	private void verifyVersion(Habit habit, long requestedVersion) {
@@ -76,6 +77,14 @@ public class HabitService {
 
 		if (currentVersion != requestedVersion) {
 			throw HabitException.conflict();
+		}
+	}
+
+	private Habit saveExisting(Habit habit) {
+		try {
+			return habitRepository.save(habit);
+		} catch (OptimisticLockingFailureException exception) {
+			throw HabitException.optimisticLock(exception);
 		}
 	}
 }
