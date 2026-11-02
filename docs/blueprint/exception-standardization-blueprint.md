@@ -48,7 +48,38 @@ Unexpected `IllegalStateException`, `NoSuchElementException`, and other runtime 
 
 JDK and library checked exceptions, such as `IOException` and `InterruptedException`, remain checked at low-level operations. Keep `throws` when the immediate caller genuinely chooses retry or recovery; otherwise translate at the infrastructure boundary to an appropriate unchecked application or internal exception, retaining the cause. Do not turn every checked exception into 4xx. If a checked exception escapes a transaction, review rollback configuration explicitly. Do not catch `Error` as an application failure.
 
-Use `final` for a concrete exception only when extension is intentionally prohibited. Uniform `final` modifiers are not part of the error contract.
+All current concrete Moodly exception classes are leaves and are `final`. Add a non-final intermediate class only when a real subclass needs shared behavior. `final` is a source-level design choice, not part of the HTTP error contract.
+
+### Current exception hierarchy
+
+```text
+RuntimeException
+├── ApplicationException (abstract; expected public API failure)
+│   ├── shared: ConflictException, ForbiddenException, InvalidRequestException,
+│   │           ResourceNotFoundException, SearchInfrastructureUnavailableException
+│   ├── auth: AvatarException, AvatarServiceUnavailableException
+│   └── habits: ArchivedHabitException
+├── IllegalStateException (internal failure; generic 500 at an API boundary)
+│   ├── auth: AvatarAssetDeletionException, AvatarProfileMissingException
+│   └── search: CdcReplayException
+└── IllegalArgumentException (invalid application configuration)
+    └── auth: Auth0HttpConfigurationException
+```
+
+Do not introduce an intermediate base class for each module. A module with no distinct recovery action can use a shared `ApplicationException` subclass. Internal exceptions stay outside `ApplicationException` even when they have a descriptive class name; this prevents accidental public 4xx/503 responses.
+
+### Module inventory and custom-exception decisions
+
+| Module | Expected failures | Library, framework, and internal failures |
+| --- | --- | --- |
+| `auth` | Avatar factories and `AvatarServiceUnavailableException` select existing avatar codes; shared invalid-request and conflict types keep their codes. | Auth0 configuration, missing profile, asset cleanup, hashing, and unexpected duplicate-key races remain internal. Security authentication exceptions belong to the filter boundary. No additional public code is needed. |
+| `habits` | Missing or unowned habit uses shared `ResourceNotFoundException`; stale version uses shared `ConflictException`; new log for an archived habit uses `ArchivedHabitException`. | Repository and optimistic-lock failures retain their existing boundary handling. No per-endpoint subclass is needed. |
+| `entries` | Invalid transport input uses validation or shared `InvalidRequestException`; archived new log uses the habit code. | Duplicate-key create races are recovered by reading the winner. An unmatched collision or a vanished entry is an internal 500, not a client conflict. |
+| `stats` / `dashboard` | Streak uses the shared owned-habit lookup and 404; other calculations have no expected exception requiring a code. | Aggregation or persistence defects remain internal. Do not add module exceptions for symmetry. |
+| `search` / CDC | Classified unavailable search infrastructure uses shared 503; missing dead letter uses shared 404. | `CdcReplayException`, malformed change events, unexpected Elasticsearch results, and persistence defects remain internal; background listener and retry boundaries decide recovery. Checked I/O and interruption are handled at those boundaries. |
+| `e2e` | Unauthorized maintenance access uses shared 403; classified search failures use shared 503. | Unexpected reset and verification defects remain internal 500. |
+
+Spring MVC request exceptions and optimistic-lock failures are mapped centrally; unclassified `RuntimeException` and `Exception` use the generic 500 fallback. Catching a broad type inside a cleanup job or listener is a local recovery boundary, not a reason to add a broad HTTP handler.
 
 ## 5. Module rules
 
