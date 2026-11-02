@@ -59,7 +59,8 @@ public class DailyEntryService {
 				mongoTemplate.updateFirst(existing, replace, DailyEntry.class);
 			}
 		}
-		return DailyEntryView.from(dailyEntryRepository.findById(entry.getId()).orElseThrow());
+		return DailyEntryView.from(dailyEntryRepository.findById(entry.getId())
+				.orElseThrow(() -> new IllegalStateException("Daily entry disappeared after habit update")));
 	}
 
 	public DailyEntryView setMood(
