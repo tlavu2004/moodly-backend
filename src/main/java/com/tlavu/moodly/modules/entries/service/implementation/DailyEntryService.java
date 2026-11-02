@@ -105,7 +105,9 @@ public class DailyEntryService {
 							.setOnInsert("updatedAt", now),
 					FindAndModifyOptions.options().upsert(true).returnNew(true), DailyEntry.class));
 		} catch (DuplicateKeyException race) {
-			return dailyEntryRepository.findByUserIdAndDate(userId, date).orElseThrow(() -> race);
+			return dailyEntryRepository.findByUserIdAndDate(userId, date)
+					.orElseThrow(() -> new IllegalStateException(
+							"Daily entry collided without an existing entry for the same user and date", race));
 		}
 	}
 }

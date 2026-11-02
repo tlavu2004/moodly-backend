@@ -197,7 +197,9 @@ public class AvatarService {
 				pendingDeletions.save(pending);
 				return pending;
 			} catch (DuplicateKeyException race) {
-				return pendingDeletions.findByPublicId(publicId).orElseThrow(() -> race);
+				return pendingDeletions.findByPublicId(publicId)
+						.orElseThrow(() -> new IllegalStateException(
+								"Avatar cleanup task collided without a task for the same asset", race));
 			}
 		});
 	}

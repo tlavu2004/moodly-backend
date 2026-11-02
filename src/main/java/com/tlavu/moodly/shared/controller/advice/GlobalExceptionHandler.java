@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -83,19 +82,6 @@ public class GlobalExceptionHandler {
 	) {
 		return buildErrorResponse(
 				GlobalErrorCode.MISSING_REQUIRED_HEADER,
-				request,
-				List.of(),
-				exception
-		);
-	}
-
-	@ExceptionHandler({DuplicateKeyException.class})
-	ResponseEntity<ApiResponse<Void>> handleDuplicateKey(
-			DuplicateKeyException exception,
-			HttpServletRequest request
-	) {
-		return buildErrorResponse(
-				GlobalErrorCode.DUPLICATE_RESOURCE,
 				request,
 				List.of(),
 				exception

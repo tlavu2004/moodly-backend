@@ -37,7 +37,8 @@ public class UserProfileService {
 			);
 		} catch (DuplicateKeyException exception) {
 			return profiles.findByAuth0Subject(identity.subject())
-					.orElseThrow(() -> exception);
+					.orElseThrow(() -> new IllegalStateException(
+							"Profile collided without an existing profile for the same subject", exception));
 		}
 	}
 }

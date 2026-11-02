@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DuplicateKeyException;
 
 class GlobalExceptionHandlerTest {
 
@@ -118,6 +119,19 @@ class GlobalExceptionHandlerTest {
 		assertThat(unexpected.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(unexpected.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
 		assertThat(unexpected.getBody().error().message()).doesNotContain("secret");
+	}
+
+	@Test
+	void leavesUnclassifiedDuplicateKeysAsInternalFailures() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/entries/today");
+
+		ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleUnexpectedException(
+				new DuplicateKeyException("internal index name and key"), request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+		assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+		assertThat(response.getBody().error().message()).doesNotContain("internal index name");
 	}
 
 	@Test

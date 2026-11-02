@@ -38,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 @ExtendWith(MockitoExtension.class)
 class AvatarServiceTest {
@@ -333,6 +334,23 @@ class AvatarServiceTest {
 		assertThat(profile.getAvatarPublicId()).isEqualTo(previousPublicId);
 		verify(avatarProfileWriter, never()).clearIfCurrent(any(), any());
 		verify(cloudinary, never()).deleteImage(previousPublicId);
+	}
+
+	@Test
+	void doesNotTreatAnUnrelatedCleanupTaskCollisionAsClientConflict() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		UserProfile profile = new UserProfile(SUBJECT, "user@example.com", Instant.now());
+		String previousPublicId = NAMESPACE + "old-avatar";
+		profile.replaceAvatar(previousPublicId, 3, "image/png", 100, Instant.now());
+		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(profile));
+		DuplicateKeyException collision = new DuplicateKeyException("different unique index");
+		when(pendingDeletions.findByPublicId(previousPublicId)).thenReturn(Optional.empty());
+		when(pendingDeletions.save(any(PendingAssetDeletion.class))).thenThrow(collision);
+
+		assertThatThrownBy(service::delete)
+				.isInstanceOf(IllegalStateException.class)
+				.hasCause(collision);
+		verify(avatarProfileWriter, never()).clearIfCurrent(any(), any());
 	}
 
 	@Test
