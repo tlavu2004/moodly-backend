@@ -4,6 +4,8 @@ Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoD
 
 Planned BE + FE work: [mood trend period navigation](docs/roadmap/mood-trend-periods.md).
 
+Backend exception handling follows the [Moodly Exception Standard](docs/blueprint/exception-standardization-blueprint.md).
+
 ## Keep the OpenAPI document current
 
 When changing controllers, request/response DTOs, OpenAPI annotations, or response type names, regenerate `docs/api/moodly-openapi.json`, review its diff, and commit it with the code change. Schema names can change even when endpoint paths do not. CI regenerates this file and fails if it differs from the committed version.

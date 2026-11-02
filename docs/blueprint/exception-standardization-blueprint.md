@@ -1,121 +1,78 @@
-# Chuẩn hóa Exception cho Moodly (tham chiếu NovaCart)
+# Moodly Exception Standard
 
-> **Mục đích:** NovaCart là mẫu tham chiếu. Phần 7 bên dưới là quy ước và kiểm kê thực tế cho Moodly; giữ cấu trúc file và API contract hiện có khi triển khai.
+**Status:** Official guidance for new Moodly backend work. Preserve published HTTP status, error code, and safe message until a separately reviewed API migration changes them.
 
-## 1. Nền tảng tham chiếu trong NovaCart
+This is the single Moodly exception standard. NovaCart was a design reference; its catalog, class hierarchy, and examples are not Moodly's API contract.
 
-NovaCart tách trách nhiệm theo tầng:
+## 1. Failure categories and boundaries
 
-| Thành phần | Vai trò | Nguồn tham chiếu |
-|---|---|---|
-| `ErrorCode` | Giao diện chung gồm `getCode()` và `getDefaultMessage()` | `shared/application/exception/code/contract/ErrorCode.java` |
-| `GlobalErrorCode` | Mã dùng chung cho validation, HTTP và lỗi hệ thống (`VAL_*`, `SYS_*`) | `shared/application/exception/code/global/GlobalErrorCode.java` |
-| `CatalogErrorCode` | Mã nghiệp vụ theo module (`CAT_*`, `PROD_*`) | `modules/catalog/shared/application/exception/code/catalog/CatalogErrorCode.java` |
-| `BaseException` | Lớp trừu tượng kế thừa `RuntimeException`, mang `ErrorCode` và `HttpStatus` | `shared/application/exception/base/BaseException.java` |
-| Exception chung | Cố định nhóm HTTP: `InvalidInputException` → 400, `ResourceNotFoundException` → 404, `ConflictException` → 409 | `shared/application/exception/common/` |
-| Exception nghiệp vụ | Tên theo tình huống; kế thừa nhóm phù hợp và gắn mã cụ thể, ví dụ `ProductNotFoundException` | `modules/catalog/*/application/exception/` |
-| `GlobalExceptionHandler` | `@RestControllerAdvice` ánh xạ exception thành response thống nhất | `shared/presentation/advice/GlobalExceptionHandler.java` |
+| Category | Examples | Where to decide | Result |
+| --- | --- | --- | --- |
+| Request/framework failure | Validation, malformed JSON or parameters, unsupported method/media type | Spring MVC and `GlobalExceptionHandler` | Existing safe 4xx response |
+| Expected application failure | Missing owned habit, stale version, invalid avatar, unavailable search dependency | Service or infrastructure adapter throws `ApplicationException` | Status, code, and safe message selected by `ErrorCode` |
+| Unexpected failure | Defect, broken invariant, unknown unique constraint, unclassified library failure | Nearest system boundary | Generic 500; preserve diagnostic cause |
 
-Luồng điển hình: nghiệp vụ ném `ProductNotFoundException` → lớp cha `ResourceNotFoundException` đặt HTTP 404 → `@ExceptionHandler(BaseException.class)` đọc mã và thông điệp → trả `ApiResponse.error(ApiError)` với `status`, `code`, `message`, `path`, `fieldErrors` và `timestamp`. Handler riêng xử lý lỗi validation, JSON, tham số, phương thức HTTP; handler `Exception` cuối cùng trả mã lỗi nội bộ và thông điệp chung.
+Controllers validate transport input and delegate business decisions. Services interpret domain and persistence outcomes. Repositories return data or native persistence exceptions; they do not build HTTP responses. MVC advice cannot catch failures in security filters, scheduled jobs, or change-stream callbacks. Those boundaries need their own response, retry, dead-letter, health, and logging policies.
 
-**Ranh giới tầng:** Domain có thể ném exception Java thuần để diễn đạt quy tắc nghiệp vụ, không phụ thuộc Spring HTTP hay cấu trúc API. Ví dụ `product/domain/exception/InvalidProductStatusTransitionException` chỉ chứa trạng thái `from`/`to`. `UpdateProductStatusUseCase` chuyển nó thành exception ở Application có `CatalogErrorCode.INVALID_PRODUCT_STATUS_TRANSITION`; Presentation mới tạo HTTP response.
+## 2. Public HTTP contract
 
-## 2. Chuẩn hóa hệ thống kế thừa Exception trong dự án đích
+Normal API errors use `ApiResponse.error(ApiError)` with `status`, stable `code`, safe `message`, `path`, validation `errors`, and `requestId`; the envelope includes `timestamp`. Spring Security writes the same shape for failures before MVC. Actuator health has its own operational contract.
 
-1. **Kiểm kê trước khi đổi:** Liệt kê toàn bộ exception đang có, nơi ném/bắt, HTTP status thực tế và định dạng response. Đánh dấu exception nghiệp vụ, lỗi từ thư viện/hạ tầng, lỗi lập trình và các `catch (Exception)` hiện hữu. Giữ lại các contract API đã công bố hoặc lập kế hoạch chuyển đổi tương thích.
-2. **Tạo một lớp gốc cho lỗi ứng dụng có thể dự kiến:** Theo mẫu `BaseException extends RuntimeException`, chứa mã lỗi và thông tin cần thiết để Presentation ánh xạ. Cho phép message mặc định từ mã và message theo ngữ cảnh. Nếu dự án đích không dùng HTTP, thay `HttpStatus` bằng phân loại trung lập rồi ánh xạ tại adapter HTTP.
-3. **Thêm lớp trung gian theo ý nghĩa lỗi:** Chẳng hạn `InvalidInputException`, `ResourceNotFoundException`, `ConflictException`. Lớp exception cố định mã; mã là nguồn của HTTP status, tránh truyền status lặp lại khi tạo lỗi. Chỉ thêm nhóm mới khi nhiều lỗi cùng chia sẻ một cách xử lý; không tạo một lớp cho mỗi mã lỗi nếu không có ích cho việc bắt hoặc diễn đạt nghiệp vụ.
-4. **Tạo exception nghiệp vụ theo ngữ cảnh:** Ví dụ `OrderNotFoundException extends ResourceNotFoundException` cố định `OrderErrorCode.ORDER_NOT_FOUND` trong constructor của chính nó. Caller chỉ truyền dữ liệu ngữ cảnh cần thiết. Giữ tên lớp đủ rõ để người đọc hiểu tình huống; message có thể chứa ngữ cảnh an toàn như ID, còn client dùng `code` để xử lý ổn định.
-5. **Xử lý tại biên hệ thống:** Một `@RestControllerAdvice` nhận lớp gốc theo đa hình; thêm handler riêng cho lỗi request của framework. Fallback `Exception` ghi log chi tiết phía server và chỉ gửi thông điệp an toàn cho client. Không bắt exception rồi trả thành công giả hoặc làm mất stack trace.
-6. **Giữ Domain độc lập:** Domain ném lỗi biểu đạt bất biến/quy tắc. Application chuyển lỗi đó thành lỗi use case có mã và ý nghĩa trình bày khi đi qua biên; tránh đưa `HttpStatus`, DTO response hay `@ExceptionHandler` vào Domain.
+`ErrorCode` is the single source for machine code, default message, and HTTP status. `ApplicationException` stores the code and optional safe message and cause; its status derives from the code. Do not repeat status in constructors or call sites. Clients branch on code, not message text.
 
-Sơ đồ kế thừa mẫu cho dự án đích:
-
-```text
-RuntimeException
-└── BaseException (abstract; ErrorCode, trạng thái ánh xạ)
-    ├── InvalidInputException (400)
-    │   └── InvalidOrderStateException
-    ├── ResourceNotFoundException (404)
-    │   └── OrderNotFoundException
-    └── ConflictException (409)
-        └── DuplicateOrderReferenceException
-```
-
-## 3. Chuẩn hóa Error Code trong dự án đích
-
-- Dùng một contract chung kiểu `ErrorCode` với mã máy đọc được và thông điệp mặc định. Mã lỗi phải **duy nhất và ổn định** trong phạm vi API; không dùng message làm khóa logic phía client.
-- Chia mã dùng chung và mã theo module. Mẫu NovaCart là `VAL_001`, `SYS_003`, `CAT_003`, `PROD_004`; dự án đích tự chọn prefix phù hợp domain của mình. Lập bảng đăng ký mã gồm: mã, tên, ý nghĩa, HTTP status, module sở hữu và trạng thái sử dụng.
-- Mỗi tình huống client cần phân biệt phải có mã riêng. Không tái sử dụng cùng một mã cho hai ý nghĩa khác nhau, không đổi ý nghĩa mã đã công bố và không tái cấp mã đã bỏ. Khi đổi contract, có chính sách phiên bản hoặc lộ trình tương thích.
-- Phân biệt **mã** với **HTTP status**: status mô tả loại kết quả giao thức; mã cho biết nguyên nhân cụ thể. `ORDER_NOT_FOUND` và `CUSTOMER_NOT_FOUND` có thể cùng 404 nhưng khác mã.
-- Đặt thông điệp mặc định ngắn, an toàn; thông điệp theo ngữ cảnh không tiết lộ truy vấn, stack trace, bí mật hay dữ liệu nhạy cảm. Kiểm tra cả message xuất phát từ framework trước khi đưa ra ngoài.
-- Tập trung việc tạo error response trong handler/adapter. Ví dụ schema NovaCart: `success=false`, `data=null`, `error={status, code, message, path, fieldErrors}`, `timestamp`. Dự án đích có thể giữ schema hiện có nếu client đang phụ thuộc vào nó, miễn mọi đường lỗi dùng nhất quán.
-
-## 4. Checked Exception và Unchecked Exception
-
-**Thực trạng mẫu:** `BaseException` của NovaCart kế thừa `RuntimeException`, nên các lỗi nghiệp vụ qua hệ thống này là **unchecked**. Exception Domain trong ví dụ chuyển trạng thái cũng là `RuntimeException` thuần. Tài liệu này không ngụ ý NovaCart có một nhánh `BaseCheckedException`.
-
-| Loại | Quy tắc áp dụng cho dự án đích | Cách xử lý |
-|---|---|---|
-| Unchecked (`RuntimeException`) | Lỗi nghiệp vụ/validation dự kiến trong use case, hoặc lỗi lập trình không thể phục hồi tại vị trí gọi | Lỗi nghiệp vụ đi qua hệ phân cấp `BaseException`; lỗi không dự kiến tới fallback 500. Bắt ở nơi có thể thêm ngữ cảnh, phục hồi hoặc chuyển đổi có chủ đích. |
-| Checked (`Exception` nhưng không phải `RuntimeException`) | Hoạt động có khả năng thất bại và người gọi thực sự có phương án xử lý, ví dụ một số thao tác file hoặc tích hợp theo API thư viện | Giữ `throws` khi caller cần chọn cách phục hồi/retry; hoặc bắt tại biên hạ tầng rồi chuyển thành exception ứng dụng phù hợp, kèm `cause`. Không biến mọi checked exception thành lỗi 400/409. |
-
-Quy tắc chuyển đổi: **quyết định theo khả năng xử lý của caller, không chỉ theo cú pháp Java**. Không tạo hai hệ phân cấp checked và unchecked song song cho cùng một lỗi nghiệp vụ. Khi bọc ngoại lệ, giữ nguyên nguyên nhân (`cause`) để điều tra; quyết định mã/status theo ý nghĩa tại biên ứng dụng. Với giao dịch Spring, xem xét quy tắc rollback cho checked exception nếu dự án đích để chúng thoát khỏi phương thức giao dịch; mặc định rollback của Spring thường áp dụng cho `RuntimeException`/`Error`, còn checked exception cần cấu hình hoặc chuyển đổi phù hợp.
-
-## 5. Trình tự áp dụng và tiêu chí hoàn tất cho dự án đích
-
-1. Chốt schema lỗi và danh mục mã từ API hiện tại; xác định mã nào phải giữ để không làm hỏng client.
-2. Tạo `ErrorCode`, mã toàn cục và mã theo module; rà soát trùng mã bằng kiểm tra tự động.
-3. Tạo lớp gốc và các nhóm exception; chuyển từng luồng nghiệp vụ sang exception cụ thể.
-4. Đưa quy tắc Domain về exception thuần; chuyển đổi ở Application; gom HTTP mapping tại Presentation.
-5. Viết handler riêng cho validation/framework và fallback 500; bảo đảm đường lỗi nào cũng có mã, HTTP status và body nhất quán.
-6. Kiểm tra bằng controller/integration test: mã và status cho not found/conflict/validation, `fieldErrors`, lỗi Domain được chuyển đổi, lỗi không dự kiến không lộ chi tiết; kiểm tra log còn `cause` để truy vết.
-
-## 6. Những điểm cần cải thiện khi dùng nền tảng này cho dự án khác
-
-Các mục sau là **đề xuất tăng cường cho dự án đích**, không phải danh sách việc cần sửa trong NovaCart:
-
-- **Tách lỗi ứng dụng khỏi Spring khi cần tái sử dụng đa adapter:** Mẫu hiện tại giữ `HttpStatus` trong `BaseException`. Dự án có thêm CLI, message consumer hoặc gRPC nên giữ phân loại lỗi trung lập và ánh xạ HTTP tại Presentation.
-- **Giữ chuỗi nguyên nhân đầy đủ:** Bổ sung constructor nhận `cause` cho lớp gốc và các lớp cần bọc lỗi hạ tầng; vẫn chỉ công bố message an toàn. Mẫu hiện tại có constructor message nhưng chưa có constructor `cause`.
-- **Quản trị mã lỗi bằng kiểm tra tự động:** Kiểm tra tính duy nhất, quy tắc prefix, mã không bị tái sử dụng và mapping status. Công bố bảng mã cho client và đánh dấu mã ngừng dùng.
-- **Chuẩn hóa an toàn dữ liệu và quan sát:** Rà soát message có thể chứa dữ liệu do người dùng nhập; thêm correlation/request ID vào log và response nếu hệ thống cần truy vết, cùng quy tắc che dữ liệu nhạy cảm.
-- **Bao phủ các lỗi framework đang hiện diện ở dự án đích:** Bổ sung handler có chủ đích cho các trường hợp như thiếu tham số, media type không hỗ trợ, lỗi xác thực/phân quyền hoặc ràng buộc dữ liệu. Chỉ ánh xạ khi hiểu ý nghĩa; fallback 500 không nên biến mọi lỗi hạ tầng thành lỗi nghiệp vụ.
-- **Bảo vệ tương thích khi chuyển đổi:** Thêm contract test cho response và mã lỗi quan trọng; triển khai theo module, theo dõi lỗi chưa được phân loại, rồi loại bỏ các handler cũ khi toàn bộ client đã chuyển sang contract mới.
-
-## 7. Áp dụng vào cấu trúc hiện tại của Moodly
-
-Moodly giữ envelope `ApiResponse` và `ApiError(status, code, message, path, errors, requestId)`. `RequestIdFilter` phát `X-Request-ID`; `MoodlyTime` tính ngày theo `Asia/Ho_Chi_Minh`. `shared/error/exception/base/ApplicationException` là gốc trừu tượng cho lỗi ứng dụng dự kiến, chứa `ErrorCode`, message an toàn và cause tùy chọn; `@Getter` tạo `getCode()`, còn `getStatus()` được viết tường minh vì suy ra từ `ErrorCode`. Các exception dùng chung nằm ở `shared/error/exception/common/`. `GlobalExceptionHandler` bắt lớp gốc theo đa hình, lỗi request của framework và fallback 500. Lỗi xác thực ở filter Spring Security xảy ra trước MVC nên `SecurityConfiguration` ghi cùng envelope; lỗi security phát sinh trong controller được Global ánh xạ 401/403. Job, CDC listener và lỗi trước khi MVC dispatch không thể được Global bắt; chúng cần retry, dead letter, health hoặc log ở biên riêng.
-
-### Quy tắc tạo và ném exception trong Moodly
-
-- Mỗi `ErrorCode` là nguồn duy nhất của `code`, thông điệp mặc định và HTTP status cho lỗi tương ứng. `GlobalErrorCode` chứa lỗi dùng chung; `modules/auth/code/AuthErrorCode` chứa năm mã avatar và nằm ngang cấp với `modules/auth/exception/`. Khi thêm mã, chọn status tại enum và kiểm tra mã không trùng giữa các enum. `GlobalExceptionHandler` đọc qua contract `ErrorCode`; Spring Security vẫn dùng mã chung cho 401/403. `shared/config/OpenApiConfiguration` là cấu hình tài liệu API toàn ứng dụng nên có thể tham chiếu mã và endpoint của các module; các lớp exception trong `shared/error/` không phụ thuộc vào module.
-- Tại nơi `throw`, chỉ truyền **dữ liệu thay đổi theo lần gọi**: `new InvalidRequestException("The 'page' parameter must be at least 0.")` cho lỗi request đơn giản; `new ResourceNotFoundException("Habit was not found.")` cho 404; `new ConflictException()` cho version cũ; `new AvatarServiceUnavailableException(cause)` khi hạ tầng thất bại. Không truyền lại `HttpStatus` hoặc ghép `ErrorCode` và status thủ công.
-- Khi một loại lỗi có nhiều tình huống hoặc nhiều mã, dùng factory có tên để cố định mã và thông điệp an toàn: `AvatarException.uploadExpired()`, `SearchInfrastructureUnavailableException.duringSearch(cause)`. Constructor nhận `(code, message)` của chúng là private; caller không phải tự chọn bộ tham số. `AvatarException` kế thừa trực tiếp `ApplicationException` để dùng `AuthErrorCode`; `InvalidRequestException` chỉ còn mã chung `INVALID_REQUEST`. Thêm factory mới khi có tình huống mới, không mở constructor đa dụng ở call site.
-- Giữ `cause` khi chuyển IOException/lỗi tích hợp sang exception ứng dụng; không đưa message từ thư viện, truy vấn, token hay thông tin nội bộ vào response. Với lỗi bất ngờ, để fallback 500 của Global xử lý ở MVC. Ở job/listener, bắt để retry, dead letter hoặc ghi health, vì Global không nằm trên luồng đó.
-- Ví dụ `ProductVersionConflictException` và `InvalidProductStatusTransitionException` ở dự án cũ chỉ minh họa hai cách biểu diễn lỗi. Moodly không sao chép chúng: nếu có quy tắc Domain độc lập mới, Domain có thể ném `RuntimeException` thuần mang trạng thái, rồi Application chuyển thành lỗi có mã trước khi ra HTTP.
-
-| Thứ tự | Kiểm kê và quy ước Moodly |
-|---|---|
-| `shared` | Bean Validation → 400 `VALIDATION_FAILED`; body/parameter sai → 400 `INVALID_REQUEST`; method → 405 `METHOD_NOT_ALLOWED`; `Accept` sai → 406 `NOT_ACCEPTABLE`; request media type sai → 415 `UNSUPPORTED_MEDIA_TYPE`; duplicate key/optimistic lock → 409; fallback → 500 `INTERNAL_SERVER_ERROR`. Không ánh xạ mọi `IllegalArgumentException` thành 400 vì lỗi đó cũng có thể xuất phát từ thư viện, cấu hình hoặc lỗi lập trình. |
-| `auth` | `CurrentUser` lấy identity từ JWT đã xác thực; 401/403 do security xử lý. `AuthErrorCode` sở hữu các mã avatar nhưng giữ nguyên chuỗi mã/status công bố; asset 404 là `AVATAR_UPLOAD_NOT_FOUND` 400; metadata sai là `AVATAR_ASSET_INVALID` 400; Cloudinary lỗi là `AVATAR_SERVICE_UNAVAILABLE` 503 và giữ cause. Cleanup có retry riêng sau khi profile đã lưu. |
-| `habits` | Status lọc sai → 400 `INVALID_REQUEST`; habit không thuộc user → 404 `NOT_FOUND`; version cũ → 409 `CONFLICT`. DTO vẫn dùng Bean Validation. |
-| `entries` | Date range, ngày tương lai và pagination sai → 400 `INVALID_REQUEST`; mood và habit log dùng validation DTO. Cần xác minh quyền sở hữu habit trước khi thêm habit log để tránh dữ liệu trỏ tới habit của user khác. |
-| `stats` | Period ngoài `week` → 400 `INVALID_REQUEST` với message cố định. Lỗi truy vấn/tính toán không được che thành lỗi request. |
-| `dashboard` | Cho lỗi từ habits, entries và stats truyền lên handler; không trả dashboard thiếu dữ liệu như thành công. |
-| `search` | Query/date/result window sai → 400. IOException hoặc ElasticsearchException tại biên query → 503 `SEARCH_UNAVAILABLE`; giữ cause, không công bố truy vấn nội bộ. |
-| `cdc` | Retry lỗi Elasticsearch tạm thời; lỗi cố định vào dead letter. Replay thất bại phải giữ dead letter và báo lỗi. Reindex IOException/ElasticsearchException → 503. Listener ghi health khi phục hồi thất bại. |
-| `e2e` | Reset chỉ bật ngoài production, key sai → 403; chỉ tác động synthetic user. Lỗi Elasticsearch và xác minh chỉ mục → 503; lỗi Mongo → fallback 500. |
-
-### Danh mục mã đã dùng
-
-| Status | Mã |
-|---|---|
+| HTTP | Current codes |
+| --- | --- |
 | 400 | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID` |
-| 401/403 | `UNAUTHORIZED`, `FORBIDDEN` |
-| 404 | `NOT_FOUND` |
-| 405/406/415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE` |
-| 409 | `DUPLICATE_RESOURCE`, `CONFLICT` |
+| 401 / 403 / 404 | `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND` |
+| 405 / 406 / 415 | `METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `UNSUPPORTED_MEDIA_TYPE` |
+| 409 | `CONFLICT`; `DUPLICATE_RESOURCE` remains in the catalog but the generic handler no longer emits it |
 | 503 | `SEARCH_UNAVAILABLE`, `AVATAR_SERVICE_UNAVAILABLE` |
 | 500 | `INTERNAL_SERVER_ERROR` |
 
-Mã đã công bố phải ổn định và duy nhất giữa mọi enum; không dùng message làm khóa. `SEARCH_UNAVAILABLE` tiếp tục ở shared vì search, CDC và e2e cùng dùng; không tạo enum theo module chỉ để phân loại lỗi chung. Chỉ thêm mã theo module nếu client cần phân biệt tình huống. Lỗi nghiệp vụ dự kiến là unchecked; IOException ở writer/repository vẫn là checked và được chuyển đổi tại biên. Khi bắt `InterruptedException`, khôi phục cờ interrupt. Test cần xác nhận status/code/envelope/requestId, an toàn message, retry/dead letter và không biến `IllegalArgumentException` bất ngờ thành 400.
+Codes must be unique across enums, stable after publication, and never reused for another meaning. Add a module code only when clients need to distinguish its recovery action from other failures with the same status. Use a named exception or factory when it fixes code, safe message, and cause together. Do not create one exception class per endpoint or module merely for symmetry. Keep shared meanings in `GlobalErrorCode`.
+
+## 3. Throwing and translating
+
+1. Reject known input failures with Bean Validation or `InvalidRequestException`. Never map every `IllegalArgumentException` to 400; libraries and programming errors throw it too.
+2. Use `ResourceNotFoundException` for a missing resource and for another user's resource when the API must not reveal its existence. Use `ConflictException` or the existing optimistic-lock mapping for a real state/version conflict.
+3. Translate persistence failures only when the exact operation and business condition are known. After a duplicate-key race in create-if-absent, read the intended winner. If there is no matching winner, retain the original cause and treat the collision as internal. Unclassified `DuplicateKeyException` reaches generic 500; it does not justify a blanket 409 handler.
+4. At external adapters, classify expected dependency failures narrowly. Search transport/unavailability becomes `SEARCH_UNAVAILABLE` 503; unexpected client or mapping defects remain 500. Preserve the cause, but never copy a provider message, query, credential, or raw user input into the public message.
+5. Domain code may raise a plain exception for a domain invariant without importing Spring HTTP or API DTOs. Application code translates an expected failure to `ApplicationException` before an API boundary. If both layers have exception classes, give them distinct names.
+6. Catch only to recover, retry, compensate, add useful context, or translate a known condition. Do not swallow a failure and report false success. A primary operation may succeed after a secondary cleanup failure only when the primary state is persisted and cleanup has a durable retry record. Restore the interrupt flag after `InterruptedException`.
+
+Unexpected `IllegalStateException`, `NoSuchElementException`, and other runtime failures need no blanket 4xx handler. `GlobalExceptionHandler` handles known MVC failures, `ApplicationException`, and a final `Exception` fallback. Security filters and background processing use their own boundaries.
+
+## 4. Checked versus unchecked exception policy
+
+**Moodly application and domain exceptions are unchecked (`RuntimeException`).** `ApplicationException` is the only base for expected application failures exposed through APIs. Do not create a parallel checked application hierarchy. This matches existing service signatures and Spring's default rollback on unchecked failures.
+
+JDK and library checked exceptions, such as `IOException` and `InterruptedException`, remain checked at low-level operations. Keep `throws` when the immediate caller genuinely chooses retry or recovery; otherwise translate at the infrastructure boundary to an appropriate unchecked application or internal exception, retaining the cause. Do not turn every checked exception into 4xx. If a checked exception escapes a transaction, review rollback configuration explicitly. Do not catch `Error` as an application failure.
+
+Use `final` for a concrete exception only when extension is intentionally prohibited. Uniform `final` modifiers are not part of the error contract.
+
+## 5. Module rules
+
+| Area | Current behavior and rule |
+| --- | --- |
+| `auth` / avatar | Security owns the 401/403 envelope. Avatar-specific codes live in `AuthErrorCode`. Cleanup exceptions are internal to durable jobs; they do not need public codes. |
+| `habits` | Missing/unowned habit is 404 `NOT_FOUND`; stale version is 409 `CONFLICT`; bad status filter is 400 `INVALID_REQUEST`. |
+| `entries` | Bad date/pagination is 400 `INVALID_REQUEST`; DTO violations are 400 `VALIDATION_FAILED`. An owned habit is required before a habit log creates an entry. Archived owned habits are currently accepted. |
+| `stats` / `dashboard` | Streak for missing/unowned habit is 404 `NOT_FOUND`; a valid habit with no log has streak zero. Propagate genuine dependency failures. |
+| `search` / CDC | Bad search request is 400. Classified search infrastructure failures are 503 `SEARCH_UNAVAILABLE`. CDC retries transient delivery, records dead letters, and does not advance a checkpoint after an unrecorded failure. |
+| `e2e` | Reset is disabled in production; bad credentials are 403; classified indexing/verification failure is 503; unexpected persistence failure is 500. |
+
+## 6. Safe diagnostics and verification
+
+- Public messages are safe and bounded. Never expose stack traces, tokens, secrets, database index names, or unreviewed input. Keep the original cause for controlled server diagnostics. Log 5xx with useful types and stack locations plus the request ID; avoid noisy full stacks for normal 4xx.
+- Test status, code, message, envelope, and request ID for representative framework and application failures. Test that unexpected `IllegalArgumentException` and unclassified persistence failures remain 500. Cover ownership without revealing another user's resource, concurrency recovery, retry/dead-letter behavior, and successful paths.
+- When status, code, message, or documented responses change, regenerate `docs/api/moodly-openapi.json` and verify its diff. Keep code catalog, HTTP tests, and OpenAPI aligned.
+
+## 7. Reviewed direction for remaining decisions
+
+1. **Duplicate key:** Keep unclassified Mongo uniqueness failures at 500. Translate only a proven user-actionable duplicate at its service to an explicit 409 exception/code. Retain `DUPLICATE_RESOURCE` as a legacy catalog value until client usage and deprecation are reviewed; do not restore the generic Mongo handler.
+2. **Missing or unowned habit:** Keep the same 404 and public message for streak and today's habit log so the ID cannot reveal another user's data. Centralize the owned-habit lookup if further call sites justify it. Keep `NOT_FOUND` until a client needs a distinct module code.
+3. **Archived habit log:** Preserve current accepted writes for now. Preferred future rule: permit correction of an existing log for an archived habit, but reject creating a new log after archive. This needs a race-safe policy across the habit and entry records, a reviewed 409 code/message, archive/write race tests, and updated OpenAPI. If product policy allows every historical correction, document that decision instead.
+
+## 8. Change procedure
+
+For each refactor, inventory throw/catch sites and current HTTP contract; identify the layer that understands the failure; change that layer and relevant tests; regenerate OpenAPI if the contract changes; run full verification; review status, code, message, and operational effects before merging. Do not add module-specific codes merely to make modules look symmetrical.
