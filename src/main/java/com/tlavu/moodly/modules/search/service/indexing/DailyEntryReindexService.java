@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
-import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
@@ -10,24 +9,27 @@ import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavai
 import java.io.IOException;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
+import java.util.stream.Stream;
+import java.util.Iterator;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DailyEntryReindexService {
-	private final DailyEntryRepository dailyEntryRepository;
+	private final MongoTemplate mongoTemplate;
 	private final DailyEntrySearchWriter searchWriter;
 	private final DailyEntrySearchIndexManager indexManager;
 	private final int batchSize;
 
 	public DailyEntryReindexService(
-			DailyEntryRepository dailyEntryRepository,
+			MongoTemplate mongoTemplate,
 			DailyEntrySearchWriter searchWriter,
 			DailyEntrySearchIndexManager indexManager,
 			@Value("${moodly.cdc.reindex.batch-size}") int batchSize
 	) {
-		this.dailyEntryRepository = dailyEntryRepository;
+		this.mongoTemplate = mongoTemplate;
 		this.searchWriter = searchWriter;
 		this.indexManager = indexManager;
 		this.batchSize = batchSize;
@@ -37,20 +39,17 @@ public class DailyEntryReindexService {
 		try {
 			indexManager.recreate();
 
-			PageRequest pageRequest = PageRequest.of(0, batchSize);
-			Page<DailyEntry> page = dailyEntryRepository.findAll(pageRequest);
+			Query query = new Query().with(Sort.by(Sort.Direction.ASC, "_id"))
+					.cursorBatchSize(batchSize);
 			long indexed = 0;
-
-			while (true) {
-				for (DailyEntry entry : page.getContent()) {
-					searchWriter.index(entry);
+			try (Stream<DailyEntry> entries = mongoTemplate.stream(query, DailyEntry.class)) {
+				Iterator<DailyEntry> cursor = entries.iterator();
+				while (cursor.hasNext()) {
+					searchWriter.index(cursor.next());
 					indexed++;
 				}
-				if (!page.hasNext()) {
-					return new ReindexView(indexed);
-				}
-				page = dailyEntryRepository.findAll(page.nextPageable());
 			}
+			return new ReindexView(indexed);
 		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);
 		} catch (ElasticsearchException exception) {
