@@ -84,6 +84,10 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-run
    ```
 
+   When the backend exits or you press Ctrl+C, `local-run` and `local-build-run`
+   stop the local stack and keep its containers and volumes. Use `make local-up`
+   to start the services independently, then `make local-stop` when finished.
+
    On startup, Moodly creates `daily_entries_search` only when it does not already exist. The mapping is deliberately not mutated at startup, so mapping changes remain an explicit migration decision.
 
    Verify the cluster, index, and mapping after the application has started:

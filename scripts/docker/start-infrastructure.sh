@@ -8,6 +8,13 @@ case "$mode" in
 esac
 
 cd "$(dirname "$0")/../.."
+# Local ports must come from .env.local, even after exporting test settings.
+if [ "$mode" = local ]; then
+  for key in ${!MONGODB_@} ${!ELASTICSEARCH_@}; do
+    unset "$key"
+  done
+fi
+
 compose=(docker compose -p "moodly-$mode" --env-file ".env.$mode" -f "docker-compose.$mode.yml")
 
 # PRIMARY health requires initialization first, so do not use --wait here.

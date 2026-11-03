@@ -26,11 +26,11 @@ local-elasticsearch-status:
 
 local-await: local-up
 
-local-run: local-await
-	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+local-run:
+	bash scripts/docker/run-local-backend.sh
 
-local-build-run: local-await
-	set -a; . ./.env.local; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
+local-build-run:
+	bash scripts/docker/run-local-backend.sh build
 
 local-logs:
 	$(LOCAL_COMPOSE) logs -f mongodb elasticsearch
