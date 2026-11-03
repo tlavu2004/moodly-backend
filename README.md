@@ -167,6 +167,12 @@ Use `make verify` for the complete Maven verification lifecycle. Direct `mvn tes
 or `mvn verify` bypasses the Compose cleanup wrapper. Elasticsearch Testcontainers
 use a 512 MB JVM heap; total container memory also includes native memory and caches.
 Testcontainers are removed when the test process shuts down.
+The Spring test context cache is limited to one context via test-only
+`spring.properties`, including IDE runs. Switching to a different context closes
+the previous context and stops its MongoDB/Elasticsearch containers instead of
+retaining every database until suite shutdown. Containers still have generated
+names outside Compose, and Ryuk is the additional cleanup container. This favors
+lower peak memory over reusing multiple contexts to save startup time.
 
 To run the backend against the manual test stack, use `make test-run` (or
 `make test-build-run` to build first). These commands load development Auth0,
