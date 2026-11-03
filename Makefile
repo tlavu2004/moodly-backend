@@ -1,4 +1,4 @@
-.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-await local-run local-build-run local-logs local-clean test cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-await test-run test-cdc-run test-build-run test-logs test-clean config-local config-test openapi
+.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-await local-run local-build-run local-logs local-clean test verify cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-await test-run test-cdc-run test-build-run test-logs test-clean config-local config-test openapi
 
 LOCAL_COMPOSE = docker compose -p moodly-local --env-file .env.local -f docker-compose.local.yml
 TEST_COMPOSE = docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml
@@ -39,13 +39,16 @@ local-clean:
 	$(LOCAL_COMPOSE) down -v --remove-orphans
 
 test:
-	mvn test
+	bash scripts/docker/run-tests.sh test
+
+verify:
+	bash scripts/docker/run-tests.sh verify
 
 openapi:
 	bash src/main/resources/scripts/openapi/generate-openapi.sh
 
 cdc-test:
-	set -a; . ./.env.test; set +a; mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
+	set -a; . ./.env.test; set +a; bash scripts/docker/run-tests.sh test -Dtest=CdcSearchInfrastructureIntegrationTest
 
 test-up:
 	bash scripts/docker/start-infrastructure.sh test

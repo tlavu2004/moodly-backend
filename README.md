@@ -157,8 +157,18 @@ For a manually inspectable test database, start the separate test Compose enviro
 make test-up
 ```
 
-### Deferred test infrastructure review
+`make test`, `make cdc-test`, and `make verify` stop the entire `moodly-test`
+Compose stack before Maven starts and again on exit, including test failures and
+normal Ctrl+C interruption. Volumes are preserved. Do not run a manual backend
+using this stack at the same time. The local stack is managed separately; stop it
+with `make local-stop` when it is not needed to save memory.
 
-After the backend refactor is complete and the application is ready for production, decide whether Maven integration tests should reuse the `moodly-test` Compose stack instead of creating and removing Testcontainers for each run. Compare startup time and memory use. Preserve test isolation, repeatable database cleanup, dynamic connection configuration, and CI reliability before changing the setup. Keep automated tests away from local and production databases.
+Use `make verify` for the complete Maven verification lifecycle. Direct `mvn test`
+or `mvn verify` bypasses the Compose cleanup wrapper. Elasticsearch Testcontainers
+use a 512 MB JVM heap; total container memory also includes native memory and caches.
+Testcontainers are removed when the test process shuts down.
+
+`make test-up` intentionally leaves the manual stack running for inspection;
+finish that session with `make test-stop`. It is not a prerequisite for automated tests.
 
 See `docs/blueprint/moodly-blueprint.md` for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.

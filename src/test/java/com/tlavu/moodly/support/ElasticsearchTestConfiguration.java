@@ -29,6 +29,7 @@ public class ElasticsearchTestConfiguration {
 			@Value("${moodly.testcontainers.elasticsearch-image}") String imageName
 	) {
 		return new ElasticsearchContainer(DockerImageName.parse(imageName))
+				.withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
 				.withEnv("xpack.security.enabled", "false")
 				.withEnv("xpack.security.http.ssl.enabled", "false");
 	}
