@@ -168,6 +168,20 @@ or `mvn verify` bypasses the Compose cleanup wrapper. Elasticsearch Testcontaine
 use a 512 MB JVM heap; total container memory also includes native memory and caches.
 Testcontainers are removed when the test process shuts down.
 
+To run the backend against the manual test stack, use `make test-run` (or
+`make test-build-run` to build first). These commands load development Auth0,
+Cloudinary and CORS settings from `.env.local`, then override infrastructure
+settings from `.env.test`. The `compose-test` profile includes `local`; the
+JUnit-only `test` profile and its fake credentials are not used. Both environment
+files must exist. Any Auth0/Cloudinary calls use real development services.
+The backend runs in the terminal, and the complete test Compose stack is stopped
+when the command exits, fails to start, or is interrupted with Ctrl+C.
+`test-cdc-run` is an alias of this same flow; CDC follows `MOODLY_CDC_ENABLED`.
+For CDC/search exercises, set `MOODLY_CDC_ENABLED=true` in `.env.test` or run
+`MOODLY_CDC_ENABLED=true make test-run` in Git Bash. With CDC disabled, the
+existing CDC health indicator reports DOWN even when MongoDB and Elasticsearch
+are UP; the manual runner does not change this health contract.
+
 `make test-up` intentionally leaves the manual stack running for inspection;
 finish that session with `make test-stop`. It is not a prerequisite for automated tests.
 

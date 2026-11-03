@@ -73,14 +73,14 @@ test-elasticsearch-status:
 
 test-await: test-up
 
-test-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+test-run:
+	bash scripts/docker/run-test-backend.sh
 
-test-cdc-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+test-cdc-run:
+	bash scripts/docker/run-test-backend.sh
 
-test-build-run: test-await
-	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
+test-build-run:
+	bash scripts/docker/run-test-backend.sh build
 
 test-logs:
 	$(TEST_COMPOSE) logs -f mongodb elasticsearch
