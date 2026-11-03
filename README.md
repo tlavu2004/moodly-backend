@@ -57,6 +57,18 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-up
    ```
 
+   Each local/test Compose stack contains only MongoDB and Elasticsearch. `make local-up`
+   and `make test-up` initialize the single-node replica set inside the running MongoDB
+   container, then wait for MongoDB to become PRIMARY and Elasticsearch to be healthy.
+   The operation is safe to repeat; `local-start` and `test-start` use the same flow.
+   No stopped initialization container is left in Docker Desktop. Run these Make targets
+   from a Bash-capable environment (Git Bash on Windows), at the repository root.
+   Alternatively run `bash scripts/docker/start-infrastructure.sh local` (or `test`).
+   On a fresh volume, use this flow rather than Docker Desktop's Start button or bare
+   `docker compose up`. Once initialized, the replica-set configuration persists in the
+   MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's healthcheck
+   reports healthy only when it is writable PRIMARY.
+
 2. Verify MongoDB:
 
    ```bash

@@ -4,10 +4,10 @@ LOCAL_COMPOSE = docker compose -p moodly-local --env-file .env.local -f docker-c
 TEST_COMPOSE = docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml
 
 local-up:
-	$(LOCAL_COMPOSE) up -d
+	bash scripts/docker/start-infrastructure.sh local
 
 local-start:
-	$(LOCAL_COMPOSE) start
+	bash scripts/docker/start-infrastructure.sh local
 
 local-stop:
 	$(LOCAL_COMPOSE) stop
@@ -25,15 +25,6 @@ local-elasticsearch-status:
 	set -a; . ./.env.local; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
 
 local-await: local-up
-	@set -a; . ./.env.local; set +a; \
-	for attempt in $$(seq 1 30); do \
-		if curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1 \
-			&& $(LOCAL_COMPOSE) exec -T mongodb mongosh --quiet --eval "rs.status().myState" | grep -qx 1; then \
-			echo "MongoDB replica set and Elasticsearch are ready."; exit 0; \
-		fi; \
-		sleep 2; \
-	done; \
-	echo "Timed out waiting for MongoDB replica set or Elasticsearch." >&2; exit 1
 
 local-run: local-await
 	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
@@ -57,10 +48,10 @@ cdc-test:
 	set -a; . ./.env.test; set +a; mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
 
 test-up:
-	$(TEST_COMPOSE) up -d
+	bash scripts/docker/start-infrastructure.sh test
 
 test-start:
-	$(TEST_COMPOSE) start
+	bash scripts/docker/start-infrastructure.sh test
 
 test-stop:
 	$(TEST_COMPOSE) stop
@@ -78,15 +69,6 @@ test-elasticsearch-status:
 	set -a; . ./.env.test; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
 
 test-await: test-up
-	@set -a; . ./.env.test; set +a; \
-	for attempt in $$(seq 1 30); do \
-		if curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1 \
-		&& $(TEST_COMPOSE) exec -T mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().myState" | grep -qx 1; then \
-			echo "MongoDB replica set and Elasticsearch are ready."; exit 0; \
-		fi; \
-		sleep 2; \
-	done; \
-	echo "Timed out waiting for MongoDB replica set or Elasticsearch." >&2; exit 1
 
 test-run: test-await
 	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
