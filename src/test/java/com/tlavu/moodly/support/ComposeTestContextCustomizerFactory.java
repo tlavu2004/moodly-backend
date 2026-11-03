@@ -25,11 +25,11 @@ public class ComposeTestContextCustomizerFactory implements ContextCustomizerFac
 		@Override
 		public void customizeContext(ConfigurableApplicationContext context, MergedContextConfiguration configuration) {
 			ComposeTestEnvironment environment = ComposeTestEnvironment.get();
-			String resource = environment.allocate(context);
+			environment.prepare(context);
 			TestPropertyValues.of(
-					"spring.mongodb.uri=" + environment.mongoUri(resource),
+					"spring.mongodb.uri=" + environment.mongoUri(environment.database()),
 					"spring.elasticsearch.uris=" + environment.searchUri(),
-					"moodly.search.index.name=" + resource
+					"moodly.search.index.name=" + environment.index()
 			).applyTo(context);
 		}
 	}

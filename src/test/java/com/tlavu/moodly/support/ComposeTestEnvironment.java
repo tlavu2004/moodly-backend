@@ -16,19 +16,25 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import java.util.concurrent.TimeUnit;
 import org.springframework.context.ConfigurableApplicationContext;
 
-/** One Compose stack per test JVM; only generated test databases/indexes are deleted. */
+/** One Compose stack per test JVM; its configured test database/index are disposable. */
 final class ComposeTestEnvironment {
 	private static ComposeTestEnvironment instance;
 	private final List<String> compose;
 	private final Map<String, String> settings = new LinkedHashMap<>();
-	private final Map<String, ConfigurableApplicationContext> resources = new LinkedHashMap<>();
+	private final List<ConfigurableApplicationContext> contexts = new ArrayList<>();
 	private FileChannel lockChannel;
 	private FileLock lock;
 	private boolean closed;
+
+	static synchronized void finishCurrentGroup() {
+		if (instance != null) {
+			instance.finishGroup();
+		}
+	}
 
 	static synchronized void stop() {
 		if (instance != null) {
@@ -98,10 +104,59 @@ final class ComposeTestEnvironment {
 		System.out.println("Integration tests are using Compose stack moodly-test (MongoDB + Elasticsearch).");
 	}
 
-	synchronized String allocate(ConfigurableApplicationContext context) {
-		String name = "moodly_it_" + UUID.randomUUID().toString().replace("-", "");
-		resources.put(name, context);
-		return name;
+	synchronized void prepare(ConfigurableApplicationContext context) {
+		closeContexts();
+		resetData();
+		contexts.add(context);
+	}
+
+	synchronized void finishGroup() {
+		closeContexts();
+		resetData();
+	}
+
+	String database() {
+		String database = settings.get("MONGODB_DATABASE");
+		if (database == null || !database.toLowerCase(java.util.Locale.ROOT).contains("test")) {
+			throw new IllegalStateException("Compose integration tests require a database name containing 'test'");
+		}
+		return database;
+	}
+
+	String index() {
+		String index = settings.getOrDefault("MOODLY_SEARCH_INDEX_NAME", "daily_entries_search");
+		if (!index.matches("[a-z0-9][a-z0-9_-]*")) {
+			throw new IllegalStateException("A single concrete test index name is required");
+		}
+		return index;
+	}
+
+	private void closeContexts() {
+		for (ConfigurableApplicationContext context : contexts) {
+			if (context.isActive()) {
+				context.getBeansOfType(DailyEntryChangeStreamListener.class).values()
+						.forEach(DailyEntryChangeStreamListener::stop);
+			}
+			context.close();
+		}
+		contexts.clear();
+	}
+
+	private void resetData() {
+		try (var mongo = MongoClients.create(mongoUri(database())); var http = HttpClient.newHttpClient()) {
+			mongo.getDatabase(database()).drop();
+			var response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
+					.timeout(Duration.ofSeconds(10)).DELETE().build(), HttpResponse.BodyHandlers.discarding());
+			if (response.statusCode() != 200 && response.statusCode() != 404) {
+				throw new IllegalStateException("Could not reset test index: HTTP " + response.statusCode());
+			}
+			System.out.println("Reset Compose test database " + database() + " and index " + index());
+		} catch (IOException failure) {
+			throw new IllegalStateException("Could not reset Compose test data", failure);
+		} catch (InterruptedException failure) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted resetting Compose test data", failure);
+		}
 	}
 
 	String mongoUri(String database) {
@@ -119,26 +174,12 @@ final class ComposeTestEnvironment {
 		}
 		closed = true;
 		boolean failed = false;
-		for (ConfigurableApplicationContext context : resources.values()) {
-			try {
-				context.close();
-			} catch (Exception failure) {
-				failed = true;
-				System.err.println("Could not close test context: " + failure.getClass().getSimpleName());
-			}
-		}
-		try (var mongo = MongoClients.create(mongoUri("admin")); var http = HttpClient.newHttpClient()) {
-			for (String resource : resources.keySet()) {
-				mongo.getDatabase(resource).drop();
-				var response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + resource))
-						.timeout(Duration.ofSeconds(10)).DELETE().build(), HttpResponse.BodyHandlers.discarding());
-				if (response.statusCode() != 200 && response.statusCode() != 404) {
-					throw new IllegalStateException("Could not delete generated test index: HTTP " + response.statusCode());
-				}
-			}
+		try {
+			closeContexts();
+			resetData();
 		} catch (Exception failure) {
 			failed = true;
-			System.err.println("Could not clean generated test resources: " + failure.getClass().getSimpleName());
+			System.err.println("Could not reset Compose test data: " + failure.getClass().getSimpleName());
 		} finally {
 			try {
 				command(null, "stop");

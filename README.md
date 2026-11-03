@@ -164,12 +164,22 @@ and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file
 Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
 
 The first integration context starts both Compose services and initializes the
-replica set. Each context receives a unique `moodly_it_*` MongoDB database and
-Elasticsearch index. At session completion, contexts are closed, only those generated
-resources are deleted, and the entire test stack is stopped. Volumes and manual
-application databases/indexes are preserved. JVM shutdown is a cleanup fallback;
-`make test-stop` can stop the stack after a forced process kill or IDE termination.
+replica set. Tests use the fixed database from `MONGODB_DATABASE` (its name must
+contain `test`) and the fixed index from `MOODLY_SEARCH_INDEX_NAME` (default:
+`daily_entries_search`). All data in these two resources is disposable, including
+anything created during manual `make test-run` sessions.
 
+A group is one integration test class. Before each group, the database and index
+are dropped so stale data from an interrupted run cannot affect tests. Startup
+recreates MongoDB collection indexes and, for search/CDC groups, the configured
+Elasticsearch mapping. After each group, the CDC listener is stopped, the context
+is closed and evicted, and the database/index are dropped again. Replay and resume
+token scenarios keep their state within the group. Other databases/indexes are not
+reset. No generated `moodly_it_*` database or index is needed.
+
+At session completion the reset is repeated and the test stack is stopped; both
+containers and their volumes remain available. JVM shutdown is a cleanup fallback;
+`make test-stop` can stop the stack after a forced process kill or IDE termination.
 
 Run one test process at a time: a file lock rejects concurrent test processes.
 Do not run a manual backend on `moodly-test` during automated tests, since the test
