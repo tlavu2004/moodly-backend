@@ -39,16 +39,16 @@ local-clean:
 	$(LOCAL_COMPOSE) down -v --remove-orphans
 
 test:
-	bash scripts/docker/run-tests.sh test
+	mvn test
 
 verify:
-	bash scripts/docker/run-tests.sh verify
+	mvn verify
 
 openapi:
 	bash src/main/resources/scripts/openapi/generate-openapi.sh
 
 cdc-test:
-	set -a; . ./.env.test; set +a; bash scripts/docker/run-tests.sh test -Dtest=CdcSearchInfrastructureIntegrationTest
+	mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
 
 test-up:
 	bash scripts/docker/start-infrastructure.sh test

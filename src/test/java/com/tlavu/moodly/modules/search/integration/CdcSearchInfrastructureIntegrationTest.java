@@ -156,7 +156,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	@Test
-	void createsTheConfiguredSearchIndexAgainstTestcontainers() throws Exception {
+	void createsTheConfiguredSearchIndexAgainstCompose() throws Exception {
 		assertThat(elasticsearchClient.indices().exists(request -> request.index(indexManager.getIndexName())).value())
 				.isTrue();
 		IndexMappingRecord mapping = Objects.requireNonNull(

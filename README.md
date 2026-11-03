@@ -145,34 +145,37 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 
 ## Test
 
-`mvn test` starts isolated MongoDB and Elasticsearch containers with Testcontainers; it does not use the local or test Docker Compose stacks. Docker Desktop must be running.
+Automated integration tests use the existing `moodly-test` Compose stack: exactly
+one MongoDB replica-set container and one Elasticsearch container. Docker Desktop
+(or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk
+containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
 
 ```bash
-make test
+make test       # run tests
+make verify     # tests, packaging, coverage and formatting checks
+make cdc-test   # CDC/search integration tests only
 ```
 
-For a manually inspectable test database, start the separate test Compose environment on port `27018`:
+Direct `mvn test`, `mvn verify`, and IDE JUnit runs use the same Compose bootstrap
+and session cleanup. Only integration tests needing infrastructure start the stack;
+unit tests do not need Docker. `.env.test` supplies infrastructure settings when
+present; `config/docker-test.env` provides non-secret defaults for fresh checkouts
+and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file.
+Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
 
-```bash
-make test-up
-```
+The first integration context starts both Compose services and initializes the
+replica set. Each context receives a unique `moodly_it_*` MongoDB database and
+Elasticsearch index. At session completion, contexts are closed, only those generated
+resources are deleted, and the entire test stack is stopped. Volumes and manual
+application databases/indexes are preserved. JVM shutdown is a cleanup fallback;
+`make test-stop` can stop the stack after a forced process kill or IDE termination.
 
-`make test`, `make cdc-test`, and `make verify` stop the entire `moodly-test`
-Compose stack before Maven starts and again on exit, including test failures and
-normal Ctrl+C interruption. Volumes are preserved. Do not run a manual backend
-using this stack at the same time. The local stack is managed separately; stop it
-with `make local-stop` when it is not needed to save memory.
 
-Use `make verify` for the complete Maven verification lifecycle. Direct `mvn test`
-or `mvn verify` bypasses the Compose cleanup wrapper. Elasticsearch Testcontainers
-use a 512 MB JVM heap; total container memory also includes native memory and caches.
-Testcontainers are removed when the test process shuts down.
-The Spring test context cache is limited to one context via test-only
-`spring.properties`, including IDE runs. Switching to a different context closes
-the previous context and stops its MongoDB/Elasticsearch containers instead of
-retaining every database until suite shutdown. Containers still have generated
-names outside Compose, and Ryuk is the additional cleanup container. This favors
-lower peak memory over reusing multiple contexts to save startup time.
+Run one test process at a time: a file lock rejects concurrent test processes.
+Do not run a manual backend on `moodly-test` during automated tests, since the test
+session owns the stack lifecycle. `moodly-local` remains separately managed.
+The test context cache remains limited to one context to bound JVM memory, while
+both Compose containers stay running across context changes.
 
 To run the backend against the manual test stack, use `make test-run` (or
 `make test-build-run` to build first). These commands load development Auth0,
