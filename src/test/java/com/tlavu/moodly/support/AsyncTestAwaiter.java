@@ -14,7 +14,7 @@ public final class AsyncTestAwaiter {
 	}
 
 	public static void until(String description, CheckedCondition condition, Supplier<String> diagnostic) throws Exception {
-		var deadline = Instant.now().plus(DEFAULT_TIMEOUT);
+		Instant deadline = Instant.now().plus(DEFAULT_TIMEOUT);
 		while (Instant.now().isBefore(deadline)) {
 			if (condition.matches()) {
 				return;

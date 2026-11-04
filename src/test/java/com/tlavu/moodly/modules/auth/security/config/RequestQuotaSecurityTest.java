@@ -13,6 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,8 +37,8 @@ class RequestQuotaSecurityTest {
 
 	@Test
 	void rateLimitsByAuthenticatedSubjectAndPreservesSecurityAndHealth() throws Exception {
-		var alice = jwt().jwt(token -> token.subject("alice"));
-		var bob = jwt().jwt(token -> token.subject("bob"));
+		JwtRequestPostProcessor alice = jwt().jwt(token -> token.subject("alice"));
+		JwtRequestPostProcessor bob = jwt().jwt(token -> token.subject("bob"));
 		when(jwtDecoder.decode("invalid")).thenThrow(new BadJwtException("Invalid token"));
 
 		mvc.perform(get("/quota-test").with(alice)).andExpect(status().isOk());

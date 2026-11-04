@@ -1,5 +1,6 @@
 package com.tlavu.moodly.support;
 
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import java.io.IOException;
 import java.net.URI;
@@ -144,9 +145,9 @@ final class ComposeTestEnvironment {
 	}
 
 	private void resetData() {
-		try (var mongo = MongoClients.create(mongoUri(database())); var http = HttpClient.newHttpClient()) {
+		try (MongoClient mongo = MongoClients.create(mongoUri(database())); HttpClient http = HttpClient.newHttpClient()) {
 			mongo.getDatabase(database()).drop();
-			var response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
+			HttpResponse<Void> response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
 					.timeout(Duration.ofSeconds(10)).DELETE().build(), HttpResponse.BodyHandlers.discarding());
 			if (response.statusCode() != 200 && response.statusCode() != 404) {
 				throw new IllegalStateException("Could not reset test index: HTTP " + response.statusCode());

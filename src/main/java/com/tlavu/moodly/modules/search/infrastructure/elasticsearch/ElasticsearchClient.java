@@ -76,14 +76,14 @@ public class ElasticsearchClient implements AutoCloseable {
 			Object payload,
 			boolean allowMissing
 	) throws IOException {
-		var body = payload == null
+		HttpRequest.BodyPublisher body = payload == null
 				? HttpRequest.BodyPublishers.noBody()
 				: HttpRequest.BodyPublishers.ofString(
 						payload instanceof String raw
 								? raw
 								: json.writeValueAsString(payload)
 				);
-		var builder = HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(15))
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(15))
 				.header("Accept", "application/json").method(method, body);
 
 		if (payload != null) {
@@ -94,7 +94,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		}
 
 		try {
-			var response = http.send(
+			HttpResponse<String> response = http.send(
 					builder.build(),
 					HttpResponse.BodyHandlers.ofString()
 			);
@@ -156,7 +156,7 @@ public class ElasticsearchClient implements AutoCloseable {
 	}
 
 	public void delete(String index, String id) throws IOException {
-		var result = request(
+		JsonNode result = request(
 				"DELETE",
 				documentPath(index, id),
 				null,
@@ -169,7 +169,7 @@ public class ElasticsearchClient implements AutoCloseable {
 	}
 
 	public <T> T get(String index, String id, Class<T> type) throws IOException {
-		var result = request(
+		JsonNode result = request(
 				"GET",
 				documentPath(index, id),
 				null,
@@ -203,7 +203,7 @@ public class ElasticsearchClient implements AutoCloseable {
 
 	public void deleteByUser(String index, String userId) throws IOException {
 		String endpoint = path(index) + "/_delete_by_query?refresh=true";
-		var query = Map.of("query", Map.of("term", Map.of("userId", userId)));
+		Map<String, Object> query = Map.of("query", Map.of("term", Map.of("userId", userId)));
 		JsonNode result;
 
 		try {

@@ -3,9 +3,12 @@ package com.tlavu.moodly.modules.auth.security.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -34,15 +37,15 @@ class RequestQuotaTest {
 	void concurrentRequestsCannotOverspendTheSameQuota() throws Exception {
 		RequestQuota quota = new RequestQuota(5, 10, Duration.ofMinutes(1), () -> 0);
 		CountDownLatch start = new CountDownLatch(1);
-		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+		try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			Callable<Long> request = () -> {
 				start.await();
 				return quota.retryAfter("alice");
 			};
-			var futures = IntStream.range(0, 32).mapToObj(index -> executor.submit(request)).toList();
+			List<Future<Long>> futures = IntStream.range(0, 32).mapToObj(index -> executor.submit(request)).toList();
 			start.countDown();
 			int admitted = 0;
-			for (var future : futures) {
+			for (Future<Long> future : futures) {
 				if (future.get() == 0) {
 					admitted++;
 				}

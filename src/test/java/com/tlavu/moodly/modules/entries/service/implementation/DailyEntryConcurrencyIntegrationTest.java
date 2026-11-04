@@ -16,6 +16,7 @@ import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -109,7 +110,7 @@ class DailyEntryConcurrencyIntegrationTest {
 	}
 
 	private void runTogether(Runnable first, Runnable second) throws Exception {
-		try (var executor = Executors.newFixedThreadPool(2)) {
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
 			CountDownLatch start = new CountDownLatch(1);
 			Future<?> one = executor.submit(() -> { await(start); first.run(); });
 			Future<?> two = executor.submit(() -> { await(start); second.run(); });

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
@@ -48,7 +49,7 @@ class DailyEntrySearchIndexManagerTest {
 
 		manager.recreate();
 
-			var order = org.mockito.Mockito.inOrder(elasticsearchClient);
+			InOrder order = org.mockito.Mockito.inOrder(elasticsearchClient);
 		order.verify(elasticsearchClient).deleteIndex("entries-test");
 		order.verify(elasticsearchClient).createIndex("entries-test", "{\"mappings\":{}}");
 	}

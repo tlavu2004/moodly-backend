@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
 
 @Component("elasticsearch")
 @RequiredArgsConstructor
@@ -16,7 +17,7 @@ public class ElasticsearchHealthIndicator implements HealthIndicator {
 	@Override
 	public Health health() {
 		try {
-			var response = client.request(
+			JsonNode response = client.request(
 					"GET",
 					"/_cluster/health",
 					null

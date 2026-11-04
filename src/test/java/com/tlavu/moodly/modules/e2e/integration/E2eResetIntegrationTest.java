@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -176,7 +177,7 @@ class E2eResetIntegrationTest {
 	}
 
 	private void assertDeleteRetriedAfterRefresh() throws IOException {
-		var order = inOrder(elasticsearchClient);
+		InOrder order = inOrder(elasticsearchClient);
 		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
 		order.verify(elasticsearchClient).refresh(indexManager.getIndexName());
 		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());

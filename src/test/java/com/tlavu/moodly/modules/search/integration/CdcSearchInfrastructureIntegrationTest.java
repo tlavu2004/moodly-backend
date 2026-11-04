@@ -57,6 +57,7 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import tools.jackson.databind.JsonNode;
 
 @SpringBootTest(properties = {
 		"moodly.entries.collection-name=daily_entries_cdc_test",
@@ -153,12 +154,12 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void createsTheConfiguredSearchIndexAgainstCompose() throws Exception {
-		var version = elasticsearchClient.request("GET", "/", null).path("version");
+		JsonNode version = elasticsearchClient.request("GET", "/", null).path("version");
 		assertThat(version.path("number").asString()).isEqualTo("7.10.2");
 		assertThat(version.path("build_flavor").asString()).isEqualTo("oss");
 		assertThat(elasticsearchClient.exists(indexManager.getIndexName()))
 				.isTrue();
-		var properties = elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_mapping", null)
+		JsonNode properties = elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_mapping", null)
 				.path(indexManager.getIndexName()).path("mappings").path("properties");
 		assertThat(properties.path("userId").path("type").asString()).isEqualTo("keyword");
 		assertThat(properties.path("date").path("type").asString()).isEqualTo("date");

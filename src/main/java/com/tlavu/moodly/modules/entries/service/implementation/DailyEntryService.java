@@ -4,6 +4,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.habits.exception.HabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
@@ -38,7 +39,7 @@ public class DailyEntryService {
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		var habit = ownedHabitService.require(userId, input.habitId());
+		Habit habit = ownedHabitService.require(userId, input.habitId());
 		if (!habit.isActive() && !dailyEntryRepository.findByUserIdAndDate(userId, date)
 				.map(existing -> existing.getHabits().stream()
 						.anyMatch(log -> input.habitId().equals(log.getHabitId())))
