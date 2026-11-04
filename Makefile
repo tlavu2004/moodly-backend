@@ -1,42 +1,17 @@
-.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-await local-run local-build-run local-logs local-clean test verify cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-await test-run test-cdc-run test-build-run test-logs test-clean config-local config-test openapi
+.DEFAULT_GOAL := local-up
 
-LOCAL_COMPOSE = docker compose -p moodly-local --env-file .env.local -f docker-compose.local.yml
-TEST_COMPOSE = docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml
+compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f docker-compose.$(1).yml
 
-local-up:
-	bash scripts/docker/start-infrastructure.sh local
+# Backend and Maven entry points
+.PHONY: local-run local-build-run test-run test-cdc-run test-build-run test verify cdc-test openapi
 
-local-start:
-	bash scripts/docker/start-infrastructure.sh local
+local-run test-run: %-run:
+	bash scripts/docker/run-$*-backend.sh
 
-local-stop:
-	$(LOCAL_COMPOSE) stop
+local-build-run test-build-run: %-build-run:
+	bash scripts/docker/run-$*-backend.sh build
 
-local-down:
-	$(LOCAL_COMPOSE) down
-
-local-status:
-	$(LOCAL_COMPOSE) ps
-
-local-replica-status:
-	$(LOCAL_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
-
-local-elasticsearch-status:
-	set -a; . ./.env.local; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
-
-local-await: local-up
-
-local-run:
-	bash scripts/docker/run-local-backend.sh
-
-local-build-run:
-	bash scripts/docker/run-local-backend.sh build
-
-local-logs:
-	$(LOCAL_COMPOSE) logs -f mongodb elasticsearch
-
-local-clean:
-	$(LOCAL_COMPOSE) down -v --remove-orphans
+test-cdc-run: test-run
 
 test:
 	mvn test
@@ -44,52 +19,43 @@ test:
 verify:
 	mvn verify
 
-openapi:
-	bash src/main/resources/scripts/openapi/generate-openapi.sh
-
 cdc-test:
 	mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
 
-test-up:
-	bash scripts/docker/start-infrastructure.sh test
+openapi:
+	bash src/main/resources/scripts/openapi/generate-openapi.sh
 
-test-start:
-	bash scripts/docker/start-infrastructure.sh test
+# Shared Compose commands for local and test
+.PHONY: local-up local-stop local-down local-status local-replica-status local-elasticsearch-status local-logs local-clean
+.PHONY: test-up test-stop test-down test-status test-replica-status test-elasticsearch-status test-logs test-clean
+.PHONY: local-start local-await test-start test-await config-local config-test
 
-test-stop:
-	$(TEST_COMPOSE) stop
+local-start local-await: local-up
+test-start test-await: test-up
 
-test-down:
-	$(TEST_COMPOSE) down
+local-up test-up: %-up:
+	bash scripts/docker/start-infrastructure.sh $*
 
-test-status:
-	$(TEST_COMPOSE) ps
+local-stop test-stop: %-stop:
+	$(call compose,$*) stop
 
-test-replica-status:
-	$(TEST_COMPOSE) exec mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().members[0].stateStr"
+local-down test-down: %-down:
+	$(call compose,$*) down
 
-test-elasticsearch-status:
-	set -a; . ./.env.test; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
+local-status test-status: %-status:
+	$(call compose,$*) ps
 
-test-await: test-up
+local-replica-status test-replica-status: %-replica-status:
+	$(call compose,$*) exec mongodb sh -c 'exec mongosh --quiet --port "$$MONGODB_CONTAINER_PORT" --eval "rs.status().members[0].stateStr"'
 
-test-run:
-	bash scripts/docker/run-test-backend.sh
+local-elasticsearch-status test-elasticsearch-status: %-elasticsearch-status:
+	set -a; . ./.env.$*; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
 
-test-cdc-run:
-	bash scripts/docker/run-test-backend.sh
+local-logs test-logs: %-logs:
+	$(call compose,$*) logs -f mongodb elasticsearch
 
-test-build-run:
-	bash scripts/docker/run-test-backend.sh build
+local-clean test-clean: %-clean:
+	$(call compose,$*) down -v --remove-orphans
 
-test-logs:
-	$(TEST_COMPOSE) logs -f mongodb elasticsearch
-
-test-clean:
-	$(TEST_COMPOSE) down -v --remove-orphans
-
-config-local:
-	$(LOCAL_COMPOSE) config
-
-config-test:
-	$(TEST_COMPOSE) config
+config-local config-test: config-%:
+	$(call compose,$*) config
