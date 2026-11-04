@@ -1,7 +1,6 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStream;
 import lombok.Getter;
@@ -28,22 +27,21 @@ public class DailyEntrySearchIndexManager {
 		this.mapping = mapping;
 	}
 
+	public boolean exists() throws IOException {
+		return elasticsearchClient.exists(indexName);
+	}
+
 	public void createIfMissing() throws IOException {
-		if (
-				!elasticsearchClient.indices()
-						.exists(request -> request.index(indexName))
-						.value()
-		) {
+		if (!exists()) {
 			create(readMapping());
 		}
 	}
 
 	public void recreate() throws IOException {
 		byte[] mappingBytes = readMapping();
-		if (elasticsearchClient.indices().exists(request -> request.index(indexName)).value()) {
-			elasticsearchClient.indices().delete(request -> request.index(indexName));
+		if (elasticsearchClient.exists(indexName)) {
+			elasticsearchClient.deleteIndex(indexName);
 		}
-
 		create(mappingBytes);
 	}
 
@@ -56,8 +54,6 @@ public class DailyEntrySearchIndexManager {
 	}
 
 	private void create(byte[] mappingBytes) throws IOException {
-		elasticsearchClient.indices()
-				.create(request -> request.index(indexName)
-					.withJson(new ByteArrayInputStream(mappingBytes)));
+		elasticsearchClient.createIndex(indexName, new String(mappingBytes, StandardCharsets.UTF_8));
 	}
 }

@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.search.service.indexing;
 
 import com.tlavu.moodly.shared.error.ExceptionLogSummary;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.exception.CdcReplayException;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;

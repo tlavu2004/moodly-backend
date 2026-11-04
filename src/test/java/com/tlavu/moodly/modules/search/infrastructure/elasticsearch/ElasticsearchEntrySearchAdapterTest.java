@@ -10,25 +10,14 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch.core.SearchRequest;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
-import co.elastic.clients.util.ObjectBuilder;
-import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
-import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -42,25 +31,18 @@ class ElasticsearchEntrySearchAdapterTest {
 
 	@Mock private ElasticsearchClient elasticsearchClient;
 	@Mock private DailyEntrySearchIndexManager indexManager;
-	@Mock private SearchResponse<DailyEntrySearchDocument> response;
-	@Mock private HitsMetadata<DailyEntrySearchDocument> hits;
-	@Mock private Hit<DailyEntrySearchDocument> hit;
-	@Captor
-	private ArgumentCaptor<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>> searchRequestBuilder;
+	private final tools.jackson.databind.json.JsonMapper json = new tools.jackson.databind.json.JsonMapper();
+	@Captor private ArgumentCaptor<Map<String, Object>> searchRequest;
 
 	@Test
 	void scopesSearchToUserAndNormalizesHighlights() throws Exception {
 		when(indexManager.getIndexName()).thenReturn("entries-test");
-		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
-		when(response.hits()).thenReturn(hits);
-		when(hits.hits()).thenReturn(List.of(hit));
-		when(hit.id()).thenReturn("entry-1");
-		when(hit.source()).thenReturn(new DailyEntrySearchDocument("user-1", LocalDate.of(2026, 8, 6), null, List.of()));
-		Map<String, List<String>> rawHighlights = new LinkedHashMap<>();
-		rawHighlights.put("mood.tags", List.of("<em>tired</em>"));
-		rawHighlights.put("mood.note", List.of("I felt <em>tired</em>."));
-		rawHighlights.put("habits.note", List.of("<em>tired</em> habit"));
-		when(hit.highlight()).thenReturn(rawHighlights);
+		when(elasticsearchClient.search(eq("entries-test"), org.mockito.ArgumentMatchers.anyMap()))
+				.thenReturn(json.readTree("""
+						{"hits":{"hits":[{"_id":"entry-1","_source":{"date":"2026-08-06"},"highlight":{
+						  "mood.tags":["<em>tired</em>"],"mood.note":["I felt <em>tired</em>."],"habits.note":["<em>tired</em> habit"]
+						}}]}}
+						"""));
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		List<EntrySearchView> result = adapter.search("user-1", new EntrySearchInput(
@@ -78,16 +60,15 @@ class ElasticsearchEntrySearchAdapterTest {
 				assertThat(fragment.ranges()).containsExactly(new HighlightRangeView(7, 12));
 			});
 		});
-		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		SearchRequest builtRequest = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
-		assertThat(builtRequest.index()).containsExactly("entries-test");
+		verify(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), searchRequest.capture());
+		String builtRequest = json.writeValueAsString(searchRequest.getValue());
 		assertThat(builtRequest.toString()).contains("user-1", "2026-08-01", "2026-08-31", "tired", "_score", "date");
 	}
 
 	@Test
 	void mapsElasticsearchIoFailureToUnavailableError() throws Exception {
 		doThrow(new IOException("down"))
-				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
+				.when(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap());
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
@@ -98,10 +79,8 @@ class ElasticsearchEntrySearchAdapterTest {
 
 	@Test
 	void rejectsAHitWithoutSourceInsteadOfReturningAnIncompletePage() throws Exception {
-		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
-		when(response.hits()).thenReturn(hits);
-		when(hits.hits()).thenReturn(List.of(hit));
-		when(hit.id()).thenReturn("entry-1");
+		when(elasticsearchClient.search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap()))
+				.thenReturn(json.readTree("{\"hits\":{\"hits\":[{\"_id\":\"entry-1\"}]}}"));
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 		Logger logger = (Logger) LoggerFactory.getLogger(ElasticsearchEntrySearchAdapter.class);
 		ListAppender<ILoggingEvent> events = new ListAppender<>();
@@ -128,7 +107,7 @@ class ElasticsearchEntrySearchAdapterTest {
 		ElasticsearchException badRequest = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(badRequest.status()).thenReturn(400);
 		doThrow(badRequest)
-				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
+				.when(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap());
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
@@ -140,7 +119,7 @@ class ElasticsearchEntrySearchAdapterTest {
 		ElasticsearchException serverFailure = org.mockito.Mockito.mock(ElasticsearchException.class);
 		when(serverFailure.status()).thenReturn(503);
 		doThrow(serverFailure)
-				.when(elasticsearchClient).search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class));
+				.when(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap());
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
@@ -155,8 +134,8 @@ class ElasticsearchEntrySearchAdapterTest {
 
 		adapter.search("user-1", new EntrySearchInput("tired", LocalDate.of(2026, 8, 1), null, 0, 50), 0);
 
-		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		String request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		verify(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), searchRequest.capture());
+		String request = json.writeValueAsString(searchRequest.getValue());
 		assertThat(request).contains("2026-08-01", "\"gte\"").doesNotContain("\"lte\"");
 	}
 
@@ -167,8 +146,8 @@ class ElasticsearchEntrySearchAdapterTest {
 
 		adapter.search("user-1", new EntrySearchInput("tired", null, LocalDate.of(2026, 8, 31), 0, 50), 0);
 
-		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		String request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build().toString();
+		verify(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), searchRequest.capture());
+		String request = json.writeValueAsString(searchRequest.getValue());
 		assertThat(request).contains("2026-08-31", "\"lte\"").doesNotContain("\"gte\"");
 	}
 
@@ -179,19 +158,14 @@ class ElasticsearchEntrySearchAdapterTest {
 
 		adapter.search("user-1", new EntrySearchInput("tired", null, null, 99, 100), 9_900);
 
-		verify(elasticsearchClient).search(searchRequestBuilder.capture(), eq(DailyEntrySearchDocument.class));
-		SearchRequest request = searchRequestBuilder.getValue().apply(new SearchRequest.Builder()).build();
-		assertThat(request.from()).isEqualTo(9_900);
-		assertThat(request.size()).isEqualTo(100);
+		verify(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), searchRequest.capture());
+		Map<String, Object> request = searchRequest.getValue();
+		assertThat(request.get("from")).isEqualTo(9_900);
+		assertThat(request.get("size")).isEqualTo(100);
 	}
 
 	private void stubEmptyResponse() throws Exception {
-		when(elasticsearchClient.search(anySearchRequestBuilder(), eq(DailyEntrySearchDocument.class))).thenReturn(response);
-		when(response.hits()).thenReturn(hits);
-		when(hits.hits()).thenReturn(List.of());
-	}
-
-	private Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>> anySearchRequestBuilder() {
-		return org.mockito.ArgumentMatchers.any();
+		when(elasticsearchClient.search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap()))
+				.thenReturn(json.readTree("{\"hits\":{\"hits\":[]}}"));
 	}
 }

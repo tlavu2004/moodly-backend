@@ -1,3 +1,8 @@
+> Test infrastructure update (2026-11-03): References below to Testcontainers
+> describe the previous implementation. Automated tests now use the `moodly-test`
+> Compose stack, with fixed disposable test data reset before/after each test class and session cleanup.
+> See the README Test section for current Maven, Make, IDE, and CI behavior.
+
 # Moodly — Habit & Mood Tracker
 
 > A small application for learning through a practical problem: tracking daily habits and moods.

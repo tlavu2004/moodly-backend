@@ -1,12 +1,6 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.HighlightField;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.util.NamedValue;
-import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
+import tools.jackson.databind.JsonNode;
 import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchPageView;
@@ -35,11 +29,6 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			"habits.note",
 			"mood.tags"
 	);
-	private static final List<NamedValue<HighlightField>> HIGHLIGHT_FIELDS = List.of(
-			NamedValue.of("mood.note", new HighlightField.Builder().build()),
-			NamedValue.of("habits.note", new HighlightField.Builder().build()),
-			NamedValue.of("mood.tags", new HighlightField.Builder().build())
-	);
 	private final ElasticsearchClient elasticsearchClient;
 	private final DailyEntrySearchIndexManager indexManager;
 
@@ -56,74 +45,41 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		int size = input.size();
 
 		try {
-			SearchResponse<DailyEntrySearchDocument> response =
-					elasticsearchClient.search(request -> request
-							.index(indexManager.getIndexName())
-							.from(offset)
-							.size(size)
-							.trackTotalHits(track -> track.enabled(true))
-							.sort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
-							.sort(sort -> sort
-									.field(field -> field
-											.field("date")
-											.order(SortOrder.Desc)
-									)
-							).query(searchQuery -> searchQuery.bool(bool -> {
-								bool.must(match -> match
-										.multiMatch(multiMatch -> multiMatch
-												.query(query)
-												.fields(SEARCH_FIELDS)
-										)
-								);
-								bool.filter(filter -> filter.term(term -> term
-										.field("userId")
-										.value(userId)));
+			List<Object> filters = new ArrayList<>();
+			filters.add(Map.of("term", Map.of("userId", userId)));
+			Map<String, String> dates = new LinkedHashMap<>();
+			if (from != null) dates.put("gte", from.toString());
+			if (to != null) dates.put("lte", to.toString());
+			if (!dates.isEmpty()) filters.add(Map.of("range", Map.of("date", dates)));
+			Map<String, Object> highlight = new LinkedHashMap<>();
+			SEARCH_FIELDS.forEach(field -> highlight.put(field, Map.of()));
 
-								if (from != null || to != null) {
-									bool.filter(filter -> filter
-											.range(range -> range.date(date -> {
-												date.field("date");
+			JsonNode hits = elasticsearchClient.search(indexManager.getIndexName(), Map.of(
+					"from", offset, "size", size, "track_total_hits", true,
+					"sort", List.of(Map.of("_score", "desc"), Map.of("date", "desc")),
+					"query", Map.of("bool", Map.of("must", Map.of("multi_match",
+							Map.of("query", query, "fields", SEARCH_FIELDS)), "filter", filters)),
+					"highlight", Map.of("fields", highlight, "pre_tags", List.of("<em>"), "post_tags", List.of("</em>"))
+			)).path("hits");
 
-												if (from != null) {
-													date.gte(from.toString());
-												}
-												if (to != null) {
-													date.lte(to.toString());
-												}
-
-												return date;
-											}))
-									);
-								}
-								return bool;
-							}))
-							.highlight(highlight -> highlight
-									.preTags("<em>")
-									.postTags("</em>")
-									.fields(HIGHLIGHT_FIELDS)
-							),
-							DailyEntrySearchDocument.class);
-
-			List<EntrySearchView> items = response.hits().hits().stream()
-					.map(hit -> {
-						DailyEntrySearchDocument source = hit.source();
-						if (source == null) {
-							log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", hit.id());
-							throw new IllegalStateException("Elasticsearch hit " + hit.id() + " has no source");
-						}
-						Map<String, List<HighlightFragmentView>> highlights = normalizeHighlights(hit.highlight());
-
-						return new EntrySearchView(
-								hit.id(),
-								source.date(),
-								highlights
-						);
-					}).toList();
-			long total = response.hits().total() == null
-					? items.size()
-					: response.hits().total().value();
-
-			return new EntrySearchPageView(items, page, size, total);
+			List<EntrySearchView> items = new ArrayList<>();
+			for (JsonNode hit : hits.path("hits")) {
+				String id = hit.path("_id").asString();
+				JsonNode source = hit.path("_source");
+				if (!source.isObject()) {
+					log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", id);
+					throw new IllegalStateException("Elasticsearch hit " + id + " has no source");
+				}
+				Map<String, List<String>> fragments = new LinkedHashMap<>();
+				hit.path("highlight").properties().forEach(field -> {
+					List<String> values = new ArrayList<>();
+					field.getValue().forEach(value -> values.add(value.asString()));
+					fragments.put(field.getKey(), values);
+				});
+				items.add(new EntrySearchView(id, LocalDate.parse(source.path("date").asString()), normalizeHighlights(fragments)));
+			}
+			long total = hits.path("total").path("value").asLong(items.size());
+			return new EntrySearchPageView(List.copyOf(items), page, size, total);
 		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		} catch (ElasticsearchException exception) {

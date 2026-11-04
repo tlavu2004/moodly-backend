@@ -104,7 +104,7 @@ public class DailyEntryChangeStreamListener {
 		recoveryPending = false;
 		rebuildPending = false;
 		CdcResumeToken checkpoint = resumeTokenRepository.findById(streamId).orElse(null);
-		if (checkpoint == null) {
+		if (checkpoint == null || reindexService.isIndexMissing()) {
 			Instant baseline = Objects.requireNonNull(operationTime.get(), "MongoDB did not return an operation time");
 			reindexService.reindex();
 			checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());

@@ -5,6 +5,7 @@ spring:
     default: local
     group:
       production: prod
+      compose-test: local
   data:
     mongodb:
       auto-index-creation: true

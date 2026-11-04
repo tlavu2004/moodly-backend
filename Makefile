@@ -1,110 +1,89 @@
-.PHONY: local-up local-start local-stop local-down local-status local-replica-status local-elasticsearch-status local-await local-run local-build-run local-logs local-clean test cdc-test test-up test-start test-stop test-down test-status test-replica-status test-elasticsearch-status test-await test-run test-cdc-run test-build-run test-logs test-clean config-local config-test openapi
+.DEFAULT_GOAL := local-up
 
-LOCAL_COMPOSE = docker compose -p moodly-local --env-file .env.local -f docker-compose.local.yml
-TEST_COMPOSE = docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml
+compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f docker-compose.$(1).yml
 
-local-up:
-	$(LOCAL_COMPOSE) up -d
+.PHONY: help
+define help_text
+Backend
+  make local-run / test-run               Run the backend against the selected stack
+  make local-build-run / test-build-run   Build before running the backend
+  make test-cdc-run                       Alias for test-run
+Tests and OpenAPI
+  make test                               Run Maven tests
+  make verify                             Run tests, build, and check coverage
+  make cdc-test                           Run CDC integration tests
+  make openapi                            Generate the OpenAPI contract
+Docker - replace STACK with local or test
+  make STACK-up                           Start the stack and wait for readiness
+  make STACK-start / STACK-await          Aliases for STACK-up
+  make STACK-stop                         Stop containers
+  make STACK-down                         Remove containers and the stack network
+  make STACK-clean                        Remove the stack and delete its data volumes
+  make STACK-status / STACK-logs          List containers or follow their logs
+  make STACK-replica-status               Check MongoDB replica state
+  make STACK-elasticsearch-status         Check Elasticsearch cluster health
+  make config-STACK                       Show resolved Compose configuration
+  make                                    Defaults to local-up
+endef
 
-local-start:
-	$(LOCAL_COMPOSE) start
+help:
+	$(info $(help_text))
 
-local-stop:
-	$(LOCAL_COMPOSE) stop
 
-local-down:
-	$(LOCAL_COMPOSE) down
+# Backend and Maven entry points
+.PHONY: local-run local-build-run test-run test-cdc-run test-build-run test verify cdc-test openapi
 
-local-status:
-	$(LOCAL_COMPOSE) ps
+local-run test-run: %-run:
+	bash scripts/docker/run-$*-backend.sh
 
-local-replica-status:
-	$(LOCAL_COMPOSE) exec mongodb mongosh --quiet --eval "rs.status().members[0].stateStr"
+local-build-run test-build-run: %-build-run:
+	bash scripts/docker/run-$*-backend.sh build
 
-local-elasticsearch-status:
-	set -a; . ./.env.local; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
-
-local-await: local-up
-	@set -a; . ./.env.local; set +a; \
-	for attempt in $$(seq 1 30); do \
-		if curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1 \
-			&& $(LOCAL_COMPOSE) exec -T mongodb mongosh --quiet --eval "rs.status().myState" | grep -qx 1; then \
-			echo "MongoDB replica set and Elasticsearch are ready."; exit 0; \
-		fi; \
-		sleep 2; \
-	done; \
-	echo "Timed out waiting for MongoDB replica set or Elasticsearch." >&2; exit 1
-
-local-run: local-await
-	set -a; . ./.env.local; set +a; SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
-
-local-build-run: local-await
-	set -a; . ./.env.local; set +a; mvn clean install -DskipTests && (SPRING_PROFILES_ACTIVE=local mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
-
-local-logs:
-	$(LOCAL_COMPOSE) logs -f mongodb elasticsearch
-
-local-clean:
-	$(LOCAL_COMPOSE) down -v --remove-orphans
+test-cdc-run: test-run
 
 test:
 	mvn test
 
+verify:
+	mvn verify
+
+cdc-test:
+	mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
+
 openapi:
 	bash src/main/resources/scripts/openapi/generate-openapi.sh
 
-cdc-test:
-	set -a; . ./.env.test; set +a; mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
+# Shared Compose commands for local and test
+.PHONY: local-up local-stop local-down local-status local-replica-status local-elasticsearch-status local-logs local-clean
+.PHONY: test-up test-stop test-down test-status test-replica-status test-elasticsearch-status test-logs test-clean
+.PHONY: local-start local-await test-start test-await config-local config-test
 
-test-up:
-	$(TEST_COMPOSE) up -d
+local-start local-await: local-up
+test-start test-await: test-up
 
-test-start:
-	$(TEST_COMPOSE) start
+local-up test-up: %-up:
+	bash scripts/docker/start-infrastructure.sh $*
 
-test-stop:
-	$(TEST_COMPOSE) stop
+local-stop test-stop: %-stop:
+	$(call compose,$*) stop
 
-test-down:
-	$(TEST_COMPOSE) down
+local-down test-down: %-down:
+	$(call compose,$*) down
 
-test-status:
-	$(TEST_COMPOSE) ps
+local-status test-status: %-status:
+	$(call compose,$*) ps
 
-test-replica-status:
-	$(TEST_COMPOSE) exec mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().members[0].stateStr"
+local-replica-status test-replica-status: %-replica-status:
+	$(call compose,$*) exec mongodb sh -c 'exec mongosh --quiet --port "$$MONGODB_CONTAINER_PORT" --eval "rs.status().members[0].stateStr"'
 
-test-elasticsearch-status:
-	set -a; . ./.env.test; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
+local-elasticsearch-status test-elasticsearch-status: %-elasticsearch-status:
+	set -a; . ./.env.$*; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
 
-test-await: test-up
-	@set -a; . ./.env.test; set +a; \
-	for attempt in $$(seq 1 30); do \
-		if curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1 \
-		&& $(TEST_COMPOSE) exec -T mongodb mongosh --quiet --port $${MONGODB_CONTAINER_PORT} --eval "rs.status().myState" | grep -qx 1; then \
-			echo "MongoDB replica set and Elasticsearch are ready."; exit 0; \
-		fi; \
-		sleep 2; \
-	done; \
-	echo "Timed out waiting for MongoDB replica set or Elasticsearch." >&2; exit 1
+local-logs test-logs: %-logs:
+	$(call compose,$*) logs -f mongodb elasticsearch
 
-test-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
+local-clean test-clean: %-clean:
+	$(call compose,$*) down -v --remove-orphans
 
-test-cdc-run: test-await
-	set -a; . ./.env.test; set +a; SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status
-
-test-build-run: test-await
-	set -a; . ./.env.test; set +a; mvn clean install -DskipTests && (SPRING_MONGODB_URI="mongodb://$${MONGODB_HOST}:$${MONGODB_PORT}/$${MONGODB_DATABASE}?replicaSet=$${MONGODB_REPLICA_SET}" SPRING_PROFILES_ACTIVE=test mvn spring-boot:run; status=$$?; if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then exit 0; fi; exit $$status)
-
-test-logs:
-	$(TEST_COMPOSE) logs -f mongodb elasticsearch
-
-test-clean:
-	$(TEST_COMPOSE) down -v --remove-orphans
-
-config-local:
-	$(LOCAL_COMPOSE) config
-
-config-test:
-	$(TEST_COMPOSE) config
+config-local config-test: config-%:
+	$(call compose,$*) config

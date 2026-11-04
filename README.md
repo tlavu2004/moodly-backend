@@ -57,6 +57,18 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-up
    ```
 
+   Each local/test Compose stack contains only MongoDB and Elasticsearch. `make local-up`
+   and `make test-up` initialize the single-node replica set inside the running MongoDB
+   container, then wait for MongoDB to become PRIMARY and Elasticsearch to be healthy.
+   The operation is safe to repeat; `local-start` and `test-start` use the same flow.
+   No stopped initialization container is left in Docker Desktop. Run these Make targets
+   from a Bash-capable environment (Git Bash on Windows), at the repository root.
+   Alternatively run `bash scripts/docker/start-infrastructure.sh local` (or `test`).
+   On a fresh volume, use this flow rather than Docker Desktop's Start button or bare
+   `docker compose up`. Once initialized, the replica-set configuration persists in the
+   MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's healthcheck
+   reports healthy only when it is writable PRIMARY.
+
 2. Verify MongoDB:
 
    ```bash
@@ -64,7 +76,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-replica-status
    ```
 
-   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data` Docker volume.
+   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data-oss7` Docker volume.
 
 3. Run the application:
 
@@ -72,7 +84,11 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-run
    ```
 
-   On startup, Moodly creates `daily_entries_search` only when it does not already exist. The mapping is deliberately not mutated at startup, so mapping changes remain an explicit migration decision.
+   When the backend exits or you press Ctrl+C, `local-run` and `local-build-run`
+   stop the local stack and keep its containers and volumes. Use `make local-up`
+   to start the services independently, then `make local-stop` when finished.
+
+   On startup, Moodly creates `daily_entries_search` when it is missing. Existing mappings require an explicit migration.
 
    Verify the cluster, index, and mapping after the application has started:
 
@@ -82,7 +98,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
-   On its first start without a checkpoint, the Change Stream listener rebuilds the derived index from MongoDB before listening for changes. It resumes from its MongoDB-stored checkpoint after a restart. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+   The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
 
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/reindex \
@@ -131,22 +147,94 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 
 `GET /habits/{habitId}/streak` reads the authenticated user's entries on or before today for each requested habit. The frontend currently calls it once per active habit, in parallel. This repeated history read is accepted for small habit lists; a future summary endpoint should calculate all streaks from one history read if staging latency or habit counts exceed the frontend README's temporary threshold.
 
+## Elasticsearch OSS 7.10.2
+
+Both Compose stacks pin the official Elasticsearch OSS 7.10.2 image. The backend
+uses the JSON REST endpoints for index management, document CRUD, search,
+refresh and the development E2E reset. The dedicated `-oss7` volumes allow
+Elasticsearch to build fresh indexes from MongoDB. Keep any older Elasticsearch
+volume available for rollback and mount it only with its original engine version.
+
+For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user
+information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately
+in the hosting environment for Basic authentication. Local Compose binds the
+unauthenticated Elasticsearch port to loopback. MongoDB remains authoritative.
+
+The Searchly Starter dashboard reported a 20 MB allowance and its root endpoint
+reported Elasticsearch OSS 7.10.2. Compose verifies upstream OSS behavior.
+Before using Searchly from Render, confirm the actual quota, credentials,
+supported endpoints (including index create/delete, refresh and cluster health),
+and behavior when the index is missing. Check capacity for a full rebuild
+including index overhead. Searchly traffic, permissions and limits require
+a separate smoke test against the provisioned account.
+
+When Render stops the application, CDC pauses. On restart, it resumes from
+MongoDB's checkpoint if the index exists and the token is still valid. A missing
+index or expired change-stream history triggers a rebuild from MongoDB. For index
+loss during uptime, monitor search errors and CDC dead letters, rebuild via the
+maintenance endpoint and replay pending failures. The Compose server disables
+automatic index creation. Confirm Searchly's behavior so a write cannot silently
+create an empty projection with a different mapping.
+
 ## Test
 
-`mvn test` starts isolated MongoDB and Elasticsearch containers with Testcontainers; it does not use the local or test Docker Compose stacks. Docker Desktop must be running.
+Automated integration tests use the existing `moodly-test` Compose stack: exactly
+one MongoDB replica-set container and one Elasticsearch container. Docker Desktop
+(or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk
+containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
 
 ```bash
-make test
+make test       # run tests
+make verify     # tests, packaging, coverage and formatting checks
+make cdc-test   # CDC/search integration tests only
 ```
 
-For a manually inspectable test database, start the separate test Compose environment on port `27018`:
+Direct `mvn test`, `mvn verify`, and IDE JUnit runs use the same Compose bootstrap
+and session cleanup. Only integration tests needing infrastructure start the stack;
+unit tests do not need Docker. `.env.test` supplies infrastructure settings when
+present; `config/docker-test.env` provides non-secret defaults for fresh checkouts
+and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file.
+Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
 
-```bash
-make test-up
-```
+The first integration context starts both Compose services and initializes the
+replica set. Tests use the fixed database from `MONGODB_DATABASE` (its name must
+contain `test`) and the fixed index from `MOODLY_SEARCH_INDEX_NAME` (default:
+`daily_entries_search`). All data in these two resources is disposable, including
+anything created during manual `make test-run` sessions.
 
-### Deferred test infrastructure review
+A group is one integration test class. Before each group, the database and index
+are dropped so stale data from an interrupted run cannot affect tests. Startup
+recreates MongoDB collection indexes and, for search/CDC groups, the configured
+Elasticsearch mapping. After each group, the CDC listener is stopped, the context
+is closed and evicted, and the database/index are dropped again. Replay and resume
+token scenarios keep their state within the group. Other databases/indexes are not
+reset. No generated `moodly_it_*` database or index is needed.
 
-After the backend refactor is complete and the application is ready for production, decide whether Maven integration tests should reuse the `moodly-test` Compose stack instead of creating and removing Testcontainers for each run. Compare startup time and memory use. Preserve test isolation, repeatable database cleanup, dynamic connection configuration, and CI reliability before changing the setup. Keep automated tests away from local and production databases.
+At session completion the reset is repeated and the test stack is stopped; both
+containers and their volumes remain available. JVM shutdown is a cleanup fallback;
+`make test-stop` can stop the stack after a forced process kill or IDE termination.
+
+Run one test process at a time: a file lock rejects concurrent test processes.
+Do not run a manual backend on `moodly-test` during automated tests, since the test
+session owns the stack lifecycle. `moodly-local` remains separately managed.
+The test context cache remains limited to one context to bound JVM memory, while
+both Compose containers stay running across context changes.
+
+To run the backend against the manual test stack, use `make test-run` (or
+`make test-build-run` to build first). These commands load development Auth0,
+Cloudinary and CORS settings from `.env.local`, then override infrastructure
+settings from `.env.test`. The `compose-test` profile includes `local`; the
+JUnit-only `test` profile and its fake credentials are not used. Both environment
+files must exist. Any Auth0/Cloudinary calls use real development services.
+The backend runs in the terminal, and the complete test Compose stack is stopped
+when the command exits, fails to start, or is interrupted with Ctrl+C.
+`test-cdc-run` is an alias of this same flow; CDC follows `MOODLY_CDC_ENABLED`.
+For CDC/search exercises, set `MOODLY_CDC_ENABLED=true` in `.env.test` or run
+`MOODLY_CDC_ENABLED=true make test-run` in Git Bash. With CDC disabled, the
+existing CDC health indicator reports DOWN even when MongoDB and Elasticsearch
+are UP; the manual runner does not change this health contract.
+
+`make test-up` intentionally leaves the manual stack running for inspection;
+finish that session with `make test-stop`. It is not a prerequisite for automated tests.
 
 See `docs/blueprint/moodly-blueprint.md` for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.

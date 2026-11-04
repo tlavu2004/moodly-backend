@@ -11,7 +11,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchIndexManager;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.stream.Stream;

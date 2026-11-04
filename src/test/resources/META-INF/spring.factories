@@ -1,0 +1,5 @@
+org.springframework.test.context.ContextCustomizerFactory=\
+com.tlavu.moodly.support.ComposeTestContextCustomizerFactory
+
+org.springframework.test.context.TestExecutionListener=\
+com.tlavu.moodly.support.ComposeTestGroupCleanupListener

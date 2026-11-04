@@ -16,7 +16,7 @@ import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocum
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;

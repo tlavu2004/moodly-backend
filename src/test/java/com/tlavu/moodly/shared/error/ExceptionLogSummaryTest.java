@@ -1,6 +1,6 @@
 package com.tlavu.moodly.shared.error;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.mongodb.MongoException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import java.io.IOException;

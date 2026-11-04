@@ -1,6 +1,6 @@
 package com.tlavu.moodly.support;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
@@ -44,7 +44,7 @@ public class CdcSearchTestSupport {
 	public void awaitIndexed(String entryId) throws Exception {
 		AsyncTestAwaiter.until(
 				"Elasticsearch document " + entryId + " to be indexed",
-				() -> elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).found(),
+				() -> elasticsearchClient.get(indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class) != null,
 				() -> describeDocument(entryId)
 		);
 	}
@@ -52,7 +52,7 @@ public class CdcSearchTestSupport {
 	public void awaitRemoved(String entryId) throws Exception {
 		AsyncTestAwaiter.until(
 				"Elasticsearch document " + entryId + " to be removed",
-				() -> !elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).found(),
+				() -> elasticsearchClient.get(indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class) == null,
 				() -> describeDocument(entryId)
 		);
 	}
@@ -66,9 +66,8 @@ public class CdcSearchTestSupport {
 
 	private String describeDocument(String entryId) {
 		try {
-			return "Elasticsearch document present=" + elasticsearchClient
-				.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class)
-					.found();
+			return "Elasticsearch document present=" + (elasticsearchClient
+				.get(indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class) != null);
 		} catch (Exception exception) {
 			return "Elasticsearch lookup failed: " + exception.getMessage();
 		}
