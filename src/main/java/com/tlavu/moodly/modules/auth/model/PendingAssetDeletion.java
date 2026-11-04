@@ -25,8 +25,8 @@ public class PendingAssetDeletion {
 
 	@Indexed
 	private Instant nextAttemptAt;
-	private Instant createdAt;
 
+	private Instant createdAt;
 	private int cleanupAttempts;
 
 	public PendingAssetDeletion(String publicId, Instant nextAttemptAt) {
@@ -48,7 +48,9 @@ public class PendingAssetDeletion {
 		if (!now.isBefore(createdAt.plus(ACTIVE_TASK_RETENTION))) {
 			return false;
 		}
+
 		nextAttemptAt = now.plus(ACTIVE_RECHECK_DELAY);
+
 		return true;
 	}
 }

@@ -52,10 +52,16 @@ public final class AvatarException extends ApplicationException {
 	}
 
 	public static AvatarException invalidVersion() {
-		return new AvatarException(AuthErrorCode.AVATAR_VERSION_INVALID, "Avatar version must be positive.");
+		return new AvatarException(
+				AuthErrorCode.AVATAR_VERSION_INVALID,
+				"Avatar version must be positive."
+		);
 	}
 
 	public static AvatarException conflict() {
-		return new AvatarException(AuthErrorCode.AVATAR_CONFLICT, "The resource was changed by another request.");
+		return new AvatarException(
+				AuthErrorCode.AVATAR_CONFLICT,
+				"The resource was changed by another request."
+		);
 	}
 }

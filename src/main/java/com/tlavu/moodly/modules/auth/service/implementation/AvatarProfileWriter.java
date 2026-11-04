@@ -15,23 +15,35 @@ public class AvatarProfileWriter {
 	private final MongoTemplate mongoTemplate;
 
 	public boolean replaceIfCurrent(UserProfile profile, String previousPublicId) {
-		return mongoTemplate.updateFirst(currentAvatar(profile, previousPublicId),
+		return mongoTemplate.updateFirst(
+				currentAvatar(profile, previousPublicId),
 				new Update().set("avatarPublicId", profile.getAvatarPublicId())
 						.set("avatarVersion", profile.getAvatarVersion())
 						.set("avatarContentType", profile.getAvatarContentType())
 						.set("avatarSizeBytes", profile.getAvatarSizeBytes())
-						.set("updatedAt", profile.getUpdatedAt()), UserProfile.class).getMatchedCount() == 1;
+						.set("updatedAt", profile.getUpdatedAt()),
+				UserProfile.class
+		).getMatchedCount() == 1;
 	}
 
 	public boolean clearIfCurrent(UserProfile profile, String previousPublicId) {
-		return mongoTemplate.updateFirst(currentAvatar(profile, previousPublicId),
-				new Update().unset("avatarPublicId").unset("avatarVersion")
-						.unset("avatarContentType").unset("avatarSizeBytes")
-						.set("updatedAt", profile.getUpdatedAt()), UserProfile.class).getMatchedCount() == 1;
+		return mongoTemplate.updateFirst(
+				currentAvatar(profile, previousPublicId),
+				new Update().unset("avatarPublicId")
+						.unset("avatarVersion")
+						.unset("avatarContentType")
+						.unset("avatarSizeBytes")
+						.set("updatedAt", profile.getUpdatedAt()),
+				UserProfile.class
+		).getMatchedCount() == 1;
 	}
 
 	private Query currentAvatar(UserProfile profile, String previousPublicId) {
-		return Query.query(Criteria.where("_id").is(profile.getId())
-				.and("avatarPublicId").is(previousPublicId));
+		return Query.query(
+				Criteria.where("_id")
+						.is(profile.getId())
+						.and("avatarPublicId")
+						.is(previousPublicId)
+		);
 	}
 }

@@ -151,17 +151,29 @@ public class AvatarService {
 			UserProfile profile = profiles.findByAuth0Subject(subject)
 					.orElseThrow(AvatarProfileMissingException::new);
 			String previousPublicId = profile.getAvatarPublicId();
-			PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
-					? queueObsoleteAsset(previousPublicId)
-					: null;
-			profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
+			PendingAssetDeletion obsolete = previousPublicId != null &&
+					!previousPublicId.equals(asset.publicId())
+							? queueObsoleteAsset(previousPublicId)
+							: null;
+
+			profile.replaceAvatar(
+					asset.publicId(),
+					asset.version(),
+					asset.contentType(),
+					asset.sizeBytes(),
+					Instant.now()
+			);
+
 			if (!avatarProfileWriter.replaceIfCurrent(profile, previousPublicId)) {
 				continue;
 			}
+
 			pendingUploads.delete(pending);
+
 			if (obsolete != null) {
 				deleteObsoleteAsset(obsolete);
 			}
+
 			return avatar(profile);
 		}
 		throw AvatarException.conflict();
@@ -175,33 +187,47 @@ public class AvatarService {
 
 	public AvatarView delete() {
 		for (int attempt = 0; attempt < MAX_AVATAR_WRITE_ATTEMPTS; attempt++) {
-			UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
+			UserProfile profile = profiles.findByAuth0Subject(currentUser.id())
+					.orElse(null);
+
 			if (profile == null || profile.getAvatarPublicId() == null) {
 				return new AvatarView(null, null, null, null);
 			}
+
 			String previousPublicId = profile.getAvatarPublicId();
 			PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
 			profile.clearAvatar(Instant.now());
+
 			if (!avatarProfileWriter.clearIfCurrent(profile, previousPublicId)) {
 				continue;
 			}
+
 			deleteObsoleteAsset(obsolete);
+
 			return new AvatarView(null, null, null, null);
 		}
 		throw AvatarException.conflict();
 	}
 
 	private PendingAssetDeletion queueObsoleteAsset(String publicId) {
-		return pendingDeletions.findByPublicId(publicId).orElseGet(() -> {
-			PendingAssetDeletion pending = new PendingAssetDeletion(publicId, Instant.now().plusSeconds(60));
-			try {
-				pendingDeletions.save(pending);
-				return pending;
-			} catch (DuplicateKeyException race) {
-				return pendingDeletions.findByPublicId(publicId)
-						.orElseThrow(() -> new IllegalStateException(
-								"Avatar cleanup task collided without a task for the same asset", race));
-			}
+		return pendingDeletions.findByPublicId(publicId)
+				.orElseGet(() -> {
+					PendingAssetDeletion pending = new PendingAssetDeletion(
+							publicId,
+							Instant.now().plusSeconds(60)
+					);
+
+					try {
+						pendingDeletions.save(pending);
+
+						return pending;
+					} catch (DuplicateKeyException race) {
+						return pendingDeletions.findByPublicId(publicId)
+								.orElseThrow(() -> new IllegalStateException(
+										"Avatar cleanup task collided without a task for the same asset"
+										, race
+								));
+					}
 		});
 	}
 
@@ -210,6 +236,7 @@ public class AvatarService {
 			if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
 				return;
 			}
+
 			cloudinary.deleteImage(pending.getPublicId());
 			pendingDeletions.delete(pending);
 		} catch (RuntimeException exception) {
@@ -218,32 +245,42 @@ public class AvatarService {
 				pendingDeletions.save(pending);
 
 				if (exception instanceof AvatarAssetDeletionException) {
-					log.warn("Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+					log.warn(
+							"Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}",
+							pending.getId(),
+							ExceptionLogSummary.of(exception)
+					);
 				} else {
-					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+					log.error(
+							"Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}",
+							pending.getId(),
+							ExceptionLogSummary.of(exception)
+					);
 				}
 			} catch (RuntimeException schedulingException) {
 				schedulingException.addSuppressed(exception);
-				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(schedulingException));
+
+				log.error(
+						"Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}",
+						pending.getId(),
+						ExceptionLogSummary.of(schedulingException)
+				);
 			}
 		}
 	}
 
 	private AvatarView avatar(UserProfile profile) {
 		if (profile.getAvatarPublicId() == null || profile.getAvatarVersion() == null) {
-			return new AvatarView(
-						null,
-						null,
-						null,
-						null
-				);
+			return new AvatarView(null, null, null, null);
 		}
 
 		return new AvatarView(
 				profile.getAvatarPublicId(),
 				profile.getAvatarContentType(),
 				profile.getAvatarSizeBytes(),
-				"https://res.cloudinary.com/" + cloudName + "/image/upload/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v" + profile.getAvatarVersion() + "/" + profile.getAvatarPublicId()
+				"https://res.cloudinary.com/" + cloudName +
+						"/image/upload/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v" + profile.getAvatarVersion() +
+						"/" + profile.getAvatarPublicId()
 		);
 	}
 
