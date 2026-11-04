@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 
 public final class ElasticsearchFailureClassifier {
 

@@ -1,6 +1,6 @@
 package com.tlavu.moodly.shared.error;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.mongodb.MongoException;
 
 /** A bounded, single-line diagnostic that never includes exception messages. */

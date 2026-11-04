@@ -15,9 +15,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.mapping.Property;
-import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.service.indexing.CdcDeliveryService;
 import com.tlavu.moodly.modules.search.monitoring.CdcHealthIndicator;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
@@ -53,8 +51,6 @@ import java.time.LocalDate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
@@ -157,20 +153,18 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void createsTheConfiguredSearchIndexAgainstCompose() throws Exception {
-		assertThat(elasticsearchClient.indices().exists(request -> request.index(indexManager.getIndexName())).value())
+		var version = elasticsearchClient.request("GET", "/", null).path("version");
+		assertThat(version.path("number").asString()).isEqualTo("7.10.2");
+		assertThat(version.path("build_flavor").asString()).isEqualTo("oss");
+		assertThat(elasticsearchClient.exists(indexManager.getIndexName()))
 				.isTrue();
-		IndexMappingRecord mapping = Objects.requireNonNull(
-				elasticsearchClient.indices().getMapping(request -> request.index(indexManager.getIndexName()))
-						.get(indexManager.getIndexName()),
-				"Configured Elasticsearch index mapping must be present"
-		);
-		Map<String, Property> properties = Objects.requireNonNull(mapping.mappings(), "Configured Elasticsearch mapping must be present").properties();
-		assertThat(properties).containsKeys("userId", "date", "mood", "habits");
-		assertThat(properties.get("userId").toString()).contains("\"type\":\"keyword\"");
-		assertThat(properties.get("date").toString()).contains("\"type\":\"date\"");
-		assertThat(properties.get("mood").toString())
+		var properties = elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_mapping", null)
+				.path(indexManager.getIndexName()).path("mappings").path("properties");
+		assertThat(properties.path("userId").path("type").asString()).isEqualTo("keyword");
+		assertThat(properties.path("date").path("type").asString()).isEqualTo("date");
+		assertThat(properties.path("mood").path("properties").toString())
 				.contains("\"score\":{\"type\":\"integer\"}", "\"note\":{\"type\":\"text\"}", "\"tags\":{\"type\":\"text\"}");
-		assertThat(properties.get("habits").toString()).contains("\"note\":{\"type\":\"text\"}");
+		assertThat(properties.path("habits").path("properties").path("note").path("type").asString()).isEqualTo("text");
 	}
 
 	@Test
@@ -208,8 +202,8 @@ class CdcSearchInfrastructureIntegrationTest {
 		deliveryService.deliverUpsert("duplicate-1", "insert", first);
 		deliveryService.deliverUpsert("duplicate-1", "insert", first);
 		awaitDocument(first.getId(), document -> "repeatable".equals(document.mood().note()));
-		elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
-		assertThat(elasticsearchClient.count(request -> request.index(indexManager.getIndexName())).count()).isEqualTo(1);
+		elasticsearchClient.refresh(indexManager.getIndexName());
+		assertThat(elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_count", null).path("count").asLong()).isEqualTo(1);
 		assertThat(deadLetterRepository.findAll()).isEmpty();
 
 		DailyEntry second = entry(first.getUserId(), "second", List.of(), "habit two", 4);
@@ -218,8 +212,8 @@ class CdcSearchInfrastructureIntegrationTest {
 		ReindexView result = reindexService.reindex();
 		assertThat(result.indexedEntries()).isEqualTo(2);
 		awaitDocument(second.getId(), document -> "second".equals(document.mood().note()));
-		elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
-		assertThat(elasticsearchClient.count(request -> request.index(indexManager.getIndexName())).count()).isEqualTo(2);
+		elasticsearchClient.refresh(indexManager.getIndexName());
+		assertThat(elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_count", null).path("count").asLong()).isEqualTo(2);
 		assertThat(document(first.getId()).mood().note()).isEqualTo("repeatable");
 	}
 
@@ -321,9 +315,26 @@ class CdcSearchInfrastructureIntegrationTest {
 		cdcSearchTestSupport.awaitIndexed(second.getId());
 		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
 				.hasValueSatisfying(token -> assertThat(token).isNotEqualTo(tokenBeforeRestart));
-		elasticsearchClient.indices().refresh(request -> request.index(indexManager.getIndexName()));
-		assertThat(elasticsearchClient.count(request -> request.index(indexManager.getIndexName())).count()).isEqualTo(2);
+		elasticsearchClient.refresh(indexManager.getIndexName());
+		assertThat(elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_count", null).path("count").asLong()).isEqualTo(2);
 		verify(reindexService, never()).reindex();
+	}
+
+	@Test
+	void rebuildsMissingIndexEvenWithAnExistingResumeToken() throws Exception {
+		DailyEntry entry = cdcSearchTestSupport.save(entry(
+				cdcSearchTestSupport.newUserId(), "before index loss", List.of(), "habit", 3));
+		cdcSearchTestSupport.awaitIndexed(entry.getId());
+		awaitResumeToken();
+
+		listener.stop();
+		elasticsearchClient.deleteIndex(indexManager.getIndexName());
+		clearInvocations(reindexService);
+		listener.start();
+		awaitChangeStreamRegistration();
+
+		verify(reindexService).reindex();
+		assertThat(document(entry.getId())).isEqualTo(DailyEntrySearchDocument.from(entry));
 	}
 
 	@Test
@@ -343,8 +354,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
 				.contains(tokenBeforeFailure);
 		assertThat(deadLetterRepository.findAll()).isEmpty();
-		assertThat(elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(failing.getId()),
-				DailyEntrySearchDocument.class).found()).isFalse();
+		assertThat(elasticsearchClient.get(indexManager.getIndexName(), failing.getId(), DailyEntrySearchDocument.class)).isNull();
 
 		listener.stop();
 		reset(searchWriter);
@@ -384,7 +394,7 @@ class CdcSearchInfrastructureIntegrationTest {
 	}
 
 	private DailyEntrySearchDocument document(String entryId) throws Exception {
-		return elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).source();
+		return elasticsearchClient.get(indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
 	}
 
 	private void awaitDocument(String entryId, java.util.function.Predicate<DailyEntrySearchDocument> predicate) throws Exception {

@@ -3,6 +3,8 @@ spring:
     uri: ${MONGODB_URI}
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
   security:
     oauth2:
       resourceserver:

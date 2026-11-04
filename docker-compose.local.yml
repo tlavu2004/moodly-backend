@@ -20,18 +20,17 @@ services:
       retries: 12
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
     container_name: moodly-elasticsearch-local
     restart: unless-stopped
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
+      - action.auto_create_index=false
       - ES_JAVA_OPTS=-Xms${ELASTICSEARCH_HEAP_SIZE} -Xmx${ELASTICSEARCH_HEAP_SIZE}
     ports:
-      - "${ELASTICSEARCH_PORT}:${ELASTICSEARCH_CONTAINER_PORT}"
+      - "127.0.0.1:${ELASTICSEARCH_PORT}:${ELASTICSEARCH_CONTAINER_PORT}"
     volumes:
-      - moodly-elasticsearch-local-data:/usr/share/elasticsearch/data
+      - moodly-elasticsearch-local-data-oss7:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://${ELASTICSEARCH_CONTAINER_HOST}:${ELASTICSEARCH_CONTAINER_PORT}/_cluster/health?wait_for_status=yellow >/dev/null"]
       interval: 10s
@@ -40,4 +39,4 @@ services:
 
 volumes:
   moodly-mongodb-local-data:
-  moodly-elasticsearch-local-data:
+  moodly-elasticsearch-local-data-oss7:

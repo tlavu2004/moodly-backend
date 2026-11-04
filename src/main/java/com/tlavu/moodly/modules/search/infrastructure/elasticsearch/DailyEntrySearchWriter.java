@@ -1,6 +1,5 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import java.io.IOException;
@@ -18,15 +17,10 @@ public class DailyEntrySearchWriter {
 	}
 
 	public void index(String entryId, DailyEntrySearchDocument document) throws IOException {
-		elasticsearchClient.index(request -> request
-				.index(indexManager.getIndexName())
-				.id(entryId)
-				.document(document));
+		elasticsearchClient.index(indexManager.getIndexName(), entryId, document);
 	}
 
 	public void delete(String entryId) throws IOException {
-		elasticsearchClient.delete(request -> request
-				.index(indexManager.getIndexName())
-				.id(entryId));
+		elasticsearchClient.delete(indexManager.getIndexName(), entryId);
 	}
 }

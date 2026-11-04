@@ -1,8 +1,7 @@
 package com.tlavu.moodly.modules.e2e.service.implementation;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch.core.GetResponse;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.e2e.service.view.E2eResetView;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
@@ -61,15 +60,7 @@ public class E2eUserResetService {
 	public synchronized E2eResetView reset() {
 		try {
 			// Remove only this synthetic subject's old projection, including any stale documents.
-			elasticsearchClient.deleteByQuery(request -> request
-					.index(indexManager.getIndexName())
-					.query(query -> query.term(term -> term
-							.field("userId")
-							.value(userId)
-					))
-			);
-			elasticsearchClient.indices()
-					.refresh(request -> request.index(indexManager.getIndexName()));
+			elasticsearchClient.deleteByUser(indexManager.getIndexName(), userId);
 
 			entryRepository.deleteByUserId(userId);
 			habitRepository.deleteAll(habitRepository.findByUserId(userId));
@@ -126,23 +117,13 @@ public class E2eUserResetService {
 				searchWriter.index(entry);
 			}
 
-			elasticsearchClient.indices()
-					.refresh(request -> request.index(indexManager.getIndexName()));
+			elasticsearchClient.refresh(indexManager.getIndexName());
 
 			for (DailyEntry entry : entries) {
 				String entryId = entry.getId();
-				GetResponse<DailyEntrySearchDocument> indexed = elasticsearchClient.get(
-						request -> request
-								.index(indexManager.getIndexName())
-								.id(entryId),
-						DailyEntrySearchDocument.class
-				);
-
-				if (
-						!indexed.found() ||
-						indexed.source() == null ||
-					!DailyEntrySearchDocument.from(entry).equals(indexed.source())
-				) {
+				DailyEntrySearchDocument indexed = elasticsearchClient.get(
+						indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
+				if (!DailyEntrySearchDocument.from(entry).equals(indexed)) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new IllegalStateException("Search document verification failed for " + entryId)
 					);

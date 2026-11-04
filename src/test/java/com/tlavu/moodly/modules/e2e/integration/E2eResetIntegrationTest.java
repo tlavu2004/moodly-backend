@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
@@ -172,6 +172,6 @@ class E2eResetIntegrationTest {
 	}
 
 	private DailyEntrySearchDocument document(String entryId) throws Exception {
-		return elasticsearchClient.get(request -> request.index(indexManager.getIndexName()).id(entryId), DailyEntrySearchDocument.class).source();
+		return elasticsearchClient.get(indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
 	}
 }
