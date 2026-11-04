@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.job;
 
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;

@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 import java.time.Instant;
 import lombok.Getter;
 import org.springframework.stereotype.Component;

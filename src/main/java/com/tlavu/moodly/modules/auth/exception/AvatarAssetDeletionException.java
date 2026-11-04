@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.auth.exception;
 
-import com.tlavu.moodly.shared.error.ProviderHttpStatus;
+import com.tlavu.moodly.shared.error.contract.ProviderHttpStatus;
 
 /** A failed obsolete-asset deletion is queued for retry after profile persistence. */
 public final class AvatarAssetDeletionException extends IllegalStateException implements ProviderHttpStatus {

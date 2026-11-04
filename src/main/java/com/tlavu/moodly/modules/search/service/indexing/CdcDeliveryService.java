@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;

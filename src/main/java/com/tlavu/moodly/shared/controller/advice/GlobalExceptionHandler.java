@@ -4,7 +4,7 @@ import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
