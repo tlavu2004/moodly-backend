@@ -81,4 +81,4 @@ RuntimeException
 
 ## 6. Verification and change procedure
 
-Inventory every throw and catch in the affected module before changing a handler. Test status, code, safe message, and envelope for representative framework and module failures; test that unexpected `IllegalArgumentException` and unclassified persistence errors remain 500. Include ownership, concurrency, retry/dead-letter, and success paths where relevant. Regenerate `docs/api/moodly-openapi.json` whenever a public response changes and review its diff. Run the full Maven verification with Docker before push.
+Inventory every throw and catch in the affected module before changing a handler. Test status, code, safe message, and envelope for representative framework and module failures; test that unexpected `IllegalArgumentException` and unclassified persistence errors remain 500. Include ownership, concurrency, retry/dead-letter, and success paths where relevant. Regenerate `docs/api/json/moodly-openapi.json` whenever a public response changes and review its diff. Run the full Maven verification with Docker before push.

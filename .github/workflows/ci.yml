@@ -101,7 +101,7 @@ jobs:
           import json
           from pathlib import Path
 
-          document_path = Path("docs/api/moodly-openapi.json")
+          document_path = Path("docs/api/json/moodly-openapi.json")
           document = json.loads(document_path.read_text(encoding="utf-8-sig"))
           assert document["openapi"].startswith("3."), "Expected an OpenAPI 3 document"
           assert document.get("paths"), "OpenAPI document must define at least one path"
@@ -113,12 +113,12 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: moodly-openapi-document
-          path: docs/api/moodly-openapi.json
+          path: docs/api/json/moodly-openapi.json
           if-no-files-found: warn
           retention-days: 14
 
       - name: Ensure the committed OpenAPI document is current
-        run: git diff --exit-code -- docs/api/moodly-openapi.json
+        run: git diff --exit-code -- docs/api/json/moodly-openapi.json
 
   build-image:
     name: Build container image

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-output_path="${1:-docs/api/moodly-openapi.json}"
+output_path="${1:-docs/api/json/moodly-openapi.json}"
 response_path="$(mktemp)"
 
 cleanup() {

@@ -8,7 +8,7 @@ Backend exception handling follows the [Moodly Exception Standard](docs/blueprin
 
 ## Keep the OpenAPI document current
 
-When changing controllers, request/response DTOs, OpenAPI annotations, or response type names, regenerate `docs/api/moodly-openapi.json`, review its diff, and commit it with the code change. Schema names can change even when endpoint paths do not. CI regenerates this file and fails if it differs from the committed version.
+When changing controllers, request/response DTOs, OpenAPI annotations, or response type names, regenerate `docs/api/json/moodly-openapi.json`, review its diff, and commit it with the code change. Schema names can change even when endpoint paths do not. CI regenerates this file and fails if it differs from the committed version.
 
 From the repository root, run `bash src/main/resources/scripts/openapi/generate-openapi.sh` on Linux.
 
@@ -16,7 +16,7 @@ In Windows Git Bash, use the following command if the checked-out script has CRL
 
 ```bash
 sed 's/\r$//' src/main/resources/scripts/openapi/generate-openapi.sh | bash
-git diff -- docs/api/moodly-openapi.json
+git diff -- docs/api/json/moodly-openapi.json
 ```
 
 ## Local setup
