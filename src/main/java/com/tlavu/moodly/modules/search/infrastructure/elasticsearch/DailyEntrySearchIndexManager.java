@@ -54,6 +54,9 @@ public class DailyEntrySearchIndexManager {
 	}
 
 	private void create(byte[] mappingBytes) throws IOException {
-		elasticsearchClient.createIndex(indexName, new String(mappingBytes, StandardCharsets.UTF_8));
+		elasticsearchClient.createIndex(
+				indexName,
+				new String(mappingBytes, StandardCharsets.UTF_8)
+		);
 	}
 }

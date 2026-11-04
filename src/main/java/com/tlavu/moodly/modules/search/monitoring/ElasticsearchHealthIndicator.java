@@ -16,12 +16,25 @@ public class ElasticsearchHealthIndicator implements HealthIndicator {
 	@Override
 	public Health health() {
 		try {
-			var response = client.request("GET", "/_cluster/health", null);
+			var response = client.request(
+					"GET",
+					"/_cluster/health",
+					null
+			);
 			String status = response.path("status").asString();
-			return ("green".equals(status) || "yellow".equals(status) ? Health.up() : Health.down())
-					.withDetail("status", status).build();
+
+			return (
+					"green".equals(status) ||
+					"yellow".equals(status)
+							? Health.up()
+							: Health.down()
+			).withDetail("status", status).build();
 		} catch (IOException | ElasticsearchException failure) {
-			return Health.down().withDetail("error", failure.getClass().getSimpleName()).build();
+			return Health.down()
+					.withDetail(
+							"error",
+							failure.getClass().getSimpleName()
+					).build();
 		}
 	}
 }

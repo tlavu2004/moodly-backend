@@ -44,6 +44,7 @@ public class DailyEntryReindexService {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringReindex(exception);
 			}
+
 			throw exception;
 		}
 	}
@@ -55,13 +56,16 @@ public class DailyEntryReindexService {
 			Query query = new Query().with(Sort.by(Sort.Direction.ASC, "_id"))
 					.cursorBatchSize(batchSize);
 			long indexed = 0;
+
 			try (Stream<DailyEntry> entries = mongoTemplate.stream(query, DailyEntry.class)) {
 				Iterator<DailyEntry> cursor = entries.iterator();
+
 				while (cursor.hasNext()) {
 					searchWriter.index(cursor.next());
 					indexed++;
 				}
 			}
+
 			return new ReindexView(indexed);
 		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);

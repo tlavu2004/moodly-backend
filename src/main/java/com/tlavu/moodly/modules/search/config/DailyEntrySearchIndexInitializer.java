@@ -34,6 +34,7 @@ public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
 		if (cdcEnabled) {
 			return;
 		}
+
 		try {
 			indexManager.createIfMissing();
 		} catch (IOException exception) {

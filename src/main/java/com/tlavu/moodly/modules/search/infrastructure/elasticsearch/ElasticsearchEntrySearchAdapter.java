@@ -46,40 +46,93 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
 		try {
 			List<Object> filters = new ArrayList<>();
-			filters.add(Map.of("term", Map.of("userId", userId)));
+			filters.add(
+					Map.of("term", Map.of("userId", userId))
+			);
+
 			Map<String, String> dates = new LinkedHashMap<>();
-			if (from != null) dates.put("gte", from.toString());
-			if (to != null) dates.put("lte", to.toString());
-			if (!dates.isEmpty()) filters.add(Map.of("range", Map.of("date", dates)));
+
+			if (from != null) {
+				dates.put("gte", from.toString());
+			}
+			if (to != null) {
+				dates.put("lte", to.toString());
+			}
+			if (!dates.isEmpty()) {
+				filters.add(Map.of("range", Map.of("date", dates)));
+			}
+
 			Map<String, Object> highlight = new LinkedHashMap<>();
 			SEARCH_FIELDS.forEach(field -> highlight.put(field, Map.of()));
 
-			JsonNode hits = elasticsearchClient.search(indexManager.getIndexName(), Map.of(
-					"from", offset, "size", size, "track_total_hits", true,
-					"sort", List.of(Map.of("_score", "desc"), Map.of("date", "desc")),
-					"query", Map.of("bool", Map.of("must", Map.of("multi_match",
-							Map.of("query", query, "fields", SEARCH_FIELDS)), "filter", filters)),
-					"highlight", Map.of("fields", highlight, "pre_tags", List.of("<em>"), "post_tags", List.of("</em>"))
-			)).path("hits");
+			JsonNode hits = elasticsearchClient.search(
+					indexManager.getIndexName(),
+					Map.of(
+							"from", offset,
+							"size", size,
+							"track_total_hits", true,
+							"sort", List.of(
+									Map.of("_score", "desc"),
+									Map.of("date", "desc")
+							),
+							"query", Map.of(
+									"bool", Map.of(
+											"must", Map.of(
+													"multi_match", Map.of(
+															"query", query,
+															"fields", SEARCH_FIELDS
+													)
+											),
+											"filter", filters
+									)
+							),
+							"highlight", Map.of(
+									"fields", highlight,
+									"pre_tags", List.of("<em>"),
+									"post_tags", List.of("</em>")
+							)
+					)
+			).path("hits");
 
 			List<EntrySearchView> items = new ArrayList<>();
+
 			for (JsonNode hit : hits.path("hits")) {
 				String id = hit.path("_id").asString();
 				JsonNode source = hit.path("_source");
+
 				if (!source.isObject()) {
 					log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", id);
+
 					throw new IllegalStateException("Elasticsearch hit " + id + " has no source");
 				}
+
 				Map<String, List<String>> fragments = new LinkedHashMap<>();
-				hit.path("highlight").properties().forEach(field -> {
-					List<String> values = new ArrayList<>();
-					field.getValue().forEach(value -> values.add(value.asString()));
-					fragments.put(field.getKey(), values);
-				});
-				items.add(new EntrySearchView(id, LocalDate.parse(source.path("date").asString()), normalizeHighlights(fragments)));
+
+				hit.path("highlight").properties()
+						.forEach(field -> {
+							List<String> values = new ArrayList<>();
+							field.getValue().forEach(value -> values.add(value.asString()));
+							fragments.put(field.getKey(), values);
+						});
+				items.add(
+						new EntrySearchView(
+								id,
+								LocalDate.parse(source.path("date").asString()),
+								normalizeHighlights(fragments)
+						)
+				);
 			}
-			long total = hits.path("total").path("value").asLong(items.size());
-			return new EntrySearchPageView(List.copyOf(items), page, size, total);
+
+			long total = hits.path("total")
+					.path("value")
+					.asLong(items.size());
+
+			return new EntrySearchPageView(
+					List.copyOf(items),
+					page,
+					size,
+					total
+			);
 		} catch (IOException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		} catch (ElasticsearchException exception) {
@@ -91,12 +144,15 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		}
 	}
 
-	private Map<String, List<HighlightFragmentView>> normalizeHighlights(Map<String, List<String>> raw) {
+	private Map<String, List<HighlightFragmentView>> normalizeHighlights(
+			Map<String, List<String>> raw
+	) {
 		if (raw == null || raw.isEmpty()) {
 			return Map.of();
 		}
 
 		Map<String, List<HighlightFragmentView>> normalized = new LinkedHashMap<>();
+
 		raw.entrySet().stream()
 				.sorted(Map.Entry.comparingByKey())
 				.forEach(entry -> normalized.put(
