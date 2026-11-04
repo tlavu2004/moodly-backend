@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -37,22 +39,32 @@ final class RequestQuotaFilter extends OncePerRequestFilter {
 	}
 
 	@Override
-	protected boolean shouldNotFilter(HttpServletRequest request) {
+	protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
 		return EXEMPT.matches(request);
 	}
 
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-			throws ServletException, IOException {
-		if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken authentication
-				&& authentication.isAuthenticated()) {
+	protected void doFilterInternal(
+			@NonNull HttpServletRequest request,
+			@NonNull HttpServletResponse response,
+			@NonNull FilterChain chain
+	) throws ServletException, IOException {
+		if (
+				SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken authentication
+				&& authentication.isAuthenticated()
+		) {
 			String subject = authentication.getToken().getSubject();
 			if (subject != null && !subject.isBlank()) {
 				long retryAfter = quota.retryAfter(subject);
+
 				if (retryAfter > 0) {
 					response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(retryAfter));
-					SecurityConfiguration.writeError(response, objectMapper, GlobalErrorCode.RATE_LIMIT_EXCEEDED,
-							request.getRequestURI());
+					SecurityConfiguration.writeError(
+							response, objectMapper,
+							GlobalErrorCode.RATE_LIMIT_EXCEEDED,
+							request.getRequestURI()
+					);
+
 					return;
 				}
 			}

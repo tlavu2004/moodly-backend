@@ -13,10 +13,21 @@ final class RequestQuota {
 	private final Map<String, Integer> counts = new HashMap<>();
 	private long windowStart;
 
-	RequestQuota(int requests, int maxSubjects, Duration window, LongSupplier nanoTime) {
-		if (requests < 1 || maxSubjects < 1 || window.isZero() || window.isNegative()) {
+	RequestQuota(
+			int requests,
+			int maxSubjects,
+			Duration window,
+			LongSupplier nanoTime
+	) {
+		if (
+				requests < 1 ||
+				maxSubjects < 1 ||
+				window.isZero() ||
+				window.isNegative()
+		) {
 			throw new IllegalArgumentException("Rate limit requests, max subjects and window must be positive");
 		}
+
 		this.requests = requests;
 		this.maxSubjects = maxSubjects;
 		this.windowNanos = window.toNanos();
@@ -28,6 +39,7 @@ final class RequestQuota {
 	synchronized long retryAfter(String subject) {
 		long now = nanoTime.getAsLong();
 		long elapsed = now - windowStart;
+
 		if (elapsed >= windowNanos) {
 			counts.clear();
 			windowStart = now;
@@ -35,6 +47,7 @@ final class RequestQuota {
 		}
 
 		Integer count = counts.get(subject);
+
 		if (count == null && counts.size() < maxSubjects) {
 			counts.put(subject, 1);
 			return 0;
@@ -43,6 +56,7 @@ final class RequestQuota {
 			counts.put(subject, count + 1);
 			return 0;
 		}
+
 		return Math.ceilDiv(windowNanos - elapsed, 1_000_000_000L);
 	}
 }

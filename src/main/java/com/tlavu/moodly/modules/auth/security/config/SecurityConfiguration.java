@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -45,14 +47,19 @@ import static java.util.Objects.requireNonNullElse;
 @EnableWebSecurity
 public class SecurityConfiguration {
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+	SecurityFilterChain securityFilterChain(
+			HttpSecurity http,
+			ObjectMapper objectMapper,
 			Environment environment,
 			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority,
 			@Value("${moodly.rate-limit.enabled:false}") boolean rateLimitEnabled,
 			@Value("${moodly.rate-limit.requests:120}") int rateLimitRequests,
 			@Value("${moodly.rate-limit.window:60s}") Duration rateLimitWindow,
-			@Value("${moodly.rate-limit.max-subjects:10000}") int rateLimitMaxSubjects) {
-		boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
+			@Value("${moodly.rate-limit.max-subjects:10000}") int rateLimitMaxSubjects
+	) {
+		boolean production = environment.acceptsProfiles(
+			Profiles.of("prod", "production")
+		);
 		http.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -66,11 +73,19 @@ public class SecurityConfiguration {
 								"/v3/api-docs/**"
 						).permitAll()
 						.requestMatchers("/internal/cdc/**")
-								.access((authentication, context) -> new AuthorizationDecision(
-										!production || (authentication.get().isAuthenticated() &&
-												authentication.get().getAuthorities().stream()
-														.anyMatch(authority -> authority.getAuthority().equals(cdcAdminAuthority)))
-								))
+								.access(
+										(authentication, context) -> new AuthorizationDecision(
+												!production ||
+												(
+													Objects.requireNonNull(authentication.get()).isAuthenticated() &&
+													Objects.requireNonNull(authentication.get()).getAuthorities().stream()
+															.anyMatch(authority -> Objects.equals(
+																	authority.getAuthority(),
+																	cdcAdminAuthority
+															))
+												)
+										)
+								)
 						.anyRequest()
 						.authenticated()
 				)
@@ -110,10 +125,18 @@ public class SecurityConfiguration {
 						))
 				);
 		if (rateLimitEnabled) {
-			RequestQuota quota = new RequestQuota(rateLimitRequests, rateLimitMaxSubjects, rateLimitWindow,
-					System::nanoTime);
-			http.addFilterAfter(new RequestQuotaFilter(quota, objectMapper), AuthorizationFilter.class);
+			RequestQuota quota = new RequestQuota(
+					rateLimitRequests,
+					rateLimitMaxSubjects,
+					rateLimitWindow,
+					System::nanoTime
+			);
+			http.addFilterAfter(
+					new RequestQuotaFilter(quota, objectMapper),
+					AuthorizationFilter.class
+			);
 		}
+
 		return http.build();
 	}
 
@@ -144,7 +167,10 @@ public class SecurityConfiguration {
 						RequestIdFilter.HEADER
 				)
 		);
-		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER, HttpHeaders.RETRY_AFTER));
+		configuration.setExposedHeaders(List.of(
+				RequestIdFilter.HEADER,
+				HttpHeaders.RETRY_AFTER
+		));
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
