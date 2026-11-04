@@ -3,27 +3,31 @@
 compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f docker-compose.$(1).yml
 
 .PHONY: help
+define help_text
+Backend
+  make local-run / test-run               Run the backend against the selected stack
+  make local-build-run / test-build-run   Build before running the backend
+  make test-cdc-run                       Alias for test-run
+Tests and OpenAPI
+  make test                               Run Maven tests
+  make verify                             Run tests, build, and check coverage
+  make cdc-test                           Run CDC integration tests
+  make openapi                            Generate the OpenAPI contract
+Docker - replace STACK with local or test
+  make STACK-up                           Start the stack and wait for readiness
+  make STACK-start / STACK-await          Aliases for STACK-up
+  make STACK-stop                         Stop containers
+  make STACK-down                         Remove containers and the stack network
+  make STACK-clean                        Remove the stack and delete its data volumes
+  make STACK-status / STACK-logs          List containers or follow their logs
+  make STACK-replica-status               Check MongoDB replica state
+  make STACK-elasticsearch-status         Check Elasticsearch cluster health
+  make config-STACK                       Show resolved Compose configuration
+  make                                    Defaults to local-up
+endef
+
 help:
-	@echo Backend
-	@echo   make local-run / test-run               Run the backend against the selected stack
-	@echo   make local-build-run / test-build-run   Build before running the backend
-	@echo   make test-cdc-run                       Alias for test-run
-	@echo Tests and OpenAPI
-	@echo   make test                               Run Maven tests
-	@echo   make verify                             Run tests, build, and check coverage
-	@echo   make cdc-test                           Run CDC integration tests
-	@echo   make openapi                            Generate the OpenAPI contract
-	@echo Docker - replace STACK with local or test
-	@echo   make STACK-up                           Start the stack and wait for readiness
-	@echo   make STACK-start / STACK-await          Aliases for STACK-up
-	@echo   make STACK-stop                         Stop containers
-	@echo   make STACK-down                         Remove containers and the stack network
-	@echo   make STACK-clean                        Remove the stack and delete its data volumes
-	@echo   make STACK-status / STACK-logs          List containers or follow their logs
-	@echo   make STACK-replica-status               Check MongoDB replica state
-	@echo   make STACK-elasticsearch-status         Check Elasticsearch cluster health
-	@echo   make config-STACK                       Show resolved Compose configuration
-	@echo   make                                    Defaults to local-up
+	$(info $(help_text))
 
 
 # Backend and Maven entry points
