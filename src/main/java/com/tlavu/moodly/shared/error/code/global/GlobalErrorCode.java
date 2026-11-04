@@ -20,6 +20,7 @@ public enum GlobalErrorCode implements ErrorCode {
 	CONFLICT("CONFLICT", "The resource was changed by another request.", HttpStatus.CONFLICT),
 	UNAUTHORIZED("UNAUTHORIZED", "Authentication is required or the access token is invalid.", HttpStatus.UNAUTHORIZED),
 	FORBIDDEN("FORBIDDEN", "You are not allowed to perform this operation.", HttpStatus.FORBIDDEN),
+	RATE_LIMIT_EXCEEDED("RATE_LIMIT_EXCEEDED", "Too many requests.", HttpStatus.TOO_MANY_REQUESTS),
 	NOT_FOUND("NOT_FOUND", "The requested resource was not found.", HttpStatus.NOT_FOUND),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
 

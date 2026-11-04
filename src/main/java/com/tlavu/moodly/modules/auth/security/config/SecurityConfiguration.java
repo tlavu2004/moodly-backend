@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -32,6 +33,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -45,7 +47,11 @@ public class SecurityConfiguration {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
 			Environment environment,
-			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority) {
+			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority,
+			@Value("${moodly.rate-limit.enabled:false}") boolean rateLimitEnabled,
+			@Value("${moodly.rate-limit.requests:120}") int rateLimitRequests,
+			@Value("${moodly.rate-limit.window:60s}") Duration rateLimitWindow,
+			@Value("${moodly.rate-limit.max-subjects:10000}") int rateLimitMaxSubjects) {
 		boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
 		http.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
@@ -103,6 +109,11 @@ public class SecurityConfiguration {
 								request.getRequestURI()
 						))
 				);
+		if (rateLimitEnabled) {
+			RequestQuota quota = new RequestQuota(rateLimitRequests, rateLimitMaxSubjects, rateLimitWindow,
+					System::nanoTime);
+			http.addFilterAfter(new RequestQuotaFilter(quota, objectMapper), AuthorizationFilter.class);
+		}
 		return http.build();
 	}
 
@@ -133,7 +144,7 @@ public class SecurityConfiguration {
 						RequestIdFilter.HEADER
 				)
 		);
-		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
+		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER, HttpHeaders.RETRY_AFTER));
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
@@ -180,7 +191,7 @@ public class SecurityConfiguration {
 				);
 	}
 
-	private void writeError(
+	static void writeError(
 			HttpServletResponse response,
 			ObjectMapper objectMapper,
 			GlobalErrorCode errorCode,

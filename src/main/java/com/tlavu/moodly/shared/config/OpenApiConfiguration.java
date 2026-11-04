@@ -13,10 +13,12 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.examples.Example;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.BooleanSchema;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.DateTimeSchema;
+import io.swagger.v3.oas.models.media.IntegerSchema;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
@@ -126,6 +128,13 @@ public class OpenApiConfiguration {
 	}
 
 	private void addReusableErrorResponses(Components components) {
+		components.addResponses("TooManyRequests", errorResponse(
+				"The authenticated API quota or the instance subject capacity has been reached.",
+				GlobalErrorCode.RATE_LIMIT_EXCEEDED,
+				GlobalErrorCode.RATE_LIMIT_EXCEEDED.getDefaultMessage()
+		).addHeaderObject("Retry-After", new Header()
+				.description("Seconds until the quota window resets.")
+				.schema(new IntegerSchema().format("int64").minimum(java.math.BigDecimal.ONE))));
 		components.addResponses(
 				"BadRequest",
 				errorResponse(
@@ -251,8 +260,7 @@ public class OpenApiConfiguration {
 
 	private void addDefaultErrorResponses(OpenAPI openApi) {
 		openApi.getPaths()
-				.values()
-				.forEach(pathItem -> pathItem.readOperations()
+				.forEach((path, pathItem) -> pathItem.readOperations()
 						.forEach(operation -> {
 							ApiResponses responses = operation.getResponses();
 							responses.addApiResponse("400", reference("BadRequest"));
@@ -267,6 +275,9 @@ public class OpenApiConfiguration {
 								responses.addApiResponse("403", reference("Forbidden"));
 							}
 
+							if (!path.startsWith("/internal/")) {
+								responses.addApiResponse("429", reference("TooManyRequests"));
+							}
 							responses.addApiResponse("500", reference("InternalServerError"));
 						})
 				);
