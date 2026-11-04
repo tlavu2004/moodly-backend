@@ -27,6 +27,8 @@ import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,13 +130,23 @@ public class OpenApiConfiguration {
 	}
 
 	private void addReusableErrorResponses(Components components) {
-		components.addResponses("TooManyRequests", errorResponse(
-				"The authenticated API quota or the instance subject capacity has been reached.",
-				GlobalErrorCode.RATE_LIMIT_EXCEEDED,
-				GlobalErrorCode.RATE_LIMIT_EXCEEDED.getDefaultMessage()
-		).addHeaderObject("Retry-After", new Header()
-				.description("Seconds until the quota window resets.")
-				.schema(new IntegerSchema().format("int64").minimum(java.math.BigDecimal.ONE))));
+		components.addResponses(
+				"TooManyRequests",
+				errorResponse(
+						"The authenticated API quota or the instance subject capacity has been reached.",
+						GlobalErrorCode.RATE_LIMIT_EXCEEDED,
+						GlobalErrorCode.RATE_LIMIT_EXCEEDED.getDefaultMessage()
+				).addHeaderObject(
+						"Retry-After",
+						new Header()
+								.description("Seconds until the quota window resets.")
+								.schema(
+										new IntegerSchema()
+												.format("int64")
+												.minimum(BigDecimal.ONE)
+								)
+				)
+		);
 		components.addResponses(
 				"BadRequest",
 				errorResponse(
@@ -190,16 +202,86 @@ public class OpenApiConfiguration {
 						"Archived habits cannot receive new logs."
 				)
 		);
-		components.addResponses("HabitNotFound", errorResponse("Habit is missing or does not belong to this user.", HabitErrorCode.HABIT_NOT_FOUND, HabitErrorCode.HABIT_NOT_FOUND.getDefaultMessage()));
-		components.addResponses("HabitConflict", errorResponse("The habit version is stale.", HabitErrorCode.HABIT_CONFLICT, HabitErrorCode.HABIT_CONFLICT.getDefaultMessage()));
-		components.addResponses("HabitInvalidStatus", errorResponse("The habit status filter is invalid.", HabitErrorCode.HABIT_INVALID_STATUS, HabitErrorCode.HABIT_INVALID_STATUS.getDefaultMessage()));
-		components.addResponses("EntryInvalidRange", errorResponse("The entry date range or pagination is invalid.", EntryErrorCode.ENTRY_INVALID_RANGE, "The 'from' date must not be after the 'to' date."));
-		components.addResponses("StatsInvalidPeriod", errorResponse("The mood trend period is unsupported.", StatsErrorCode.STATS_INVALID_PERIOD, StatsErrorCode.STATS_INVALID_PERIOD.getDefaultMessage()));
-		components.addResponses("SearchInvalidRequest", errorResponse("The search query or pagination is invalid.", SearchErrorCode.SEARCH_INVALID_REQUEST, "The 'q' parameter must not be blank."));
-		components.addResponses("CdcMaintenanceForbidden", errorResponse("A valid maintenance key is required.", SearchErrorCode.CDC_MAINTENANCE_FORBIDDEN, SearchErrorCode.CDC_MAINTENANCE_FORBIDDEN.getDefaultMessage()));
-		components.addResponses("CdcDeadLetterNotFound", errorResponse("The CDC dead letter was not found.", SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND, SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND.getDefaultMessage()));
-		components.addResponses("E2eResetForbidden", errorResponse("A valid E2E reset token is required.", E2eErrorCode.E2E_RESET_FORBIDDEN, E2eErrorCode.E2E_RESET_FORBIDDEN.getDefaultMessage()));
-		components.addResponses("AvatarConflict", errorResponse("The avatar changed during this request.", AuthErrorCode.AVATAR_CONFLICT, AuthErrorCode.AVATAR_CONFLICT.getDefaultMessage()));
+		components.addResponses(
+				"HabitNotFound",
+				errorResponse(
+						"Habit is missing or does not belong to this user.",
+						HabitErrorCode.HABIT_NOT_FOUND,
+						HabitErrorCode.HABIT_NOT_FOUND.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"HabitConflict",
+				errorResponse(
+						"The habit version is stale.",
+						HabitErrorCode.HABIT_CONFLICT,
+						HabitErrorCode.HABIT_CONFLICT.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+			"HabitInvalidStatus",
+				errorResponse(
+					"The habit status filter is invalid.",
+					HabitErrorCode.HABIT_INVALID_STATUS,
+					HabitErrorCode.HABIT_INVALID_STATUS.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"EntryInvalidRange",
+				errorResponse(
+						"The entry date range or pagination is invalid.",
+						EntryErrorCode.ENTRY_INVALID_RANGE,
+						"The 'from' date must not be after the 'to' date."
+				)
+		);
+		components.addResponses(
+				"StatsInvalidPeriod",
+				errorResponse(
+						"The mood trend period is unsupported.",
+						StatsErrorCode.STATS_INVALID_PERIOD,
+						StatsErrorCode.STATS_INVALID_PERIOD.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"SearchInvalidRequest",
+				errorResponse(
+						"The search query or pagination is invalid.",
+						SearchErrorCode.SEARCH_INVALID_REQUEST,
+						"The 'q' parameter must not be blank."
+				)
+		);
+		components.addResponses(
+				"CdcMaintenanceForbidden",
+				errorResponse(
+						"A valid maintenance key is required.",
+						SearchErrorCode.CDC_MAINTENANCE_FORBIDDEN,
+						SearchErrorCode.CDC_MAINTENANCE_FORBIDDEN.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"CdcDeadLetterNotFound",
+				errorResponse(
+						"The CDC dead letter was not found.",
+						SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND,
+						SearchErrorCode.CDC_DEAD_LETTER_NOT_FOUND.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"E2eResetForbidden",
+				errorResponse(
+						"A valid E2E reset token is required.",
+						E2eErrorCode.E2E_RESET_FORBIDDEN,
+						E2eErrorCode.E2E_RESET_FORBIDDEN.getDefaultMessage()
+				)
+		);
+		components.addResponses(
+				"AvatarConflict",
+				errorResponse(
+						"The avatar changed during this request.",
+						AuthErrorCode.AVATAR_CONFLICT,
+						AuthErrorCode.AVATAR_CONFLICT.getDefaultMessage()
+				)
+		);
 		components.addResponses(
 				"AvatarUploadNotFound",
 				errorResponse(
@@ -263,6 +345,7 @@ public class OpenApiConfiguration {
 				.forEach((path, pathItem) -> pathItem.readOperations()
 						.forEach(operation -> {
 							ApiResponses responses = operation.getResponses();
+
 							responses.addApiResponse("400", reference("BadRequest"));
 							responses.addApiResponse("405", reference("MethodNotAllowed"));
 							responses.addApiResponse("406", reference("NotAcceptable"));
@@ -278,6 +361,7 @@ public class OpenApiConfiguration {
 							if (!path.startsWith("/internal/")) {
 								responses.addApiResponse("429", reference("TooManyRequests"));
 							}
+
 							responses.addApiResponse("500", reference("InternalServerError"));
 						})
 				);
@@ -308,25 +392,83 @@ public class OpenApiConfiguration {
 	}
 
 	private void addModuleErrorResponses(OpenAPI openApi) {
-		addResponse(openApi, "/habits", PathItem.HttpMethod.GET, "400", "HabitInvalidStatus");
-		addResponse(openApi, "/entries", PathItem.HttpMethod.GET, "400", "EntryInvalidRange");
-		addResponse(openApi, "/stats/mood-trend", PathItem.HttpMethod.GET, "400", "StatsInvalidPeriod");
-		addResponse(openApi, "/entries/search", PathItem.HttpMethod.GET, "400", "SearchInvalidRequest");
-		addResponse(openApi, "/me/avatar/confirm", PathItem.HttpMethod.POST, "409", "AvatarConflict");
-		addResponse(openApi, "/me/avatar", PathItem.HttpMethod.DELETE, "409", "AvatarConflict");
-		addResponse(openApi, "/internal/e2e/reset", PathItem.HttpMethod.POST, "403", "E2eResetForbidden");
+		addResponse(
+				openApi,
+				"/habits",
+				PathItem.HttpMethod.GET,
+				"400",
+				"HabitInvalidStatus"
+		);
+		addResponse(
+				openApi,
+				"/entries",
+				PathItem.HttpMethod.GET,
+				"400",
+				"EntryInvalidRange"
+		);
+		addResponse(
+				openApi,
+				"/stats/mood-trend",
+				PathItem.HttpMethod.GET,
+				"400",
+				"StatsInvalidPeriod"
+		);
+		addResponse(
+				openApi,
+				"/entries/search",
+				PathItem.HttpMethod.GET,
+				"400",
+				"SearchInvalidRequest"
+		);
+		addResponse(
+				openApi,
+				"/me/avatar/confirm",
+				PathItem.HttpMethod.POST,
+				"409",
+				"AvatarConflict"
+		);
+		addResponse(
+				openApi,
+				"/me/avatar",
+				PathItem.HttpMethod.DELETE,
+				"409",
+				"AvatarConflict"
+		);
+		addResponse(
+				openApi,
+				"/internal/e2e/reset",
+				PathItem.HttpMethod.POST,
+				"403",
+				"E2eResetForbidden"
+		);
+
 		openApi.getPaths().forEach((path, item) -> {
 			if (path.startsWith("/internal/cdc")) {
-				item.readOperations().forEach(operation -> operation.getResponses()
-						.addApiResponse("403", reference("CdcMaintenanceForbidden")));
+				item.readOperations()
+						.forEach(operation -> operation.getResponses()
+								.addApiResponse(
+										"403",
+										reference("CdcMaintenanceForbidden")
+								)
+						);
 			}
 		});
 	}
 
-	private void addResponse(OpenAPI openApi, String path, PathItem.HttpMethod method, String status, String component) {
+	private void addResponse(
+		OpenAPI openApi,
+		String path,
+		PathItem.HttpMethod method,
+		String status,
+		String component
+	) {
 		PathItem item = openApi.getPaths().get(path);
+
 		if (item != null && item.readOperationsMap().containsKey(method)) {
-			item.readOperationsMap().get(method).getResponses().addApiResponse(status, reference(component));
+			item.readOperationsMap()
+					.get(method)
+					.getResponses()
+					.addApiResponse(status, reference(component));
 		}
 	}
 
