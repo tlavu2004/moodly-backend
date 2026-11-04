@@ -76,7 +76,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    make local-replica-status
    ```
 
-   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data` Docker volume.
+   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data-oss7` Docker volume.
 
 3. Run the application:
 
@@ -88,7 +88,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    stop the local stack and keep its containers and volumes. Use `make local-up`
    to start the services independently, then `make local-stop` when finished.
 
-   On startup, Moodly creates `daily_entries_search` only when it does not already exist. The mapping is deliberately not mutated at startup, so mapping changes remain an explicit migration decision.
+   On startup, Moodly creates `daily_entries_search` when it is missing. Existing mappings require an explicit migration.
 
    Verify the cluster, index, and mapping after the application has started:
 
@@ -98,7 +98,7 @@ Before starting the Phase 3 backend, configure the hosted development services a
    curl http://localhost:9200/daily_entries_search/_mapping?pretty
    ```
 
-   On its first start without a checkpoint, the Change Stream listener rebuilds the derived index from MongoDB before listening for changes. It resumes from its MongoDB-stored checkpoint after a restart. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+   The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
 
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/reindex \
@@ -146,6 +146,35 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 ### Habit streak query cost
 
 `GET /habits/{habitId}/streak` reads the authenticated user's entries on or before today for each requested habit. The frontend currently calls it once per active habit, in parallel. This repeated history read is accepted for small habit lists; a future summary endpoint should calculate all streaks from one history read if staging latency or habit counts exceed the frontend README's temporary threshold.
+
+## Elasticsearch OSS 7.10.2
+
+Both Compose stacks pin the official Elasticsearch OSS 7.10.2 image. The backend
+uses the JSON REST endpoints for index management, document CRUD, search,
+refresh and the development E2E reset. The dedicated `-oss7` volumes allow
+Elasticsearch to build fresh indexes from MongoDB. Keep any older Elasticsearch
+volume available for rollback and mount it only with its original engine version.
+
+For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user
+information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately
+in the hosting environment for Basic authentication. Local Compose binds the
+unauthenticated Elasticsearch port to loopback. MongoDB remains authoritative.
+
+The Searchly Starter dashboard reported a 20 MB allowance and its root endpoint
+reported Elasticsearch OSS 7.10.2. Compose verifies upstream OSS behavior.
+Before using Searchly from Render, confirm the actual quota, credentials,
+supported endpoints (including index create/delete, refresh and cluster health),
+and behavior when the index is missing. Check capacity for a full rebuild
+including index overhead. Searchly traffic, permissions and limits require
+a separate smoke test against the provisioned account.
+
+When Render stops the application, CDC pauses. On restart, it resumes from
+MongoDB's checkpoint if the index exists and the token is still valid. A missing
+index or expired change-stream history triggers a rebuild from MongoDB. For index
+loss during uptime, monitor search errors and CDC dead letters, rebuild via the
+maintenance endpoint and replay pending failures. The Compose server disables
+automatic index creation. Confirm Searchly's behavior so a write cannot silently
+create an empty projection with a different mapping.
 
 ## Test
 
