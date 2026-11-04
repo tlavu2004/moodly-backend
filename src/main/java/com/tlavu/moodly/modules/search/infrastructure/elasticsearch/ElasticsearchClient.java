@@ -103,8 +103,17 @@ public class ElasticsearchClient implements AutoCloseable {
 	}
 
 	public void deleteByUser(String index, String userId) throws IOException {
-		var result = request("POST", path(index) + "/_delete_by_query?refresh=true",
-				Map.of("query", Map.of("term", Map.of("userId", userId))));
+		String endpoint = path(index) + "/_delete_by_query?refresh=true";
+		var query = Map.of("query", Map.of("term", Map.of("userId", userId)));
+		JsonNode result;
+		try {
+			result = request("POST", endpoint, query);
+		} catch (ElasticsearchException conflict) {
+			if (conflict.status() != 409) throw conflict;
+			// CDC can update a document after delete-by-query takes its snapshot.
+			refresh(index);
+			result = request("POST", endpoint, query);
+		}
 		if (result.path("timed_out").asBoolean() || !result.path("failures").isEmpty()) {
 			throw new IOException("Elasticsearch delete-by-query did not complete");
 		}

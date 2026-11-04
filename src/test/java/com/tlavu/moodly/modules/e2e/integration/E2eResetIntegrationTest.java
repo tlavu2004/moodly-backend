@@ -2,13 +2,18 @@ package com.tlavu.moodly.modules.e2e.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
@@ -56,6 +61,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 @Import({MongoTestConfiguration.class, ElasticsearchTestConfiguration.class})
 class E2eResetIntegrationTest {
+
 	private static final String TEST_E2E_USER_ID = "synthetic|moodly-playwright-e2e";
 
 	@Autowired
@@ -64,7 +70,7 @@ class E2eResetIntegrationTest {
 	private DailyEntryRepository dailyEntryRepository;
 	@Autowired
 	private HabitRepository habitRepository;
-	@Autowired
+	@MockitoSpyBean
 	private ElasticsearchClient elasticsearchClient;
 	@Autowired
 	private DailyEntrySearchIndexManager indexManager;
@@ -138,6 +144,46 @@ class E2eResetIntegrationTest {
 		postReset = cdcSearchTestSupport.save(postReset);
 		cdcSearchTestSupport.awaitIndexed(postReset.getId());
 	}
+
+	@Test
+	void refreshesAndRetriesResetAfterElasticsearchConflict() throws Exception {
+		listener.stop();
+		doThrow(new ElasticsearchException(409)).doCallRealMethod()
+				.when(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.searchIndexing").value("verified"));
+
+		assertDeleteRetriedAfterRefresh();
+	}
+
+	@Test
+	void returnsServiceUnavailableWhenElasticsearchConflictPersists() throws Exception {
+		listener.stop();
+		doThrow(new ElasticsearchException(409))
+				.when(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+
+		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"));
+
+		assertDeleteRetriedAfterRefresh();
+	}
+
+	private String deleteByUserPath() {
+		return "/" + indexManager.getIndexName() + "/_delete_by_query?refresh=true";
+	}
+
+	private void assertDeleteRetriedAfterRefresh() throws IOException {
+		var order = inOrder(elasticsearchClient);
+		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+		order.verify(elasticsearchClient).refresh(indexManager.getIndexName());
+		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+		verify(elasticsearchClient, times(2))
+				.request(eq("POST"), eq(deleteByUserPath()), any());
+	}
+
 
 	@Test
 	void returnsServiceUnavailableWhenIndexingFails() throws Exception {
