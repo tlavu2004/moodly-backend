@@ -53,7 +53,7 @@ final class ComposeTestEnvironment {
 
 	private ComposeTestEnvironment() {
 		String envFile = System.getenv().getOrDefault("MOODLY_TEST_ENV_FILE",
-				Files.exists(Path.of(".env.test")) ? ".env.test" : "config/docker-test.env");
+				Files.exists(Path.of(".env.test")) ? ".env.test" : ".env.test.example");
 		compose = List.of("docker", "compose", "-p", "moodly-test", "--env-file", envFile, "-f", "docker-compose.test.yml");
 		try {
 			Files.createDirectories(Path.of("target"));
