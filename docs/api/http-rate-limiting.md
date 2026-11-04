@@ -2,11 +2,11 @@
 
 The optional limiter gives each authenticated Auth0 subject a shared quota across the client API on each backend instance. It uses the verified JWT `sub` (the same identifier used by `CurrentUser`) under the configured single issuer. Renewing a token keeps the same quota. Spring Security authenticates the token and makes its URL authorization decision before the limiter runs. Requests that reach the limiter count even if MVC later returns a validation error or a missing resource.
 
-| Render environment variable | Default | Purpose |
-| --- | --- | --- |
-| `MOODLY_RATE_LIMIT_ENABLED` | `false` | Enable after staging validation |
-| `MOODLY_RATE_LIMIT_REQUESTS` | `120` | Requests per subject in one window |
-| `MOODLY_RATE_LIMIT_WINDOW` | `60s` | Fixed window duration |
+| Render environment variable      | Default | Purpose                              |
+|----------------------------------|---------|--------------------------------------|
+| `MOODLY_RATE_LIMIT_ENABLED`      | `false` | Enable after staging validation      |
+| `MOODLY_RATE_LIMIT_REQUESTS`     | `120`   | Requests per subject in one window   |
+| `MOODLY_RATE_LIMIT_WINDOW`       | `60s`   | Fixed window duration                |
 | `MOODLY_RATE_LIMIT_MAX_SUBJECTS` | `10000` | Maximum subject counters per process |
 
 The first request after expiry starts the next instance-wide window and clears all counters. Bursts can span two adjacent windows. At capacity, new subjects receive 429 until the window resets. Tracked subjects can still use their remaining quota. A restart, redeploy or replacement instance starts with empty counters. With multiple instances, each counts independently and a caller can consume quota on each. Review a shared store if a service-wide quota becomes a requirement. The current implementation uses process memory and needs no additional service.

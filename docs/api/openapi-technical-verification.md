@@ -1,21 +1,21 @@
-# Việc cần làm: kiểm tra kỹ thuật hợp đồng OpenAPI
+# Follow-up task for technical verification of the OpenAPI contract
 
-## Hiện tại CI bảo đảm điều gì?
+## What does CI currently guarantee?
 
-`src/main/resources/scripts/openapi/generate-openapi.sh` chạy ứng dụng với profile `docs`, lấy `/v3/api-docs` và ghi vào `docs/api/moodly-openapi.json`. Trong `.github/workflows/ci.yml`, CI kiểm tra file đọc được dưới dạng JSON, có phiên bản OpenAPI 3 và có `paths`; sau đó dùng `git diff --exit-code` để so bản vừa sinh với bản đã commit. Bước này phát hiện **tài liệu chưa được cập nhật theo code**, không xác nhận mọi schema đều mô tả đúng response thực tế.
+`src/main/resources/scripts/openapi/generate-openapi.sh` runs the application with the `docs` profile, fetches `/v3/api-docs`, and writes it to `docs/api/moodly-openapi.json`. In `.github/workflows/ci.yml`, CI checks that the file parses as JSON, declares an OpenAPI 3 version, and contains `paths`. It then uses `git diff --exit-code` to compare the generated document with the committed version. This step catches **documentation that is out of sync with the code**. Verifying that every schema accurately describes the actual response requires a separate check.
 
-`ApiIntegrationTest` đã kiểm tra một số chi tiết của `/v3/api-docs` và các HTTP response, nhưng chưa đối chiếu chúng một cách tổng quát.
+`ApiIntegrationTest` already checks some details of `/v3/api-docs` and HTTP responses. A general comparison between the two is still missing.
 
-## Bổ sung ở lượt refactor sau
+## Additions for the next refactor
 
-1. **Kiểm tra tài liệu OpenAPI:** dùng công cụ hiểu OpenAPI 3.1 để kiểm tra cấu trúc và giải được tất cả `$ref` nội bộ. Khi sai, CI cần chỉ ra vị trí tham chiếu và đích bị thiếu. Việc JSON parse được và có `paths` chưa đủ.
-2. **Đối chiếu với HTTP thực tế:** với các endpoint và trường hợp đại diện, gọi API qua integration test, rồi kiểm tra status, content type và JSON body theo response schema OpenAPI tương ứng. Bao gồm response thành công, lỗi validation/xác thực và các trường nullable hoặc envelope dùng chung. Ghi rõ những endpoint/trường hợp được bao phủ; một vài mẫu response không chứng minh mọi giá trị runtime đều đúng.
-3. **Kiểm tra tính ổn định của quá trình sinh:** sinh tài liệu hai lần trong cùng môi trường CI từ cùng revision và so sánh kết quả sau chuẩn hóa. Nếu khác nhau, sửa nguồn gây thứ tự hoặc giá trị không ổn định trong generator; không cập nhật snapshot để che sự khác biệt. Tiếp tục giữ bước so bản sinh ra với file đã commit để kiểm tra tính cập nhật.
+1. **Validate the OpenAPI document.** Use an OpenAPI 3.1-aware tool to validate its structure and resolve all internal `$ref` references. On failure, CI should identify the reference location and the missing target. Successful JSON parsing and the presence of `paths` are only preliminary checks.
+2. **Check against actual HTTP responses.** For representative endpoints and scenarios, call the API through integration tests, then validate the status, content type, and JSON body against the corresponding OpenAPI response schema. Cover successful responses, validation and authentication errors, nullable fields, and shared envelopes. Document which endpoints and scenarios are covered. The results apply to the sampled responses.
+3. **Check generation stability.** Generate the document twice in the same CI environment from the same revision and compare the results after normalization. If they differ, fix the source of unstable ordering or values in the generator. Updating the snapshot would mask the difference. Keep comparing the generated document with the committed file to check that it is up to date.
 
-## Điều kiện hoàn thành
+## Completion criteria
 
-- Ba kiểm tra trên chạy trong CI và có thông báo lỗi đủ rõ để tìm đến schema, endpoint hoặc phần sinh tài liệu gây sai lệch.
-- Chạy lại nhiều lần từ cùng revision cho kết quả giống nhau; test đối chiếu HTTP chứng minh các trường hợp đã chọn khớp schema.
-- Giữ quy trình hiện tại: khi code ảnh hưởng OpenAPI, chạy script sinh tài liệu, review diff và commit `docs/api/moodly-openapi.json` cùng code.
+- All three checks run in CI and report failures clearly enough to locate the schema, endpoint, or generation step that caused the mismatch.
+- Repeated runs from the same revision produce identical results, and the HTTP conformance tests confirm that the selected cases match their schemas.
+- Keep the existing workflow. When a code change affects OpenAPI, run the generation script, review the diff, and commit `docs/api/moodly-openapi.json` alongside the code change.
 
-Đây là việc **kiểm tra tính đúng đắn kỹ thuật**, chưa đánh giá quy tắc nghiệp vụ hay quyết định API có phù hợp sản phẩm hay không.
+The scope is **technical correctness**. Evaluating business rules and whether API decisions meet product needs is a separate review.
