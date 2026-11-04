@@ -1,6 +1,6 @@
 # Exception review before production
 
-This is a historical audit. The current contract and implementation rules are in [Moodly Exception Standard](blueprint/exception-standardization-blueprint.md).
+This is a historical audit. The current contract and implementation rules are in [Moodly Exception Standard](../blueprint/exception-standardization-blueprint.md).
 
 ## HTTP contract
 
