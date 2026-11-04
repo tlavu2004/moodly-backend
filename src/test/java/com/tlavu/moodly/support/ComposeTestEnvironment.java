@@ -22,6 +22,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 /** One Compose stack per test JVM; its configured test database/index are disposable. */
 final class ComposeTestEnvironment {
+	private static final int MAX_MONGO_PING_ATTEMPTS = 60;
 	private static ComposeTestEnvironment instance;
 	private final List<String> compose;
 	private final Map<String, String> settings = new LinkedHashMap<>();
@@ -80,7 +81,7 @@ final class ComposeTestEnvironment {
 		}
 		command(null, "up", "-d", "mongodb", "elasticsearch");
 		boolean ready = false;
-		for (int attempt = 0; attempt < 60; attempt++) {
+		for (int attempt = 0; attempt < MAX_MONGO_PING_ATTEMPTS; attempt++) {
 			try {
 				command(null, "exec", "-T", "mongodb", "sh", "-c",
 						"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");

@@ -20,7 +20,8 @@ compose=(docker compose -p "moodly-$mode" --env-file ".env.$mode" -f "docker-com
 # PRIMARY health requires initialization first, so do not use --wait here.
 "${compose[@]}" up -d mongodb elasticsearch
 ready=false
-for ((attempt=1; attempt<=60; attempt++)); do
+readonly max_mongo_ping_attempts=60
+for ((attempt=1; attempt<=max_mongo_ping_attempts; attempt++)); do
   if "${compose[@]}" exec -T mongodb sh -c \
     'mongosh --quiet --host 127.0.0.1 --port "$MONGODB_CONTAINER_PORT" --eval "quit(db.adminCommand({ping: 1}).ok ? 0 : 1)"' >/dev/null 2>&1; then
     ready=true

@@ -33,6 +33,7 @@ import org.springframework.dao.DuplicateKeyException;
 @Slf4j
 @Service
 public class AvatarService {
+	private static final int MAX_AVATAR_WRITE_ATTEMPTS = 5;
 	private static final long MAX_BYTES = 5L * 1024 * 1024;
 	private static final long SIGNATURE_TTL_SECONDS = 3600;
 	private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
@@ -146,7 +147,7 @@ public class AvatarService {
 			throw AvatarException.invalidMetadata();
 		}
 
-		for (int attempt = 0; attempt < 5; attempt++) {
+		for (int attempt = 0; attempt < MAX_AVATAR_WRITE_ATTEMPTS; attempt++) {
 			UserProfile profile = profiles.findByAuth0Subject(subject)
 					.orElseThrow(AvatarProfileMissingException::new);
 			String previousPublicId = profile.getAvatarPublicId();
@@ -173,7 +174,7 @@ public class AvatarService {
 	}
 
 	public AvatarView delete() {
-		for (int attempt = 0; attempt < 5; attempt++) {
+		for (int attempt = 0; attempt < MAX_AVATAR_WRITE_ATTEMPTS; attempt++) {
 			UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
 			if (profile == null || profile.getAvatarPublicId() == null) {
 				return new AvatarView(null, null, null, null);

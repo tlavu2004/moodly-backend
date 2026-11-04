@@ -31,6 +31,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 @Import(MongoTestConfiguration.class)
 class DailyEntryConcurrencyIntegrationTest {
+	private static final int FIRST_WRITE_RACE_ROUNDS = 10;
+	private static final int ARCHIVE_RACE_ROUNDS = 5;
 	private static final String USER = "__test_concurrent_entry__";
 	@Autowired
 	private DailyEntryService service;
@@ -55,7 +57,7 @@ class DailyEntryConcurrencyIntegrationTest {
 
 	@Test
 	void concurrentFirstMoodAndHabitWritesPreserveBothChanges() throws Exception {
-		for (int round = 0; round < 10; round++) {
+		for (int round = 0; round < FIRST_WRITE_RACE_ROUNDS; round++) {
 			LocalDate date = LocalDate.of(2026, 8, 1).plusDays(round);
 			runTogether(
 					() -> service.setMood(USER, date, new SetMoodInput(4, List.of("calm"), "Good")),
@@ -82,7 +84,7 @@ class DailyEntryConcurrencyIntegrationTest {
 
 	@Test
 	void archiveAndNewLogRaceHasOnlyAcceptedOrArchivedOutcomes() throws Exception {
-		for (int round = 0; round < 5; round++) {
+		for (int round = 0; round < ARCHIVE_RACE_ROUNDS; round++) {
 			String habitId = "race-" + round;
 			LocalDate date = LocalDate.of(2026, 10, 1).plusDays(round);
 			habitRepository.save(new Habit(habitId, USER, "Race", "run", TargetFrequency.DAILY, true));
