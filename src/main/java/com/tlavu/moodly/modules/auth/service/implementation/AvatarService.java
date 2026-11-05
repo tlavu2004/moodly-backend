@@ -1,6 +1,10 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.modules.auth.exception.AvatarCleanupTaskException;
+
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
+
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
@@ -33,6 +37,7 @@ import org.springframework.dao.DuplicateKeyException;
 @Slf4j
 @Service
 public class AvatarService {
+	private static final int MAX_AVATAR_WRITE_ATTEMPTS = 5;
 	private static final long MAX_BYTES = 5L * 1024 * 1024;
 	private static final long SIGNATURE_TTL_SECONDS = 3600;
 	private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
@@ -146,21 +151,33 @@ public class AvatarService {
 			throw AvatarException.invalidMetadata();
 		}
 
-		for (int attempt = 0; attempt < 5; attempt++) {
+		for (int attempt = 0; attempt < MAX_AVATAR_WRITE_ATTEMPTS; attempt++) {
 			UserProfile profile = profiles.findByAuth0Subject(subject)
 					.orElseThrow(AvatarProfileMissingException::new);
 			String previousPublicId = profile.getAvatarPublicId();
-			PendingAssetDeletion obsolete = previousPublicId != null && !previousPublicId.equals(asset.publicId())
-					? queueObsoleteAsset(previousPublicId)
-					: null;
-			profile.replaceAvatar(asset.publicId(), asset.version(), asset.contentType(), asset.sizeBytes(), Instant.now());
+			PendingAssetDeletion obsolete = previousPublicId != null &&
+					!previousPublicId.equals(asset.publicId())
+							? queueObsoleteAsset(previousPublicId)
+							: null;
+
+			profile.replaceAvatar(
+					asset.publicId(),
+					asset.version(),
+					asset.contentType(),
+					asset.sizeBytes(),
+					Instant.now()
+			);
+
 			if (!avatarProfileWriter.replaceIfCurrent(profile, previousPublicId)) {
 				continue;
 			}
+
 			pendingUploads.delete(pending);
+
 			if (obsolete != null) {
 				deleteObsoleteAsset(obsolete);
 			}
+
 			return avatar(profile);
 		}
 		throw AvatarException.conflict();
@@ -173,34 +190,48 @@ public class AvatarService {
 	}
 
 	public AvatarView delete() {
-		for (int attempt = 0; attempt < 5; attempt++) {
-			UserProfile profile = profiles.findByAuth0Subject(currentUser.id()).orElse(null);
+		for (int attempt = 0; attempt < MAX_AVATAR_WRITE_ATTEMPTS; attempt++) {
+			UserProfile profile = profiles.findByAuth0Subject(currentUser.id())
+					.orElse(null);
+
 			if (profile == null || profile.getAvatarPublicId() == null) {
 				return new AvatarView(null, null, null, null);
 			}
+
 			String previousPublicId = profile.getAvatarPublicId();
 			PendingAssetDeletion obsolete = queueObsoleteAsset(previousPublicId);
 			profile.clearAvatar(Instant.now());
+
 			if (!avatarProfileWriter.clearIfCurrent(profile, previousPublicId)) {
 				continue;
 			}
+
 			deleteObsoleteAsset(obsolete);
+
 			return new AvatarView(null, null, null, null);
 		}
 		throw AvatarException.conflict();
 	}
 
 	private PendingAssetDeletion queueObsoleteAsset(String publicId) {
-		return pendingDeletions.findByPublicId(publicId).orElseGet(() -> {
-			PendingAssetDeletion pending = new PendingAssetDeletion(publicId, Instant.now().plusSeconds(60));
-			try {
-				pendingDeletions.save(pending);
-				return pending;
-			} catch (DuplicateKeyException race) {
-				return pendingDeletions.findByPublicId(publicId)
-						.orElseThrow(() -> new IllegalStateException(
-								"Avatar cleanup task collided without a task for the same asset", race));
-			}
+		return pendingDeletions.findByPublicId(publicId)
+				.orElseGet(() -> {
+					PendingAssetDeletion pending = new PendingAssetDeletion(
+							publicId,
+							Instant.now().plusSeconds(60)
+					);
+
+					try {
+						pendingDeletions.save(pending);
+
+						return pending;
+					} catch (DuplicateKeyException race) {
+						return pendingDeletions.findByPublicId(publicId)
+								.orElseThrow(() -> new AvatarCleanupTaskException(
+										"Avatar cleanup task collided without a task for the same asset"
+										, race
+								));
+					}
 		});
 	}
 
@@ -209,6 +240,7 @@ public class AvatarService {
 			if (profiles.existsByAvatarPublicId(pending.getPublicId())) {
 				return;
 			}
+
 			cloudinary.deleteImage(pending.getPublicId());
 			pendingDeletions.delete(pending);
 		} catch (RuntimeException exception) {
@@ -217,32 +249,42 @@ public class AvatarService {
 				pendingDeletions.save(pending);
 
 				if (exception instanceof AvatarAssetDeletionException) {
-					log.warn("Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+					log.warn(
+							"Cloudinary avatar cleanup queued after profile persistence: pendingId={}, cause={}",
+							pending.getId(),
+							ExceptionLogSummary.of(exception)
+					);
 				} else {
-					log.error("Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(exception));
+					log.error(
+							"Unexpected Cloudinary avatar cleanup failure queued after profile persistence: pendingId={}, cause={}",
+							pending.getId(),
+							ExceptionLogSummary.of(exception)
+					);
 				}
 			} catch (RuntimeException schedulingException) {
 				schedulingException.addSuppressed(exception);
-				log.error("Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(schedulingException));
+
+				log.error(
+						"Cloudinary avatar cleanup could not be queued after profile persistence: pendingId={}, cause={}",
+						pending.getId(),
+						ExceptionLogSummary.of(schedulingException)
+				);
 			}
 		}
 	}
 
 	private AvatarView avatar(UserProfile profile) {
 		if (profile.getAvatarPublicId() == null || profile.getAvatarVersion() == null) {
-			return new AvatarView(
-						null,
-						null,
-						null,
-						null
-				);
+			return new AvatarView(null, null, null, null);
 		}
 
 		return new AvatarView(
 				profile.getAvatarPublicId(),
 				profile.getAvatarContentType(),
 				profile.getAvatarSizeBytes(),
-				"https://res.cloudinary.com/" + cloudName + "/image/upload/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v" + profile.getAvatarVersion() + "/" + profile.getAvatarPublicId()
+				"https://res.cloudinary.com/" + cloudName +
+						"/image/upload/c_fill,g_auto,h_256,w_256,f_auto,q_auto/v" + profile.getAvatarVersion() +
+						"/" + profile.getAvatarPublicId()
 		);
 	}
 
@@ -260,7 +302,7 @@ public class AvatarService {
 					.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(value.getBytes(StandardCharsets.UTF_8)));
 		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(e);
+			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", e);
 		}
 	}
 }

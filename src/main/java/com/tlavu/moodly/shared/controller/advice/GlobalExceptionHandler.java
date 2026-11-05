@@ -4,7 +4,7 @@ import com.tlavu.moodly.shared.controller.dto.error.ApiError;
 import com.tlavu.moodly.shared.controller.dto.error.FieldErrorResponse;
 import com.tlavu.moodly.shared.controller.dto.response.ApiResponse;
 import com.tlavu.moodly.shared.error.code.contract.ErrorCode;
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.error.exception.base.ApplicationException;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
-@SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
+// Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -113,7 +113,10 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+	@ExceptionHandler({
+			MissingServletRequestParameterException.class,
+			MethodArgumentTypeMismatchException.class
+	})
 	ResponseEntity<ApiResponse<Void>> handleInvalidParameter(
 			Exception exception,
 			HttpServletRequest request
@@ -191,7 +194,10 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+	@ExceptionHandler({
+			NoHandlerFoundException.class,
+			NoResourceFoundException.class
+	})
 	ResponseEntity<ApiResponse<Void>> handleMissingEndpoint(
 			Exception exception,
 			HttpServletRequest request
@@ -260,7 +266,11 @@ public class GlobalExceptionHandler {
 				.body(ApiResponse.error(error));
 	}
 
-	private void logByStatus(ErrorCode code, HttpServletRequest request, Throwable exception) {
+	private void logByStatus(
+			ErrorCode code,
+			HttpServletRequest request,
+			Throwable exception
+	) {
 		if (code.getStatus().is5xxServerError()) {
 			log.error(
 					"Unexpected request failure at {}: method={}, status={}, code={}, cause={}",

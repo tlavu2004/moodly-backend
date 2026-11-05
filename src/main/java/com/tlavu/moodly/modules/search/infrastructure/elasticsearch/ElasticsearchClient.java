@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.ElasticsearchConfigurationException;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,7 +21,9 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class ElasticsearchClient implements AutoCloseable {
 	private final HttpClient http = HttpClient.newBuilder()
-			.connectTimeout(Duration.ofSeconds(3)).version(HttpClient.Version.HTTP_1_1).build();
+			.connectTimeout(Duration.ofSeconds(3))
+			.version(HttpClient.Version.HTTP_1_1)
+			.build();
 	private final ObjectMapper json;
 	private final String base;
 	private final String authorization;
@@ -30,97 +34,207 @@ public class ElasticsearchClient implements AutoCloseable {
 			@Value("${spring.elasticsearch.password:}") String password) {
 		this.json = json;
 		URI uri = URI.create(endpoint);
-		if (uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
-				|| !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))) {
-			throw new IllegalArgumentException("Elasticsearch requires one HTTP(S) endpoint without embedded credentials");
+
+		if (
+				uri.getHost() == null ||
+				uri.getUserInfo() != null ||
+				uri.getQuery() != null ||
+				uri.getFragment() != null ||
+				!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
+		) {
+			throw new ElasticsearchConfigurationException(
+					"Elasticsearch requires one HTTP(S) endpoint without embedded credentials"
+			);
 		}
-		if (username.isEmpty() != password.isEmpty() || (!username.isEmpty() && !"https".equals(uri.getScheme()))) {
-			throw new IllegalArgumentException("Elasticsearch Basic authentication requires HTTPS and both credentials");
+		if (
+				username.isEmpty() != password.isEmpty() ||
+				(!username.isEmpty() && !"https".equals(uri.getScheme()))
+		) {
+			throw new ElasticsearchConfigurationException(
+					"Elasticsearch Basic authentication requires HTTPS and both credentials"
+			);
 		}
+
 		base = endpoint.replaceAll("/+$", "");
-		authorization = username.isEmpty() ? null : "Basic " + Base64.getEncoder()
-				.encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+		authorization = username.isEmpty()
+				? null
+				: "Basic " + Base64.getEncoder()
+						.encodeToString(
+							(username + ":" + password).getBytes(StandardCharsets.UTF_8)
+						);
 	}
 
-	public JsonNode request(String method, String path, Object payload) throws IOException {
+	public JsonNode request(
+			String method,
+			String path,
+			Object payload
+	) {
 		return request(method, path, payload, false);
 	}
 
-	private JsonNode request(String method, String path, Object payload, boolean allowMissing) throws IOException {
-		var body = payload == null ? HttpRequest.BodyPublishers.noBody()
-				: HttpRequest.BodyPublishers.ofString(payload instanceof String raw ? raw : json.writeValueAsString(payload));
-		var builder = HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(15))
+	private JsonNode request(
+			String method,
+			String path,
+			Object payload,
+			boolean allowMissing
+	) {
+		HttpRequest.BodyPublisher body = payload == null
+				? HttpRequest.BodyPublishers.noBody()
+				: HttpRequest.BodyPublishers.ofString(
+						payload instanceof String raw
+								? raw
+								: json.writeValueAsString(payload)
+				);
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(15))
 				.header("Accept", "application/json").method(method, body);
-		if (payload != null) builder.header("Content-Type", "application/json");
-		if (authorization != null) builder.header("Authorization", authorization);
+
+		if (payload != null) {
+			builder.header("Content-Type", "application/json");
+		}
+		if (authorization != null) {
+			builder.header("Authorization", authorization);
+		}
+
 		try {
-			var response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+			HttpResponse<String> response = http.send(
+					builder.build(),
+					HttpResponse.BodyHandlers.ofString()
+			);
 			int status = response.statusCode();
+
 			if (status == 404 && allowMissing) {
-				return response.body().isBlank() ? null : json.readTree(response.body());
+				return response.body().isBlank()
+						? null
+						: json.readTree(response.body());
 			}
-			if (status < 200 || status >= 300) throw new ElasticsearchException(status);
-			return response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body());
+			if (status < 200 || status >= 300) {
+				throw new ElasticsearchException(status);
+			}
+
+			return response.body().isBlank()
+					? json.createObjectNode()
+					: json.readTree(response.body());
+		} catch (IOException failure) {
+			throw new ElasticsearchTransportException("Elasticsearch request failed", failure);
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
-			throw new IOException("Elasticsearch request interrupted", interrupted);
+
+			throw new ElasticsearchTransportException(
+					"Elasticsearch request interrupted",
+					interrupted
+			);
 		}
 	}
 
-	public boolean exists(String index) throws IOException {
-		return request("HEAD", path(index), null, true) != null;
+	public boolean exists(String index) {
+		return request(
+				"HEAD",
+				path(index),
+				null,
+				true
+		) != null;
 	}
 
-	public void createIndex(String index, String mapping) throws IOException {
-		request("PUT", path(index), mapping);
+	public void createIndex(String index, String mapping) {
+		request(
+				"PUT",
+				path(index),
+				mapping
+		);
 	}
 
-	public void deleteIndex(String index) throws IOException {
-		request("DELETE", path(index), null);
+	public void deleteIndex(String index) {
+		request(
+				"DELETE",
+				path(index),
+				null
+		);
 	}
 
-	public void index(String index, String id, Object document) throws IOException {
-		request("PUT", documentPath(index, id), document);
+	public void index(String index, String id, Object document) {
+		request(
+				"PUT",
+				documentPath(index, id),
+				document
+		);
 	}
 
-	public void delete(String index, String id) throws IOException {
-		var result = request("DELETE", documentPath(index, id), null, true);
-		if (result == null || result.has("error")) throw new ElasticsearchException(404);
+	public void delete(String index, String id) {
+		JsonNode result = request(
+				"DELETE",
+				documentPath(index, id),
+				null,
+				true
+		);
+
+		if (result == null || result.has("error")) {
+			throw new ElasticsearchException(404);
+		}
 	}
 
-	public <T> T get(String index, String id, Class<T> type) throws IOException {
-		var result = request("GET", documentPath(index, id), null, true);
-		if (result == null || result.has("error")) throw new ElasticsearchException(404);
-		return result.path("found").asBoolean() ? json.treeToValue(result.get("_source"), type) : null;
+	public <T> T get(String index, String id, Class<T> type) {
+		JsonNode result = request(
+				"GET",
+				documentPath(index, id),
+				null,
+				true
+		);
+
+		if (result == null || result.has("error")) {
+			throw new ElasticsearchException(404);
+		}
+
+		return result.path("found").asBoolean()
+				? json.treeToValue(result.get("_source"), type)
+				: null;
 	}
 
-	public JsonNode search(String index, Map<String, Object> query) throws IOException {
-		return request("POST", path(index) + "/_search", query);
+	public JsonNode search(String index, Map<String, Object> query) {
+		return request(
+				"POST",
+				path(index) + "/_search",
+				query
+		);
 	}
 
-	public void refresh(String index) throws IOException {
-		request("POST", path(index) + "/_refresh", null);
+	public void refresh(String index) {
+		request(
+				"POST",
+				path(index) + "/_refresh",
+				null
+		);
 	}
 
-	public void deleteByUser(String index, String userId) throws IOException {
+	public void deleteByUser(String index, String userId) {
 		String endpoint = path(index) + "/_delete_by_query?refresh=true";
-		var query = Map.of("query", Map.of("term", Map.of("userId", userId)));
+		Map<String, Object> query = Map.of("query", Map.of("term", Map.of("userId", userId)));
 		JsonNode result;
+
 		try {
 			result = request("POST", endpoint, query);
 		} catch (ElasticsearchException conflict) {
-			if (conflict.status() != 409) throw conflict;
+			if (conflict.status() != 409) {
+				throw conflict;
+			}
+
 			// CDC can update a document after delete-by-query takes its snapshot.
 			refresh(index);
 			result = request("POST", endpoint, query);
 		}
-		if (result.path("timed_out").asBoolean() || !result.path("failures").isEmpty()) {
-			throw new IOException("Elasticsearch delete-by-query did not complete");
+
+		if (
+				result.path("timed_out").asBoolean() ||
+				!result.path("failures").isEmpty()
+		) {
+			throw new ElasticsearchTransportException("Elasticsearch delete-by-query did not complete");
 		}
 	}
 
 	static String path(String index) {
-		if (!index.matches("[a-z0-9][a-z0-9_.-]*")) throw new IllegalArgumentException("Invalid Elasticsearch index name");
+		if (!index.matches("[a-z0-9][a-z0-9_.-]*")) {
+			throw new ElasticsearchConfigurationException("Invalid Elasticsearch index name");
+		}
+
 		return "/" + index;
 	}
 

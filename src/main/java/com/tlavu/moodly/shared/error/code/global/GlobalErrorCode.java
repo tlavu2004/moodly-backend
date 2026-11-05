@@ -15,11 +15,13 @@ public enum GlobalErrorCode implements ErrorCode {
 	UNSUPPORTED_MEDIA_TYPE("UNSUPPORTED_MEDIA_TYPE", "The request content type is not supported.", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
 	NOT_ACCEPTABLE("NOT_ACCEPTABLE", "The requested response content type is not supported.", HttpStatus.NOT_ACCEPTABLE),
 	MISSING_REQUIRED_HEADER("MISSING_REQUIRED_HEADER", "A required request header is missing.", HttpStatus.BAD_REQUEST),
+
 	// Legacy public code: reserved until client usage and deprecation are reviewed. Never map arbitrary Mongo collisions to it.
 	DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "A document with the same unique key already exists.", HttpStatus.CONFLICT),
 	CONFLICT("CONFLICT", "The resource was changed by another request.", HttpStatus.CONFLICT),
 	UNAUTHORIZED("UNAUTHORIZED", "Authentication is required or the access token is invalid.", HttpStatus.UNAUTHORIZED),
 	FORBIDDEN("FORBIDDEN", "You are not allowed to perform this operation.", HttpStatus.FORBIDDEN),
+	RATE_LIMIT_EXCEEDED("RATE_LIMIT_EXCEEDED", "Too many requests.", HttpStatus.TOO_MANY_REQUESTS),
 	NOT_FOUND("NOT_FOUND", "The requested resource was not found.", HttpStatus.NOT_FOUND),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
 

@@ -6,7 +6,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 import com.tlavu.moodly.modules.search.service.view.ReindexView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
@@ -38,12 +38,13 @@ public class DailyEntryReindexService {
 	public boolean isIndexMissing() {
 		try {
 			return !indexManager.exists();
-		} catch (IOException exception) {
+		} catch (ElasticsearchTransportException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);
 		} catch (ElasticsearchException exception) {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {
 				throw SearchInfrastructureUnavailableException.duringReindex(exception);
 			}
+
 			throw exception;
 		}
 	}
@@ -52,18 +53,22 @@ public class DailyEntryReindexService {
 		try {
 			indexManager.recreate();
 
-			Query query = new Query().with(Sort.by(Sort.Direction.ASC, "_id"))
-					.cursorBatchSize(batchSize);
+			Query query = new Query().with(
+					Sort.by(Sort.Direction.ASC, "_id")
+			).cursorBatchSize(batchSize);
 			long indexed = 0;
+
 			try (Stream<DailyEntry> entries = mongoTemplate.stream(query, DailyEntry.class)) {
 				Iterator<DailyEntry> cursor = entries.iterator();
+
 				while (cursor.hasNext()) {
 					searchWriter.index(cursor.next());
 					indexed++;
 				}
 			}
+
 			return new ReindexView(indexed);
-		} catch (IOException exception) {
+		} catch (ElasticsearchTransportException exception) {
 			throw SearchInfrastructureUnavailableException.duringReindex(exception);
 		} catch (ElasticsearchException exception) {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {

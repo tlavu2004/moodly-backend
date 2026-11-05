@@ -7,6 +7,7 @@ import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
@@ -39,7 +40,7 @@ class AvatarProfileWriterIntegrationTest {
 		first.replaceAvatar("new-one", 2, "image/png", 100, Instant.now());
 		second.replaceAvatar("new-two", 2, "image/png", 100, Instant.now());
 
-		try (var executor = Executors.newFixedThreadPool(2)) {
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
 			CountDownLatch start = new CountDownLatch(1);
 			Future<Boolean> one = executor.submit(() -> { start.await(); return writer.replaceIfCurrent(first, "old"); });
 			Future<Boolean> two = executor.submit(() -> { start.await(); return writer.replaceIfCurrent(second, "old"); });

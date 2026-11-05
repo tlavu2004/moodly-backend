@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.modules.auth.exception.UserProfilePersistenceException;
+
 import com.tlavu.moodly.modules.auth.model.UserProfile;
 import com.tlavu.moodly.modules.auth.repository.UserProfileRepository;
 import com.tlavu.moodly.modules.auth.security.context.CurrentUser;
@@ -37,8 +39,10 @@ public class UserProfileService {
 			);
 		} catch (DuplicateKeyException exception) {
 			return profiles.findByAuth0Subject(identity.subject())
-					.orElseThrow(() -> new IllegalStateException(
-							"Profile collided without an existing profile for the same subject", exception));
+					.orElseThrow(() -> new UserProfilePersistenceException(
+							"Profile collided without an existing profile for the same subject",
+							exception
+					));
 		}
 	}
 }

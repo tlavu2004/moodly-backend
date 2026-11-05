@@ -16,8 +16,9 @@ public class PendingAssetDeletion {
 	private static final Duration ACTIVE_RECHECK_DELAY = Duration.ofMinutes(5);
 	private static final Duration ACTIVE_TASK_RETENTION = Duration.ofHours(24);
 
+	// Assigned by Spring Data MongoDB after persistence.
+	@SuppressWarnings("UnusedDeclaration")
 	@Id
-	@SuppressWarnings("unused") // Assigned by Spring Data MongoDB after persistence.
 	private String id;
 
 	@Indexed(unique = true)
@@ -25,8 +26,8 @@ public class PendingAssetDeletion {
 
 	@Indexed
 	private Instant nextAttemptAt;
-	private Instant createdAt;
 
+	private Instant createdAt;
 	private int cleanupAttempts;
 
 	public PendingAssetDeletion(String publicId, Instant nextAttemptAt) {
@@ -48,7 +49,9 @@ public class PendingAssetDeletion {
 		if (!now.isBefore(createdAt.plus(ACTIVE_TASK_RETENTION))) {
 			return false;
 		}
+
 		nextAttemptAt = now.plus(ACTIVE_RECHECK_DELAY);
+
 		return true;
 	}
 }

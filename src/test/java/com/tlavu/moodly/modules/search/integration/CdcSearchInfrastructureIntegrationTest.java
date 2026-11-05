@@ -21,7 +21,6 @@ import com.tlavu.moodly.modules.search.monitoring.CdcHealthIndicator;
 import com.tlavu.moodly.modules.search.monitoring.CdcMonitor;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcDeadLetter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
-import com.tlavu.moodly.modules.search.model.elasticsearch.IndexedHabitLog;
 import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
@@ -57,7 +56,10 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import tools.jackson.databind.JsonNode;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @SpringBootTest(properties = {
 		"moodly.entries.collection-name=daily_entries_cdc_test",
 		"moodly.cdc.enabled=true",
@@ -153,12 +155,12 @@ class CdcSearchInfrastructureIntegrationTest {
 
 	@Test
 	void createsTheConfiguredSearchIndexAgainstCompose() throws Exception {
-		var version = elasticsearchClient.request("GET", "/", null).path("version");
+		JsonNode version = elasticsearchClient.request("GET", "/", null).path("version");
 		assertThat(version.path("number").asString()).isEqualTo("7.10.2");
 		assertThat(version.path("build_flavor").asString()).isEqualTo("oss");
 		assertThat(elasticsearchClient.exists(indexManager.getIndexName()))
 				.isTrue();
-		var properties = elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_mapping", null)
+		JsonNode properties = elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_mapping", null)
 				.path(indexManager.getIndexName()).path("mappings").path("properties");
 		assertThat(properties.path("userId").path("type").asString()).isEqualTo("keyword");
 		assertThat(properties.path("date").path("type").asString()).isEqualTo("date");
@@ -178,7 +180,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		assertThat(insertedDocument.mood().score()).isEqualTo(2);
 		assertThat(insertedDocument.mood().note()).isEqualTo("first note");
 		assertThat(insertedDocument.mood().tags()).containsExactly("old");
-		assertThat(insertedDocument.habits()).extracting(IndexedHabitLog::note).containsExactly("old habit");
+		assertThat(insertedDocument.habits()).extracting(habitLog -> habitLog.note()).containsExactly("old habit");
 
 		entry.setMood(new Mood(5, List.of("new"), "updated note"));
 		entry.setHabits(List.of(new HabitLog("habit-1", true, "new habit")));
@@ -188,7 +190,7 @@ class CdcSearchInfrastructureIntegrationTest {
 			assertThat(indexed.mood().score()).isEqualTo(5);
 			assertThat(indexed.mood().note()).isEqualTo("updated note").doesNotContain("first note");
 			assertThat(indexed.mood().tags()).containsExactly("new").doesNotContain("old");
-			assertThat(indexed.habits()).extracting(IndexedHabitLog::note)
+			assertThat(indexed.habits()).extracting(habitLog -> habitLog.note())
 					.containsExactly("new habit").doesNotContain("old habit");
 		});
 
@@ -313,8 +315,14 @@ class CdcSearchInfrastructureIntegrationTest {
 		DailyEntry second = cdcSearchTestSupport.save(entry(cdcSearchTestSupport.newUserId(), "after restart", List.of(), "habit", 4));
 
 		cdcSearchTestSupport.awaitIndexed(second.getId());
-		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
-				.hasValueSatisfying(token -> assertThat(token).isNotEqualTo(tokenBeforeRestart));
+		com.tlavu.moodly.support.AsyncTestAwaiter.until(
+				"CDC resume token to advance after listener restart",
+				() -> resumeTokenRepository.findById("daily_entries_cdc_test")
+						.map(resumeState -> resumeState.getToken())
+						.filter(token -> !token.equals(tokenBeforeRestart))
+						.isPresent(),
+				() -> "streamId=daily_entries_cdc_test"
+		);
 		elasticsearchClient.refresh(indexManager.getIndexName());
 		assertThat(elasticsearchClient.request("GET", "/" + indexManager.getIndexName() + "/_count", null).path("count").asLong()).isEqualTo(2);
 		verify(reindexService, never()).reindex();
@@ -351,7 +359,7 @@ class CdcSearchInfrastructureIntegrationTest {
 
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("CDC listener to report the writer failure",
 				() -> !monitor.isListenerHealthy(), () -> "listenerHealthy=" + monitor.isListenerHealthy());
-		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(resumeState -> resumeState.getToken()))
 				.contains(tokenBeforeFailure);
 		assertThat(deadLetterRepository.findAll()).isEmpty();
 		assertThat(elasticsearchClient.get(indexManager.getIndexName(), failing.getId(), DailyEntrySearchDocument.class)).isNull();
@@ -363,7 +371,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		cdcSearchTestSupport.awaitIndexed(failing.getId());
 		com.tlavu.moodly.support.AsyncTestAwaiter.until("CDC resume token to advance after replay",
 				() -> resumeTokenRepository.findById("daily_entries_cdc_test")
-						.map(CdcResumeToken::getToken).filter(token -> !token.equals(tokenBeforeFailure)).isPresent(),
+						.map(resumeState -> resumeState.getToken()).filter(token -> !token.equals(tokenBeforeFailure)).isPresent(),
 				() -> "streamId=daily_entries_cdc_test");
 		assertThat(monitor.isListenerHealthy()).isTrue();
 	}
@@ -382,7 +390,7 @@ class CdcSearchInfrastructureIntegrationTest {
 		listener.start();
 		awaitChangeStreamRegistration();
 		cdcSearchTestSupport.awaitIndexed(entry.getId());
-		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(CdcResumeToken::getToken))
+		assertThat(resumeTokenRepository.findById("daily_entries_cdc_test").map(resumeState -> resumeState.getToken()))
 				.isPresent();
 	}
 
@@ -405,11 +413,13 @@ class CdcSearchInfrastructureIntegrationTest {
 	private String awaitResumeToken() throws Exception {
 		com.tlavu.moodly.support.AsyncTestAwaiter.until(
 				"CDC resume token to be persisted",
-				() -> resumeTokenRepository.findById("daily_entries_cdc_test").isPresent(),
+				() -> resumeTokenRepository.findById("daily_entries_cdc_test")
+						.map(resumeState -> resumeState.getToken())
+						.isPresent(),
 				() -> "streamId=daily_entries_cdc_test"
 		);
 		return resumeTokenRepository.findById("daily_entries_cdc_test")
-				.map(CdcResumeToken::getToken)
+				.map(resumeState -> resumeState.getToken())
 				.orElseThrow();
 	}
 

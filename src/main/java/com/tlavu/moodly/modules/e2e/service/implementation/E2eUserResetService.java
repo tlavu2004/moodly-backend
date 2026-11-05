@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.e2e.service.implementation;
 
+import com.tlavu.moodly.modules.e2e.exception.E2eSearchVerificationException;
+
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.e2e.service.view.E2eResetView;
@@ -14,7 +16,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -122,10 +124,14 @@ public class E2eUserResetService {
 			for (DailyEntry entry : entries) {
 				String entryId = entry.getId();
 				DailyEntrySearchDocument indexed = elasticsearchClient.get(
-						indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
+						indexManager.getIndexName(),
+						entryId,
+						DailyEntrySearchDocument.class
+				);
+
 				if (!DailyEntrySearchDocument.from(entry).equals(indexed)) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
-							new IllegalStateException("Search document verification failed for " + entryId)
+							new E2eSearchVerificationException("Search document verification failed for " + entryId)
 					);
 				}
 			}
@@ -136,7 +142,7 @@ public class E2eUserResetService {
 					entries.size(),
 					"verified"
 			);
-		} catch (IOException | ElasticsearchException exception) {
+		} catch (ElasticsearchTransportException | ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringE2eIndexing(exception);
 		}
 	}

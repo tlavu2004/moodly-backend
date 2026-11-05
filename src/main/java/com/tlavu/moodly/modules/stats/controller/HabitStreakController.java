@@ -48,7 +48,10 @@ public class HabitStreakController {
 				habitId,
 				MoodlyTime.today(clock)
 		);
-		HabitStreakView streak = statsService.calculateCurrentStreak(currentUser.id(), input);
+		HabitStreakView streak = statsService.calculateCurrentStreak(
+				currentUser.id(),
+				input
+		);
 
 		return ApiResponse.success(HabitStreakResponse.from(streak));
 	}

@@ -1,7 +1,6 @@
 package com.tlavu.moodly.modules.stats.service.implementation;
 
 import com.tlavu.moodly.modules.entries.service.view.DailyEntryView;
-import com.tlavu.moodly.modules.entries.service.view.HabitLogView;
 import com.tlavu.moodly.modules.entries.service.implementation.EntryReadService;
 import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateBestCurrentStreakInput;
@@ -23,6 +22,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @Service
 @RequiredArgsConstructor
 public class StatsService {
@@ -30,7 +31,10 @@ public class StatsService {
 	private final OwnedHabitService ownedHabitService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
-	public List<MoodTrendView> findMoodTrend(String userId, FindMoodTrendInput input) {
+	public List<MoodTrendView> findMoodTrend(
+			String userId,
+			FindMoodTrendInput input
+	) {
 		LocalDate from = input.period().startDate(input.today());
 		LocalDate to = input.period().endDate(input.today());
 
@@ -76,7 +80,7 @@ public class StatsService {
 		);
 
 		return streaks.values().stream()
-				.mapToInt(Integer::intValue)
+				.mapToInt(streak -> streak.intValue())
 				.max()
 				.orElse(0);
 	}
@@ -98,8 +102,8 @@ public class StatsService {
 			}
 
 			Set<String> completedHabitIds = entry.habits().stream()
-					.filter(HabitLogView::done)
-					.map(HabitLogView::habitId)
+					.filter(habitLog -> habitLog.done())
+					.map(habitLog -> habitLog.habitId())
 					.collect(Collectors.toSet());
 
 			Iterator<String> iterator = activeHabitIds.iterator();

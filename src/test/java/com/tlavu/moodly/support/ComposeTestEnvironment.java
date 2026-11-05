@@ -1,5 +1,6 @@
 package com.tlavu.moodly.support;
 
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import java.io.IOException;
 import java.net.URI;
@@ -21,7 +22,10 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /** One Compose stack per test JVM; its configured test database/index are disposable. */
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 final class ComposeTestEnvironment {
+	private static final int MAX_MONGO_PING_ATTEMPTS = 60;
 	private static ComposeTestEnvironment instance;
 	private final List<String> compose;
 	private final Map<String, String> settings = new LinkedHashMap<>();
@@ -52,7 +56,7 @@ final class ComposeTestEnvironment {
 
 	private ComposeTestEnvironment() {
 		String envFile = System.getenv().getOrDefault("MOODLY_TEST_ENV_FILE",
-				Files.exists(Path.of(".env.test")) ? ".env.test" : "config/docker-test.env");
+				Files.exists(Path.of(".env.test")) ? ".env.test" : ".env.test.example");
 		compose = List.of("docker", "compose", "-p", "moodly-test", "--env-file", envFile, "-f", "docker-compose.test.yml");
 		try {
 			Files.createDirectories(Path.of("target"));
@@ -80,7 +84,7 @@ final class ComposeTestEnvironment {
 		}
 		command(null, "up", "-d", "mongodb", "elasticsearch");
 		boolean ready = false;
-		for (int attempt = 0; attempt < 60; attempt++) {
+		for (int attempt = 0; attempt < MAX_MONGO_PING_ATTEMPTS; attempt++) {
 			try {
 				command(null, "exec", "-T", "mongodb", "sh", "-c",
 						"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");
@@ -135,7 +139,7 @@ final class ComposeTestEnvironment {
 		for (ConfigurableApplicationContext context : contexts) {
 			if (context.isActive()) {
 				context.getBeansOfType(DailyEntryChangeStreamListener.class).values()
-						.forEach(DailyEntryChangeStreamListener::stop);
+						.forEach(listener -> listener.stop());
 			}
 			context.close();
 		}
@@ -143,9 +147,9 @@ final class ComposeTestEnvironment {
 	}
 
 	private void resetData() {
-		try (var mongo = MongoClients.create(mongoUri(database())); var http = HttpClient.newHttpClient()) {
+		try (MongoClient mongo = MongoClients.create(mongoUri(database())); HttpClient http = HttpClient.newHttpClient()) {
 			mongo.getDatabase(database()).drop();
-			var response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
+			HttpResponse<Void> response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
 					.timeout(Duration.ofSeconds(10)).DELETE().build(), HttpResponse.BodyHandlers.discarding());
 			if (response.statusCode() != 200 && response.statusCode() != 404) {
 				throw new IllegalStateException("Could not reset test index: HTTP " + response.statusCode());

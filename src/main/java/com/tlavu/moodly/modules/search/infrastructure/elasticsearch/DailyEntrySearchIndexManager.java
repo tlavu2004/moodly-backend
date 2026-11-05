@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchIndexMappingException;
+
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,17 +29,17 @@ public class DailyEntrySearchIndexManager {
 		this.mapping = mapping;
 	}
 
-	public boolean exists() throws IOException {
+	public boolean exists() {
 		return elasticsearchClient.exists(indexName);
 	}
 
-	public void createIfMissing() throws IOException {
+	public void createIfMissing() {
 		if (!exists()) {
 			create(readMapping());
 		}
 	}
 
-	public void recreate() throws IOException {
+	public void recreate() {
 		byte[] mappingBytes = readMapping();
 		if (elasticsearchClient.exists(indexName)) {
 			elasticsearchClient.deleteIndex(indexName);
@@ -49,11 +51,17 @@ public class DailyEntrySearchIndexManager {
 		try (InputStream mappingStream = mapping.getInputStream()) {
 			return mappingStream.readAllBytes();
 		} catch (IOException exception) {
-			throw new IllegalStateException("Could not read the configured Elasticsearch index mapping", exception);
+			throw new SearchIndexMappingException(
+					"Could not read the configured Elasticsearch index mapping",
+					exception
+			);
 		}
 	}
 
-	private void create(byte[] mappingBytes) throws IOException {
-		elasticsearchClient.createIndex(indexName, new String(mappingBytes, StandardCharsets.UTF_8));
+	private void create(byte[] mappingBytes) {
+		elasticsearchClient.createIndex(
+				indexName,
+				new String(mappingBytes, StandardCharsets.UTF_8)
+		);
 	}
 }

@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import com.tlavu.moodly.modules.search.exception.CdcEventProcessingException;
+import com.tlavu.moodly.modules.search.exception.CdcEventMalformedException;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +26,9 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.time.Instant;
+import java.time.Duration;
+import com.tlavu.moodly.shared.error.exception.common.OperationInterruptedException;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.bson.BsonDocument;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
@@ -59,6 +64,29 @@ class DailyEntryChangeStreamListenerTest {
 	private ChangeStreamDocument<org.bson.Document> raw;
 
 	private DailyEntryChangeStreamListener listener;
+
+	@Test
+	void rejectsMalformedEventsWithoutSavingACheckpoint() {
+		assertThatThrownBy(() -> invoke("onMessage", Message.class, message))
+				.hasCauseInstanceOf(CdcEventProcessingException.class)
+				.hasRootCauseInstanceOf(CdcEventMalformedException.class);
+		verifyNoInteractions(deliveryService, resumeTokenRepository);
+	}
+
+	@Test
+	void preservesInterruptionWhileAwaitingRegistration() throws Exception {
+		ReflectionTestUtils.setField(listener, "subscription", subscription);
+		InterruptedException failure = new InterruptedException("shutdown");
+		when(subscription.await(Duration.ofSeconds(1))).thenThrow(failure);
+		try {
+			assertThatThrownBy(() -> listener.awaitRegistration(Duration.ofSeconds(1)))
+					.isInstanceOf(OperationInterruptedException.class)
+					.hasCause(failure);
+			assertThat(Thread.currentThread().isInterrupted()).isTrue();
+		} finally {
+			Thread.interrupted();
+		}
+	}
 
 	@BeforeEach
 	void setUp() {

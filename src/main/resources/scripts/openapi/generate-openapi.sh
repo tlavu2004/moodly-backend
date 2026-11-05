@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-output_path="${1:-docs/api/moodly-openapi.json}"
+output_path="${1:-docs/api/json/moodly-openapi.json}"
 response_path="$(mktemp)"
 
 cleanup() {
@@ -17,7 +17,8 @@ echo "Starting the documentation profile..."
 ./mvnw --batch-mode -Dspring-boot.run.profiles=docs spring-boot:run &
 application_pid=$!
 
-for _ in {1..45}; do
+readonly max_openapi_attempts=45
+for ((attempt=1; attempt<=max_openapi_attempts; attempt++)); do
   if curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
     python3 - "$response_path" "$output_path" <<'PY'

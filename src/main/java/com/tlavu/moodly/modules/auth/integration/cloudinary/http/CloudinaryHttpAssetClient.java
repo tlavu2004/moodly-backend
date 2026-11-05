@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
+
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
@@ -50,7 +52,9 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				apiKey,
 				apiSecret,
 				requestTimeout,
-				HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+				HttpClient.newBuilder()
+						.connectTimeout(connectTimeout)
+						.build()
 		);
 	}
 
@@ -97,10 +101,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				throw AvatarException.uploadNotFound();
 			}
 			if (response.statusCode() != 200) {
-				throw new AvatarServiceUnavailableException(
-						new IllegalStateException("Cloudinary verification failed"),
-						response.statusCode()
-				);
+				throw new AvatarServiceUnavailableException(response.statusCode());
 			}
 
 			JsonNode asset = objectMapper.readTree(response.body());
@@ -119,8 +120,6 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			Thread.currentThread().interrupt();
 
 			throw new AvatarServiceUnavailableException(exception);
-		} catch (AvatarException | AvatarServiceUnavailableException exception) {
-			throw exception;
 		} catch (IOException | JacksonException exception) {
 			throw new AvatarServiceUnavailableException(exception);
 		}
@@ -165,8 +164,6 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 					"Cloudinary deletion was interrupted.",
 					exception
 			);
-		} catch (AvatarAssetDeletionException exception) {
-			throw exception;
 		} catch (IOException exception) {
 			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion failed.",
@@ -182,7 +179,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 						.digest(value.getBytes(StandardCharsets.UTF_8))
 			);
 		} catch (NoSuchAlgorithmException exception) {
-			throw new IllegalStateException(exception);
+			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", exception);
 		}
 	}
 

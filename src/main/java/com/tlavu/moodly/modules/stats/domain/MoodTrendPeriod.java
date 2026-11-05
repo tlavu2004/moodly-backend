@@ -1,19 +1,18 @@
 package com.tlavu.moodly.modules.stats.domain;
 
+import lombok.RequiredArgsConstructor;
+
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.tlavu.moodly.modules.stats.exception.StatsException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 
+@RequiredArgsConstructor
 public enum MoodTrendPeriod {
 	WEEK("week");
 
 	private final String value;
-
-	MoodTrendPeriod(String value) {
-		this.value = value;
-	}
 
 	@JsonValue
 	public String value() {
@@ -30,7 +29,9 @@ public enum MoodTrendPeriod {
 	}
 
 	public LocalDate startDate(LocalDate date) {
-		return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+		return date.with(
+			TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+		);
 	}
 
 	public LocalDate endDate(LocalDate date) {

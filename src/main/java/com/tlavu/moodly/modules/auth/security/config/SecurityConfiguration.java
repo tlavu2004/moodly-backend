@@ -6,8 +6,11 @@ import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import com.tlavu.moodly.shared.error.exception.common.ErrorResponseWriteException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,12 +18,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -32,6 +35,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -39,15 +43,26 @@ import tools.jackson.databind.ObjectMapper;
 
 import static java.util.Objects.requireNonNullElse;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+	SecurityFilterChain securityFilterChain(
+			HttpSecurity http,
+			ObjectMapper objectMapper,
 			Environment environment,
-			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority) {
-		boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
-		http.csrf(AbstractHttpConfigurer::disable)
+			@Value("${moodly.cdc.admin-authority:SCOPE_moodly:admin}") String cdcAdminAuthority,
+			@Value("${moodly.rate-limit.enabled:false}") boolean rateLimitEnabled,
+			@Value("${moodly.rate-limit.requests:120}") int rateLimitRequests,
+			@Value("${moodly.rate-limit.window:60s}") Duration rateLimitWindow,
+			@Value("${moodly.rate-limit.max-subjects:10000}") int rateLimitMaxSubjects
+	) {
+		boolean production = environment.acceptsProfiles(
+			Profiles.of("prod", "production")
+		);
+		http.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
@@ -60,11 +75,19 @@ public class SecurityConfiguration {
 								"/v3/api-docs/**"
 						).permitAll()
 						.requestMatchers("/internal/cdc/**")
-								.access((authentication, context) -> new AuthorizationDecision(
-										!production || (authentication.get().isAuthenticated() &&
-												authentication.get().getAuthorities().stream()
-														.anyMatch(authority -> authority.getAuthority().equals(cdcAdminAuthority)))
-								))
+								.access(
+										(authentication, _) -> new AuthorizationDecision(
+												!production ||
+												(
+													Objects.requireNonNull(authentication.get()).isAuthenticated() &&
+													Objects.requireNonNull(authentication.get()).getAuthorities().stream()
+															.anyMatch(authority -> Objects.equals(
+																	authority.getAuthority(),
+																	cdcAdminAuthority
+															))
+												)
+										)
+								)
 						.anyRequest()
 						.authenticated()
 				)
@@ -103,6 +126,19 @@ public class SecurityConfiguration {
 								request.getRequestURI()
 						))
 				);
+		if (rateLimitEnabled) {
+			RequestQuota quota = new RequestQuota(
+					rateLimitRequests,
+					rateLimitMaxSubjects,
+					rateLimitWindow,
+					System::nanoTime
+			);
+			http.addFilterAfter(
+					new RequestQuotaFilter(quota, objectMapper),
+					AuthorizationFilter.class
+			);
+		}
+
 		return http.build();
 	}
 
@@ -133,7 +169,10 @@ public class SecurityConfiguration {
 						RequestIdFilter.HEADER
 				)
 		);
-		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
+		configuration.setExposedHeaders(List.of(
+				RequestIdFilter.HEADER,
+				HttpHeaders.RETRY_AFTER
+		));
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
@@ -180,16 +219,17 @@ public class SecurityConfiguration {
 				);
 	}
 
-	private void writeError(
+	static void writeError(
 			HttpServletResponse response,
 			ObjectMapper objectMapper,
 			GlobalErrorCode errorCode,
 			String path
-	) throws IOException {
+	) {
 		response.setStatus(errorCode.getStatus().value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-		objectMapper.writeValue(
+		try {
+			objectMapper.writeValue(
 				response.getOutputStream(),
 				ApiResponse.error(
 						new ApiError(
@@ -204,6 +244,9 @@ public class SecurityConfiguration {
 								)
 						)
 				)
-		);
+			);
+		} catch (IOException failure) {
+			throw new ErrorResponseWriteException(failure);
+		}
 	}
 }

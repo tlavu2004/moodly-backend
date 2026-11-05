@@ -1,6 +1,6 @@
 package com.tlavu.moodly.modules.search.monitoring;
 
-import com.tlavu.moodly.shared.error.ExceptionLogSummary;
+import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class CdcHealthIndicator implements HealthIndicator {
 	private final CdcMonitor monitor;
 	private final CdcDeadLetterRepository deadLetterRepository;
+
 	private volatile long failedEventCount;
 	private volatile boolean deadLetterCountAvailable;
 
@@ -35,7 +36,11 @@ public class CdcHealthIndicator implements HealthIndicator {
 			deadLetterCountAvailable = true;
 		} catch (RuntimeException exception) {
 			deadLetterCountAvailable = false;
-			log.warn("Could not refresh CDC dead-letter count: {}", ExceptionLogSummary.of(exception));
+
+			log.warn(
+					"Could not refresh CDC dead-letter count: {}",
+					ExceptionLogSummary.of(exception)
+			);
 		}
 	}
 
@@ -45,6 +50,7 @@ public class CdcHealthIndicator implements HealthIndicator {
 		Health.Builder builder = !listenerHealthy || !deadLetterCountAvailable
 				? Health.down()
 				: failedEventCount > 0 ? Health.status(new Status("DEGRADED")) : Health.up();
+
 		builder.withDetail("listenerHealthy", listenerHealthy)
 				.withDetail("failedEventCount", failedEventCount);
 

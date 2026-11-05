@@ -1,9 +1,12 @@
 package com.tlavu.moodly.modules.entries.service.implementation;
 
+import com.tlavu.moodly.modules.entries.exception.DailyEntryPersistenceException;
+
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.model.Mood;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
+import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.service.implementation.OwnedHabitService;
 import com.tlavu.moodly.modules.habits.exception.HabitException;
 import com.tlavu.moodly.modules.entries.service.input.SetMoodInput;
@@ -13,7 +16,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,29 +40,54 @@ public class DailyEntryService {
 			LocalDate date,
 			UpdateHabitLogInput input
 	) {
-		var habit = ownedHabitService.require(userId, input.habitId());
-		if (!habit.isActive() && !dailyEntryRepository.findByUserIdAndDate(userId, date)
-				.map(existing -> existing.getHabits().stream()
-						.anyMatch(log -> input.habitId().equals(log.getHabitId())))
-				.orElse(false)) {
+		Habit habit = ownedHabitService.require(userId, input.habitId());
+
+		if (
+				!habit.isActive() &&
+				!dailyEntryRepository.findByUserIdAndDate(userId, date)
+						.map(existing -> existing.getHabits().stream()
+								.anyMatch(log -> input.habitId().equals(log.getHabitId()))
+						).orElse(false)
+		) {
 			throw HabitException.archived();
 		}
+
 		DailyEntry entry = ensureEntry(userId, date);
-		Query existing = Query.query(Criteria.where("_id").is(entry.getId())
-				.and("habits.habitId").is(input.habitId()));
+		Query existing = Query.query(
+				Criteria.where("_id")
+						.is(entry.getId())
+						.and("habits.habitId")
+						.is(input.habitId())
+		);
 		Update replace = new Update().set("habits.$.done", input.done())
-				.set("habits.$.note", input.note()).set("updatedAt", Instant.now());
+				.set("habits.$.note", input.note())
+				.set("updatedAt", Instant.now());
+
 		if (mongoTemplate.updateFirst(existing, replace, DailyEntry.class).getMatchedCount() == 0) {
-			Query missing = Query.query(Criteria.where("_id").is(entry.getId())
-					.and("habits.habitId").ne(input.habitId()));
-			Update append = new Update().push("habits", new HabitLog(input.habitId(), input.done(), input.note()))
-					.set("updatedAt", Instant.now());
-			if (mongoTemplate.updateFirst(missing, append, DailyEntry.class).getMatchedCount() == 0) {
+			Query missing = Query.query(
+					Criteria.where("_id")
+							.is(entry.getId())
+							.and("habits.habitId")
+							.ne(input.habitId()));
+			Update append = new Update().push(
+					"habits",
+					new HabitLog(
+							input.habitId(),
+							input.done(),
+							input.note()
+					)
+			).set("updatedAt", Instant.now());
+
+			if (
+					mongoTemplate.updateFirst(missing, append, DailyEntry.class)
+							.getMatchedCount() == 0
+			) {
 				mongoTemplate.updateFirst(existing, replace, DailyEntry.class);
 			}
 		}
+
 		return DailyEntryView.from(dailyEntryRepository.findById(entry.getId())
-				.orElseThrow(() -> new IllegalStateException("Daily entry disappeared after habit update")));
+				.orElseThrow(() -> new DailyEntryPersistenceException("Daily entry disappeared after habit update")));
 	}
 
 	public DailyEntryView setMood(
@@ -71,10 +98,23 @@ public class DailyEntryService {
 		DailyEntry entry = ensureEntry(userId, date);
 		DailyEntry updated = mongoTemplate.findAndModify(
 				Query.query(Criteria.where("_id").is(entry.getId())),
-				new Update().set("mood", new Mood(input.score(), input.tags(), input.note()))
-						.set("updatedAt", Instant.now()),
-				FindAndModifyOptions.options().returnNew(true), DailyEntry.class);
-		return DailyEntryView.from(Objects.requireNonNull(updated, "Daily entry disappeared during mood update"));
+				new Update().set(
+						"mood",
+						new Mood(
+								input.score(),
+								input.tags(),
+								input.note()
+						)
+				).set("updatedAt", Instant.now()),
+				FindAndModifyOptions.options().returnNew(true),
+				DailyEntry.class
+		);
+
+		return DailyEntryView.from(
+				Optional.ofNullable(updated)
+						.orElseThrow(() -> new DailyEntryPersistenceException(
+								"Daily entry disappeared during mood update"))
+		);
 	}
 
 	public List<DailyEntryView> findBetween(
@@ -95,7 +135,11 @@ public class DailyEntryService {
 			int page,
 			int size
 	) {
-		PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"));
+		PageRequest pageRequest = PageRequest.of(
+				page,
+				size,
+				Sort.by(Sort.Direction.DESC, "date")
+		);
 
 		return dailyEntryRepository.findPageByUserIdAndDateRange(userId, from, to, pageRequest)
 				.map(DailyEntryView::from);
@@ -108,17 +152,31 @@ public class DailyEntryService {
 
 	private DailyEntry ensureEntry(String userId, LocalDate date) {
 		Instant now = Instant.now();
+
 		try {
-			return Objects.requireNonNull(mongoTemplate.findAndModify(
-					Query.query(Criteria.where("userId").is(userId).and("date").is(date)),
-					new Update().setOnInsert("userId", userId).setOnInsert("date", date)
-							.setOnInsert("habits", List.of()).setOnInsert("createdAt", now)
+			return Optional.ofNullable(mongoTemplate.findAndModify(
+					Query.query(
+							Criteria.where("userId")
+									.is(userId)
+									.and("date")
+									.is(date)
+					),
+					new Update().setOnInsert("userId", userId)
+							.setOnInsert("date", date)
+							.setOnInsert("habits", List.of())
+							.setOnInsert("createdAt", now)
 							.setOnInsert("updatedAt", now),
-					FindAndModifyOptions.options().upsert(true).returnNew(true), DailyEntry.class));
+					FindAndModifyOptions.options()
+							.upsert(true)
+							.returnNew(true),
+					DailyEntry.class
+			)).orElseThrow(() -> new DailyEntryPersistenceException("Daily entry was not returned after upsert"));
 		} catch (DuplicateKeyException race) {
 			return dailyEntryRepository.findByUserIdAndDate(userId, date)
-					.orElseThrow(() -> new IllegalStateException(
-							"Daily entry collided without an existing entry for the same user and date", race));
+					.orElseThrow(() -> new DailyEntryPersistenceException(
+							"Daily entry collided without an existing entry for the same user and date",
+							race
+					));
 		}
 	}
 }

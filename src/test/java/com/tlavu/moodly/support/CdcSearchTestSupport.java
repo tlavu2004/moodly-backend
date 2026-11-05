@@ -1,5 +1,7 @@
 package com.tlavu.moodly.support;
 
+import lombok.RequiredArgsConstructor;
+
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
@@ -11,6 +13,7 @@ import java.util.UUID;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 /** Shared seed, cleanup, and eventual-consistency helpers for CDC integration tests. */
+@RequiredArgsConstructor
 public class CdcSearchTestSupport {
 
 	private final DailyEntryRepository dailyEntryRepository;
@@ -18,20 +21,6 @@ public class CdcSearchTestSupport {
 	private final MongoTemplate mongoTemplate;
 	private final ElasticsearchClient elasticsearchClient;
 	private final DailyEntrySearchIndexManager indexManager;
-
-	public CdcSearchTestSupport(
-			DailyEntryRepository dailyEntryRepository,
-			CdcDeadLetterRepository deadLetterRepository,
-			MongoTemplate mongoTemplate,
-			ElasticsearchClient elasticsearchClient,
-			DailyEntrySearchIndexManager indexManager
-	) {
-		this.dailyEntryRepository = dailyEntryRepository;
-		this.deadLetterRepository = deadLetterRepository;
-		this.mongoTemplate = mongoTemplate;
-		this.elasticsearchClient = elasticsearchClient;
-		this.indexManager = indexManager;
-	}
 
 	public String newUserId() {
 		return "cdc-test-" + UUID.randomUUID();

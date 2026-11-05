@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.modules.auth.exception.UserProfilePersistenceException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,7 +80,7 @@ class UserProfileServiceTest {
 		when(profiles.save(any(UserProfile.class))).thenThrow(collision);
 
 		assertThatThrownBy(service::synchronizeCurrent)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(UserProfilePersistenceException.class)
 				.hasCause(collision);
 	}
 }

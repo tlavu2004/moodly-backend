@@ -13,6 +13,11 @@ spring:
     uris: http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
 
 moodly:
+  rate-limit:
+    enabled: ${MOODLY_RATE_LIMIT_ENABLED:false}
+    requests: ${MOODLY_RATE_LIMIT_REQUESTS:120}
+    window: ${MOODLY_RATE_LIMIT_WINDOW:60s}
+    max-subjects: ${MOODLY_RATE_LIMIT_MAX_SUBJECTS:10000}
 
   cloudinary:
     connect-timeout: ${CLOUDINARY_CONNECT_TIMEOUT:2s}

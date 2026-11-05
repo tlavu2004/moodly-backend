@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class CdcResumeToken {
 	@Id
 	private String id;
+
 	private String token;
 	private Instant resumeAt;
 	private Instant updatedAt;

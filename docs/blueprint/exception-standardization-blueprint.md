@@ -8,12 +8,12 @@ Normal API failures use `ApiResponse.error(ApiError)` with a stable `status`, `c
 
 `ErrorCode` owns the public code, default message, and HTTP status. `ApplicationException` stores an `ErrorCode`, an optional safe message, and an optional cause. Its status derives from the code. Client code should branch on `error.code`, never on message text. Codes are unique across all enums and must never be reused for a different condition.
 
-| Failure | Decision point | Public outcome |
-| --- | --- | --- |
-| Malformed JSON, missing or mistyped parameters, Bean Validation, security filter denial | Spring MVC, Security, or `GlobalExceptionHandler` | Shared `GlobalErrorCode` |
-| Expected business or module-specific request failure | Controller, service, or adapter that understands the condition | Module `ErrorCode` through `ApplicationException` |
-| Unknown persistence collision, broken invariant, programming or library defect | Nearest system boundary | Generic 500 `INTERNAL_SERVER_ERROR`; log a compact cause summary and application location |
-| Scheduled job or change-stream callback failure | Job/listener retry, dead-letter, and health policy | No HTTP response unless an API explicitly invokes the operation |
+| Failure                                                                                 | Decision point                                                 | Public outcome                                                                            |
+|-----------------------------------------------------------------------------------------|----------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| Malformed JSON, missing or mistyped parameters, Bean Validation, security filter denial | Spring MVC, Security, or `GlobalExceptionHandler`              | Shared `GlobalErrorCode`                                                                  |
+| Expected business or module-specific request failure                                    | Controller, service, or adapter that understands the condition | Module `ErrorCode` through `ApplicationException`                                         |
+| Unknown persistence collision, broken invariant, programming or library defect          | Nearest system boundary                                        | Generic 500 `INTERNAL_SERVER_ERROR`; log a compact cause summary and application location |
+| Scheduled job or change-stream callback failure                                         | Job/listener retry, dead-letter, and health policy             | No HTTP response unless an API explicitly invokes the operation                           |
 
 Controllers may validate transport input. Services decide ownership, state, and persistence outcomes. Repositories return data or native persistence exceptions; they do not construct HTTP errors. `GlobalExceptionHandler` handles known MVC failures, all `ApplicationException` instances, and a generic fallback. Do not add a blanket 4xx mapping for `IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`, Mongo exceptions, or third-party exceptions.
 
@@ -21,16 +21,16 @@ Controllers may validate transport input. Services decide ownership, state, and 
 
 Each module owns codes for its **expected application failures**. Shared framework and authentication-filter responses keep global codes. A code belongs to the domain that rejects the operation, even when another module exposes the endpoint; an entry log for an unknown habit therefore returns `HABIT_NOT_FOUND`. A module without an expected failure needs no empty enum or exception class.
 
-| Owner | Public codes and conditions |
-| --- | --- |
-| Global | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, `NOT_ACCEPTABLE`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_SERVER_ERROR`; `DUPLICATE_RESOURCE` is reserved for legacy clients and is not emitted by a generic Mongo handler. |
+| Owner       | Public codes and conditions                                                                                                                                                                                                                                                                                                                           |
+|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Global      | `VALIDATION_FAILED`, `INVALID_REQUEST`, `MISSING_REQUIRED_HEADER`, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, `NOT_ACCEPTABLE`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_SERVER_ERROR`; `DUPLICATE_RESOURCE` is reserved for legacy clients and is not emitted by a generic Mongo handler.                                |
 | Auth/avatar | `AVATAR_CONTENT_TYPE_UNSUPPORTED`, `AVATAR_FILE_TOO_LARGE`, `AVATAR_UPLOAD_NOT_FOUND`, `AVATAR_ASSET_INVALID`, `AVATAR_CONFLICT`, `AVATAR_SERVICE_UNAVAILABLE`. `AVATAR_VERSION_INVALID` guards direct service calls; HTTP `version <= 0` is rejected first by Bean Validation as global `VALIDATION_FAILED`. Security-filter 401/403 remains global. |
-| Habits | `HABIT_NOT_FOUND` for missing or unowned habit, `HABIT_CONFLICT` for stale version, `HABIT_INVALID_STATUS` for an unsupported filter, `HABIT_ARCHIVED` for a new log on an archived habit. |
-| Entries | `ENTRY_INVALID_RANGE` for application-level date and pagination rules. Bean Validation and malformed request syntax remain global. |
-| Stats | `STATS_INVALID_PERIOD` for an unsupported mood trend period. Streak ownership failures use `HABIT_NOT_FOUND`. |
-| Search/CDC | `SEARCH_INVALID_REQUEST`, `SEARCH_UNAVAILABLE`, `CDC_MAINTENANCE_FORBIDDEN`, `CDC_DEAD_LETTER_NOT_FOUND`. An E2E operation that depends on search may return `SEARCH_UNAVAILABLE`. |
-| E2E | `E2E_RESET_FORBIDDEN` for an invalid reset token. Production does not expose this endpoint. |
-| Dashboard | No expected module-specific failure at present; unexpected aggregation or persistence failure is 500. |
+| Habits      | `HABIT_NOT_FOUND` for missing or unowned habit, `HABIT_CONFLICT` for stale version, `HABIT_INVALID_STATUS` for an unsupported filter, `HABIT_ARCHIVED` for a new log on an archived habit.                                                                                                                                                            |
+| Entries     | `ENTRY_INVALID_RANGE` for application-level date and pagination rules. Bean Validation and malformed request syntax remain global.                                                                                                                                                                                                                    |
+| Stats       | `STATS_INVALID_PERIOD` for an unsupported mood trend period. Streak ownership failures use `HABIT_NOT_FOUND`.                                                                                                                                                                                                                                         |
+| Search/CDC  | `SEARCH_INVALID_REQUEST`, `SEARCH_UNAVAILABLE`, `CDC_MAINTENANCE_FORBIDDEN`, `CDC_DEAD_LETTER_NOT_FOUND`. An E2E operation that depends on search may return `SEARCH_UNAVAILABLE`.                                                                                                                                                                    |
+| E2E         | `E2E_RESET_FORBIDDEN` for an invalid reset token. Production does not expose this endpoint.                                                                                                                                                                                                                                                           |
+| Dashboard   | No expected module-specific failure at present; unexpected aggregation or persistence failure is 500.                                                                                                                                                                                                                                                 |
 
 This code migration is intentional and requires consumer review before merge. Preserve each code's meaning, HTTP status, and safe message after publication. A future code replacement requires an explicit compatibility decision, HTTP tests, and an OpenAPI update.
 
@@ -75,10 +75,10 @@ RuntimeException
 
 - A new habit log after archive returns 409 `HABIT_ARCHIVED`; correction of an existing log remains allowed. A request overlapping archive observes the state at validation time. Requests begun after archive finishes see the archived state.
 - Known stale habit versions and optimistic-lock failures at habit writes use `HABIT_CONFLICT`. The service retains the previous 409 message for a repository race. Spring's shared optimistic-lock handler remains a fallback for failures outside a service-specific translation.
-- Unexpected Mongo uniqueness failures are 500, including a create race that cannot find its intended winner. Only a proven client-actionable conflict deserves a module 409.
+- Unexpected Mongo uniqueness failures are 500, including a created race that cannot find its intended winner. Only a proven client-actionable conflict deserves a module 409.
 - Search hit missing `_source` is a 500 defect or index inconsistency. The adapter logs the hit ID for an operator to inspect or rebuild the index; it never logs the user's query or returns the ID to the client. Classified temporary search transport failures remain 503. An unreadable local index mapping is an internal unchecked failure (500 at an API boundary); the mapping is read before an existing index is deleted. CDC invalid retry settings fail startup before any delivery attempt, and an impossible retry fallthrough is an internal invariant failure rather than an I/O failure.
 - CDC listeners, cleanup jobs, and security filters are outside MVC advice. Their local retry, durable record, health, and envelope rules remain explicit.
 
 ## 6. Verification and change procedure
 
-Inventory every throw and catch in the affected module before changing a handler. Test status, code, safe message, and envelope for representative framework and module failures; test that unexpected `IllegalArgumentException` and unclassified persistence errors remain 500. Include ownership, concurrency, retry/dead-letter, and success paths where relevant. Regenerate `docs/api/moodly-openapi.json` whenever a public response changes and review its diff. Run the full Maven verification with Docker before push.
+Inventory every throw and catch in the affected module before changing a handler. Test status, code, safe message, and envelope for representative framework and module failures; test that unexpected `IllegalArgumentException` and unclassified persistence errors remain 500. Include ownership, concurrency, retry/dead-letter, and success paths where relevant. Regenerate `docs/api/json/moodly-openapi.json` whenever a public response changes and review its diff. Run the full Maven verification with Docker before push.

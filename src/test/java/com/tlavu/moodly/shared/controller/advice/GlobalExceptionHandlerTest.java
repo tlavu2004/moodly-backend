@@ -1,5 +1,8 @@
 package com.tlavu.moodly.shared.controller.advice;
 
+import com.tlavu.moodly.modules.search.exception.SearchIndexMappingException;
+import com.tlavu.moodly.modules.search.exception.ElasticsearchConfigurationException;
+import com.tlavu.moodly.modules.entries.exception.DailyEntryPersistenceException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -40,12 +43,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 class GlobalExceptionHandlerTest {
 	@RestController
 	static class DuplicateController {
 		@GetMapping("/test-duplicate")
 		void fail() {
 			throw new DuplicateKeyException("internal index name and key");
+		}
+	}
+
+	@Test
+	void keepsNamedInfrastructureFailuresInternalAndMessagesSafe() {
+		HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+		when(request.getRequestURI()).thenReturn("/entries");
+		GlobalExceptionHandler handler = new GlobalExceptionHandler();
+		List<RuntimeException> failures = List.of(
+				new SearchIndexMappingException("private mapping location", new java.io.IOException("private cause")),
+				new ElasticsearchConfigurationException("private endpoint"),
+				new DailyEntryPersistenceException("private database invariant"));
+		for (RuntimeException failure : failures) {
+			ResponseEntity<ApiResponse<Void>> response = handler.handleUnexpectedException(failure, request);
+			assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+			assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_SERVER_ERROR");
+			assertThat(response.getBody().error().message()).isEqualTo("An unexpected error occurred.");
 		}
 	}
 
@@ -71,7 +93,7 @@ class GlobalExceptionHandlerTest {
 				Arrays.stream(SearchErrorCode.values()),
 				Arrays.stream(E2eErrorCode.values())
 		).flatMap(stream -> stream).map(code -> (ErrorCode) code).toList();
-		assertThat(catalog).extracting(ErrorCode::getCode).doesNotHaveDuplicates();
+		assertThat(catalog).extracting(code -> code.getCode()).doesNotHaveDuplicates();
 		assertThat(catalog).allSatisfy(code -> {
 			assertThat(code.getStatus()).isNotNull();
 			assertThat(code.getDefaultMessage()).isNotBlank();

@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchIndexMappingException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -9,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
@@ -48,7 +50,7 @@ class DailyEntrySearchIndexManagerTest {
 
 		manager.recreate();
 
-			var order = org.mockito.Mockito.inOrder(elasticsearchClient);
+			InOrder order = org.mockito.Mockito.inOrder(elasticsearchClient);
 		order.verify(elasticsearchClient).deleteIndex("entries-test");
 		order.verify(elasticsearchClient).createIndex("entries-test", "{\"mappings\":{}}");
 	}
@@ -61,7 +63,7 @@ class DailyEntrySearchIndexManagerTest {
 				elasticsearchClient, "entries-test", unreadableMapping);
 
 		assertThatThrownBy(manager::recreate)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(SearchIndexMappingException.class)
 				.hasMessage("Could not read the configured Elasticsearch index mapping")
 				.hasCauseInstanceOf(IOException.class);
 		verifyNoInteractions(elasticsearchClient);
@@ -76,14 +78,14 @@ class DailyEntrySearchIndexManagerTest {
 				elasticsearchClient, "entries-test", unreadableMapping);
 
 		assertThatThrownBy(manager::createIfMissing)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(SearchIndexMappingException.class)
 				.hasCauseInstanceOf(IOException.class);
 		verify(elasticsearchClient, never()).createIndex(any(), any());
 	}
 
 	@Test
 	void preservesElasticsearchIoFailureForTheCallerToClassify() throws Exception {
-		IOException transportFailure = new IOException("Elasticsearch unavailable");
+		ElasticsearchTransportException transportFailure = new ElasticsearchTransportException("Elasticsearch unavailable");
 		when(elasticsearchClient.exists("entries-test")).thenThrow(transportFailure);
 
 		assertThatThrownBy(manager()::createIfMissing).isSameAs(transportFailure);

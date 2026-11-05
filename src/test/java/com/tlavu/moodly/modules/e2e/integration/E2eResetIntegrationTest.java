@@ -28,13 +28,14 @@ import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocum
 import com.tlavu.moodly.support.CdcSearchTestSupport;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -43,6 +44,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @SpringBootTest(properties = {
 		"moodly.entries.collection-name=daily_entries_e2e_test",
 		"moodly.cdc.enabled=true",
@@ -129,14 +132,14 @@ class E2eResetIntegrationTest {
 		assertThat(dailyEntryRepository.findByUserId(target)).hasSize(3);
 		assertThat(habitRepository.findByUserId(target)).hasSize(2);
 
-		List<String> baselineEntryIds = dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList();
-		List<String> baselineHabitIds = habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList();
+		List<String> baselineEntryIds = dailyEntryRepository.findByUserId(target).stream().map(entry -> entry.getId()).sorted().toList();
+		List<String> baselineHabitIds = habitRepository.findByUserId(target).stream().map(habit -> habit.getId()).sorted().toList();
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.habits").value(2))
 				.andExpect(jsonPath("$.data.entries").value(3));
-		assertThat(dailyEntryRepository.findByUserId(target).stream().map(DailyEntry::getId).sorted().toList()).isEqualTo(baselineEntryIds);
-		assertThat(habitRepository.findByUserId(target).stream().map(Habit::getId).sorted().toList()).isEqualTo(baselineHabitIds);
+		assertThat(dailyEntryRepository.findByUserId(target).stream().map(entry -> entry.getId()).sorted().toList()).isEqualTo(baselineEntryIds);
+		assertThat(habitRepository.findByUserId(target).stream().map(habit -> habit.getId()).sorted().toList()).isEqualTo(baselineHabitIds);
 		assertThat(dailyEntryRepository.findById(otherEntry.getId())).isPresent();
 
 		DailyEntry postReset = entry(other, "cdc after reset", List.of(), "walk", 4);
@@ -175,8 +178,8 @@ class E2eResetIntegrationTest {
 		return "/" + indexManager.getIndexName() + "/_delete_by_query?refresh=true";
 	}
 
-	private void assertDeleteRetriedAfterRefresh() throws IOException {
-		var order = inOrder(elasticsearchClient);
+	private void assertDeleteRetriedAfterRefresh() {
+		InOrder order = inOrder(elasticsearchClient);
 		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
 		order.verify(elasticsearchClient).refresh(indexManager.getIndexName());
 		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
@@ -188,7 +191,7 @@ class E2eResetIntegrationTest {
 	@Test
 	void returnsServiceUnavailableWhenIndexingFails() throws Exception {
 		listener.stop();
-		doThrow(new IOException("connection refused"))
+		doThrow(new ElasticsearchTransportException("connection refused"))
 				.when(searchWriter).index(any(DailyEntry.class));
 
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))

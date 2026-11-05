@@ -1,4 +1,4 @@
-package com.tlavu.moodly.shared.error;
+package com.tlavu.moodly.shared.error.logging;
 
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.mongodb.MongoException;
