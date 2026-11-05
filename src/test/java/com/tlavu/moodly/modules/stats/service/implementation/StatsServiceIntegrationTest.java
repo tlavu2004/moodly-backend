@@ -10,7 +10,6 @@ import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.stats.domain.MoodTrendPeriod;
-import com.tlavu.moodly.modules.stats.service.implementation.StatsService;
 import com.tlavu.moodly.modules.stats.service.input.CalculateCurrentStreakInput;
 import com.tlavu.moodly.modules.stats.service.input.FindMoodTrendInput;
 import com.tlavu.moodly.modules.stats.service.view.HabitStreakView;
@@ -49,19 +48,16 @@ class StatsServiceIntegrationTest {
 				LocalDate.of(2026, 8, 1),
 				3,
 				new HabitLog("exercise", true, null),
-				new HabitLog("reading", false, null)
-		));
+				new HabitLog("reading", false, null)));
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 2),
 				2,
 				new HabitLog("exercise", true, null),
-				new HabitLog("reading", false, null)
-		));
+				new HabitLog("reading", false, null)));
 		dailyEntryRepository.save(entry(
 				LocalDate.of(2026, 8, 3),
 				4,
-				new HabitLog("exercise", false, null)
-		));
+				new HabitLog("exercise", false, null)));
 	}
 
 	@AfterEach
@@ -74,8 +70,7 @@ class StatsServiceIntegrationTest {
 	void groupsMoodByWeekAndFindsMostMissedHabit() {
 		List<MoodTrendView> trend = statsService.findMoodTrend(
 				TEST_USER_ID,
-				new FindMoodTrendInput(MoodTrendPeriod.WEEK, LocalDate.of(2026, 8, 3))
-		);
+				new FindMoodTrendInput(MoodTrendPeriod.WEEK, LocalDate.of(2026, 8, 3)));
 		List<MostMissedHabitView> missedHabits = statsService.findMostMissedHabits(TEST_USER_ID);
 
 		assertEquals(1, trend.size());
@@ -88,8 +83,7 @@ class StatsServiceIntegrationTest {
 	void calculatesOnlyConsecutiveCompletedDays() {
 		HabitStreakView streak = statsService.calculateCurrentStreak(
 				TEST_USER_ID,
-				new CalculateCurrentStreakInput("exercise", LocalDate.of(2026, 8, 2))
-		);
+				new CalculateCurrentStreakInput("exercise", LocalDate.of(2026, 8, 2)));
 
 		assertEquals(2, streak.currentStreak());
 	}
