@@ -53,7 +53,11 @@ import org.springframework.stereotype.Component;
 /** Maintains Elasticsearch as an asynchronous, rebuildable projection of daily_entries. */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "moodly.cdc.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+		name = "moodly.cdc.enabled",
+		havingValue = "true",
+		matchIfMissing = true
+)
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class DailyEntryChangeStreamListener {
 	private final DefaultMessageListenerContainer listenerContainer;
@@ -94,15 +98,25 @@ public class DailyEntryChangeStreamListener {
 	public synchronized void start() {
 		recoveryPending = false;
 		rebuildPending = false;
-		CdcResumeToken checkpoint = resumeTokenRepository.findById(streamId).orElse(null);
+		CdcResumeToken checkpoint = resumeTokenRepository.findById(streamId)
+				.orElse(null);
+
 		if (checkpoint == null || reindexService.isIndexMissing()) {
 			Instant baseline = Optional.ofNullable(operationTime.get())
 					.orElseThrow(() -> new CdcCheckpointException(
-							"MongoDB did not return an operation time"));
+							"MongoDB did not return an operation time"
+					));
+
 			reindexService.reindex();
-			checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
+
+			checkpoint = CdcResumeToken.fromOperationTime(
+					streamId,
+					baseline,
+					Instant.now()
+			);
 			resumeTokenRepository.save(checkpoint);
 		}
+
 		listenerContainer.start();
 		register(checkpoint);
 		monitor.listenerStarted();
@@ -112,10 +126,13 @@ public class DailyEntryChangeStreamListener {
 	public synchronized void stop() {
 		recoveryPending = false;
 		rebuildPending = false;
+
 		if (subscription != null) {
 			listenerContainer.remove(subscription);
+
 			subscription = null;
 		}
+
 		listenerContainer.stop();
 	}
 
@@ -137,7 +154,11 @@ public class DailyEntryChangeStreamListener {
 		} catch (RuntimeException exception) {
 			recoveryPending = true;
 			monitor.listenerFailed(exception);
-			log.error("Could not restart {} Change Stream from its resume token: {}", collectionName, ExceptionLogSummary.of(exception));
+			log.error(
+					"Could not restart {} Change Stream from its resume token: {}",
+					collectionName,
+					ExceptionLogSummary.of(exception)
+			);
 		}
 	}
 
@@ -147,7 +168,10 @@ public class DailyEntryChangeStreamListener {
 			return subscription != null && subscription.await(timeout);
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
-			throw new OperationInterruptedException("CDC subscription registration interrupted", interrupted);
+			throw new OperationInterruptedException(
+					"CDC subscription registration interrupted",
+					interrupted
+			);
 		}
 	}
 
@@ -185,20 +209,21 @@ public class DailyEntryChangeStreamListener {
 		try {
 			ChangeStreamDocument<Document> raw = Optional.ofNullable(message.getRaw())
 					.orElseThrow(() -> new CdcEventMalformedException(
-							"Change Stream message has no raw event"));
-			BsonDocument resumeToken = Optional.ofNullable(raw.getResumeToken())
-					.orElseThrow(() -> new CdcEventMalformedException(
-							"Change Stream event has no resume token"));
+							"Change Stream message has no raw event"
+					));
+			BsonDocument resumeToken = raw.getResumeToken();
 			String eventId = resumeToken.toString();
 			OperationType operationType = raw.getOperationType();
 
 			if (operationType == OperationType.DELETE) {
 				BsonDocument documentKey = Optional.ofNullable(raw.getDocumentKey())
 						.orElseThrow(() -> new CdcEventMalformedException(
-								"Delete event has no document key"));
+								"Delete event has no document key"
+						));
 				BsonValue id = Optional.ofNullable(documentKey.get("_id"))
 						.orElseThrow(() -> new CdcEventMalformedException(
-								"Delete event has no entry ID"));
+								"Delete event has no entry ID"
+						));
 				String entryId = switch (id.getBsonType()) {
 					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
 					case STRING -> id.asString().getValue();
@@ -270,15 +295,26 @@ public class DailyEntryChangeStreamListener {
 			}
 			Instant baseline = Optional.ofNullable(operationTime.get())
 					.orElseThrow(() -> new CdcCheckpointException(
-							"MongoDB did not return an operation time"));
+							"MongoDB did not return an operation time"
+					));
+
 			reindexService.reindex();
-			CdcResumeToken checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
+
+			CdcResumeToken checkpoint = CdcResumeToken.fromOperationTime(
+					streamId,
+					baseline,
+					Instant.now()
+			);
+
 			resumeTokenRepository.save(checkpoint);
 			register(checkpoint);
+
 			rebuildPending = false;
+
 			monitor.listenerStarted();
 		} catch (Exception recoveryFailure) {
 			monitor.listenerFailed(recoveryFailure);
+
 			log.error(
 					"Could not recover {} Change Stream with a full reindex: {}",
 					collectionName,
@@ -289,26 +325,42 @@ public class DailyEntryChangeStreamListener {
 
 	private boolean isTransientMongoFailure(Throwable exception) {
 		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-			if (cause instanceof MongoSocketException || cause instanceof MongoTimeoutException ||
-					cause instanceof TransientDataAccessException || cause instanceof DataAccessResourceFailureException) {
+			if (
+					cause instanceof MongoSocketException ||
+					cause instanceof MongoTimeoutException ||
+					cause instanceof TransientDataAccessException ||
+					cause instanceof DataAccessResourceFailureException
+			) {
 				return true;
 			}
 		}
+
 		return false;
 	}
 
 	private boolean isExpiredResumeToken(Throwable exception) {
 		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-			if (cause instanceof MongoException mongoException && mongoException.getCode() == 286) {
+			if (
+					cause instanceof MongoException mongoException &&
+					mongoException.getCode() == 286
+			) {
 				return true;
 			}
 		}
+
 		return false;
 	}
 
 	private static Instant mongoOperationTime(MongoTemplate mongoTemplate) {
-		Document response = mongoTemplate.executeCommand(new Document("ping", 1));
-		BsonTimestamp timestamp = response.get("operationTime", BsonTimestamp.class);
-		return timestamp == null ? null : Instant.ofEpochSecond(timestamp.getTime());
+		Document response = mongoTemplate.executeCommand(
+				new Document("ping", 1)
+		);
+		BsonTimestamp timestamp = response.get(
+				"operationTime", BsonTimestamp.class
+		);
+
+		return timestamp == null
+				? null
+				: Instant.ofEpochSecond(timestamp.getTime());
 	}
 }
