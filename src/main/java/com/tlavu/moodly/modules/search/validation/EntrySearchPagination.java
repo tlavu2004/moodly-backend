@@ -1,13 +1,15 @@
 package com.tlavu.moodly.modules.search.validation;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import com.tlavu.moodly.modules.search.exception.SearchException;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class EntrySearchPagination {
 
 	private static final int MAX_RESULT_WINDOW = 10_000;
 
-	private EntrySearchPagination() {
-	}
 
 	public static int validatedOffset(int page, int size) {
 		if (page < 0) {

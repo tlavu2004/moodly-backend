@@ -1,16 +1,18 @@
 package com.tlavu.moodly.shared.error.logging;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import com.tlavu.moodly.shared.error.contract.ProviderHttpStatus;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.mongodb.MongoException;
 
 /** A bounded, single-line diagnostic that never includes exception messages. */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ExceptionLogSummary {
 	private static final int MAX_CAUSES = 4;
 	private static final String APPLICATION_PACKAGE = "com.tlavu.moodly.";
 
-	private ExceptionLogSummary() {
-	}
 
 	public static String of(Throwable failure) {
 		StringBuilder summary = new StringBuilder();
