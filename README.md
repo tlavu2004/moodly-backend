@@ -19,6 +19,16 @@ sed 's/\r$//' src/main/resources/scripts/openapi/generate-openapi.sh | bash
 git diff -- docs/api/json/moodly-openapi.json
 ```
 
+## CI and image publishing
+
+Pull requests targeting `main` run application and OpenAPI verification, followed by a container build. Run `PR CI` manually to check a feature branch before opening a pull request. Feature-branch pushes rely on the pull request run once a PR is open, avoiding duplicate verification.
+
+Pushes to `main` and tags matching `v*` run `Release`. Verification must succeed before the image is built and published to GHCR. Both workflows call the shared verification workflow. Verification has a 15-minute timeout, and image jobs have a 20-minute timeout.
+
+A new PR run cancels an older run for the same PR. Release runs for the same ref are serialized, with cancellation of a running release disabled. Token permissions are read-only except for the publishing job, which requires `packages: write`.
+
+External actions are pinned to full commit SHAs, with their major versions recorded in comments. Verify the upstream release commit when updating a pin. The main branch ruleset requires the PR verification and PR container build checks before merging.
+
 ## Local setup
 
 Requirements: Java 25, Maven, and Docker Desktop.
