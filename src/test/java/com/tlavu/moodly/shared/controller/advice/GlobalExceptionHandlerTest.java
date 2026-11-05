@@ -43,6 +43,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 class GlobalExceptionHandlerTest {
 	@RestController
 	static class DuplicateController {
@@ -91,7 +93,7 @@ class GlobalExceptionHandlerTest {
 				Arrays.stream(SearchErrorCode.values()),
 				Arrays.stream(E2eErrorCode.values())
 		).flatMap(stream -> stream).map(code -> (ErrorCode) code).toList();
-		assertThat(catalog).extracting(ErrorCode::getCode).doesNotHaveDuplicates();
+		assertThat(catalog).extracting(code -> code.getCode()).doesNotHaveDuplicates();
 		assertThat(catalog).allSatisfy(code -> {
 			assertThat(code.getStatus()).isNotNull();
 			assertThat(code.getDefaultMessage()).isNotBlank();

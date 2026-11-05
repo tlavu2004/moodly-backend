@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /** One Compose stack per test JVM; its configured test database/index are disposable. */
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 final class ComposeTestEnvironment {
 	private static final int MAX_MONGO_PING_ATTEMPTS = 60;
 	private static ComposeTestEnvironment instance;
@@ -137,7 +139,7 @@ final class ComposeTestEnvironment {
 		for (ConfigurableApplicationContext context : contexts) {
 			if (context.isActive()) {
 				context.getBeansOfType(DailyEntryChangeStreamListener.class).values()
-						.forEach(DailyEntryChangeStreamListener::stop);
+						.forEach(listener -> listener.stop());
 			}
 			context.close();
 		}

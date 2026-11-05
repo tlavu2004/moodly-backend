@@ -16,6 +16,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -44,7 +46,7 @@ public class DashboardService {
 				new FindMoodTrendInput(MoodTrendPeriod.WEEK, today)
 		);
 		long moodEntryCount = moodTrend.stream()
-				.mapToLong(MoodTrendView::entryCount)
+				.mapToLong(point -> point.entryCount())
 				.sum();
 		double moodScoreTotal = moodTrend.stream()
 				.mapToDouble(point -> point.averageScore() * point.entryCount())
@@ -56,7 +58,7 @@ public class DashboardService {
 				moodEntryCount
 		);
 		List<String> habitIds = habits.stream()
-				.map(HabitView::id)
+				.map(habit -> habit.id())
 				.toList();
 		int bestCurrentStreak = statsService.calculateBestCurrentStreak(
 				userId,

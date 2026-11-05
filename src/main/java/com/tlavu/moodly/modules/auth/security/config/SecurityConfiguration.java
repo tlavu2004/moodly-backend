@@ -24,7 +24,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -44,6 +43,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import static java.util.Objects.requireNonNullElse;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
@@ -61,7 +62,7 @@ public class SecurityConfiguration {
 		boolean production = environment.acceptsProfiles(
 			Profiles.of("prod", "production")
 		);
-		http.csrf(AbstractHttpConfigurer::disable)
+		http.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
@@ -75,7 +76,7 @@ public class SecurityConfiguration {
 						).permitAll()
 						.requestMatchers("/internal/cdc/**")
 								.access(
-										(authentication, context) -> new AuthorizationDecision(
+										(authentication, _) -> new AuthorizationDecision(
 												!production ||
 												(
 													Objects.requireNonNull(authentication.get()).isAuthenticated() &&
