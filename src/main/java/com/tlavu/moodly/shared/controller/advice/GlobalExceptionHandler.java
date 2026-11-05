@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
-@SuppressWarnings("unused") // Spring invokes @ExceptionHandler methods via reflection.
+// Spring invokes @ExceptionHandler methods via reflection.
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
