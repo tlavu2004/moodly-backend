@@ -113,7 +113,10 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+	@ExceptionHandler({
+			MissingServletRequestParameterException.class,
+			MethodArgumentTypeMismatchException.class
+	})
 	ResponseEntity<ApiResponse<Void>> handleInvalidParameter(
 			Exception exception,
 			HttpServletRequest request
@@ -191,7 +194,10 @@ public class GlobalExceptionHandler {
 		);
 	}
 
-	@ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+	@ExceptionHandler({
+			NoHandlerFoundException.class,
+			NoResourceFoundException.class
+	})
 	ResponseEntity<ApiResponse<Void>> handleMissingEndpoint(
 			Exception exception,
 			HttpServletRequest request
@@ -260,7 +266,11 @@ public class GlobalExceptionHandler {
 				.body(ApiResponse.error(error));
 	}
 
-	private void logByStatus(ErrorCode code, HttpServletRequest request, Throwable exception) {
+	private void logByStatus(
+			ErrorCode code,
+			HttpServletRequest request,
+			Throwable exception
+	) {
 		if (code.getStatus().is5xxServerError()) {
 			log.error(
 					"Unexpected request failure at {}: method={}, status={}, code={}, cause={}",

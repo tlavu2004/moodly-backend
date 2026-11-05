@@ -13,10 +13,14 @@ public final class EntrySearchPagination {
 
 	public static int validatedOffset(int page, int size) {
 		if (page < 0) {
-			throw SearchException.invalidRequest("The 'page' parameter must be at least 0.");
+			throw SearchException.invalidRequest(
+					"The 'page' parameter must be at least 0."
+			);
 		}
 		if (size < 1 || size > 100) {
-			throw SearchException.invalidRequest("The 'size' parameter must be between 1 and 100.");
+			throw SearchException.invalidRequest(
+					"The 'size' parameter must be between 1 and 100."
+			);
 		}
 
 		long offset = (long) page * size;
@@ -24,8 +28,7 @@ public final class EntrySearchPagination {
 		if (offset + size > MAX_RESULT_WINDOW) {
 			throw SearchException.invalidRequest(
 				"The requested page exceeds the searchable result window of " +
-				MAX_RESULT_WINDOW +
-				"."
+				MAX_RESULT_WINDOW + "."
 			);
 		}
 

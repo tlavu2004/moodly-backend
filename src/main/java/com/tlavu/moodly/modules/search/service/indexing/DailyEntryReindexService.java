@@ -53,8 +53,9 @@ public class DailyEntryReindexService {
 		try {
 			indexManager.recreate();
 
-			Query query = new Query().with(Sort.by(Sort.Direction.ASC, "_id"))
-					.cursorBatchSize(batchSize);
+			Query query = new Query().with(
+					Sort.by(Sort.Direction.ASC, "_id")
+			).cursorBatchSize(batchSize);
 			long indexed = 0;
 
 			try (Stream<DailyEntry> entries = mongoTemplate.stream(query, DailyEntry.class)) {

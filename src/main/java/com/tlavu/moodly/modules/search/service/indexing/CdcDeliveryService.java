@@ -58,6 +58,7 @@ public class CdcDeliveryService {
 		if (initialBackoffMs < 0) {
 			throw new CdcConfigurationException("moodly.cdc.retry.initial-backoff-ms must not be negative");
 		}
+
 		this.searchWriter = searchWriter;
 		this.deadLetterRepository = deadLetterRepository;
 		this.monitor = monitor;
@@ -85,30 +86,32 @@ public class CdcDeliveryService {
 
 	public void deliverDelete(String eventId, String entryId) {
 		deliver(
-			eventId,
-			"delete",
-			entryId,
-			null,
-			() -> searchWriter.delete(entryId)
+				eventId,
+				"delete",
+				entryId,
+				null,
+				() -> searchWriter.delete(entryId)
 		);
 	}
 
 	public void replay(String deadLetterId) {
 		CdcDeadLetter deadLetter = deadLetterRepository.findById(deadLetterId)
 				.orElseThrow(SearchException::deadLetterNotFound);
+
 		replayDeadLetter(deadLetter);
 	}
 
 	private void replayDeadLetter(CdcDeadLetter deadLetter) {
 		AttemptCount attempts = new AttemptCount();
+
 		try {
 			if ("delete".equals(deadLetter.getOperationType())) {
 				deliverWithRetry(
-					deadLetter.getEventId(),
-					"delete",
-					deadLetter.getEntryId(),
-					() -> searchWriter.delete(deadLetter.getEntryId()),
-					attempts
+						deadLetter.getEventId(),
+						"delete",
+						deadLetter.getEntryId(),
+						() -> searchWriter.delete(deadLetter.getEntryId()),
+						attempts
 				);
 			} else {
 				DailyEntrySearchDocument document = objectMapper.readValue(
@@ -124,6 +127,7 @@ public class CdcDeliveryService {
 						attempts
 				);
 			}
+
 			deadLetterRepository.delete(deadLetter);
 		} catch (OperationInterruptedException exception) {
 			Thread.currentThread().interrupt();
@@ -158,21 +162,39 @@ public class CdcDeliveryService {
 		}
 	}
 
-	private void handleReplayFailure(CdcDeadLetter deadLetter, Exception exception, int attemptsMade) {
+	private void handleReplayFailure(
+			CdcDeadLetter deadLetter,
+			Exception exception,
+			int attemptsMade
+	) {
 		deadLetter.setAttempts(deadLetter.getAttempts() + attemptsMade);
 		deadLetter.setError(exception.getMessage());
 		deadLetter.setFailedAt(Instant.now());
+
 		try {
 			deadLetterRepository.save(deadLetter);
 		} catch (DataAccessException persistenceFailure) {
 			exception.addSuppressed(persistenceFailure);
-			log.error("Could not persist failed CDC replay state for dead letter {}: {}", deadLetter.getId(), ExceptionLogSummary.of(persistenceFailure));
+
+			log.error(
+					"Could not persist failed CDC replay state for dead letter {}: {}",
+					deadLetter.getId(),
+					ExceptionLogSummary.of(persistenceFailure)
+			);
 		}
+
 		monitor.deadLettered(exception);
 	}
 
-	private void deliver(String eventId, String operationType, String entryId, String payload, ThrowingOperation operation) {
+	private void deliver(
+			String eventId,
+			String operationType,
+			String entryId,
+			String payload,
+			ThrowingOperation operation
+	) {
 		AttemptCount attempts = new AttemptCount();
+
 		try {
 			deliverWithRetry(
 					eventId,

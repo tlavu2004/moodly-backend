@@ -35,19 +35,36 @@ public class PendingAvatarUploadCleanup {
 				if (!profiles.existsByAvatarPublicId(pending.getPublicId())) {
 					cloudinary.deleteImage(pending.getPublicId());
 				}
+
 				pendingUploads.delete(pending);
 			} catch (RuntimeException exception) {
 				pending.recordCleanupFailure();
+
 				try {
 					pendingUploads.save(pending);
 					if (exception instanceof AvatarAssetDeletionException || exception instanceof DataAccessException) {
-						log.warn("Avatar cleanup retry failed: pendingId={}, attempt={}, cause={}", pending.getId(), pending.getCleanupAttempts(), ExceptionLogSummary.of(exception));
+						log.warn(
+								"Avatar cleanup retry failed: pendingId={}, attempt={}, cause={}",
+								pending.getId(),
+								pending.getCleanupAttempts(),
+								ExceptionLogSummary.of(exception)
+						);
 					} else {
-						log.error("Unexpected avatar cleanup retry failure: pendingId={}, attempt={}, cause={}", pending.getId(), pending.getCleanupAttempts(), ExceptionLogSummary.of(exception));
+						log.error(
+								"Unexpected avatar cleanup retry failure: pendingId={}, attempt={}, cause={}",
+								pending.getId(),
+								pending.getCleanupAttempts(),
+								ExceptionLogSummary.of(exception)
+						);
 					}
 				} catch (RuntimeException persistenceException) {
 					persistenceException.addSuppressed(exception);
-					log.error("Avatar cleanup retry state could not be persisted: pendingId={}, cause={}", pending.getId(), ExceptionLogSummary.of(persistenceException));
+
+					log.error(
+							"Avatar cleanup retry state could not be persisted: pendingId={}, cause={}",
+							pending.getId(),
+							ExceptionLogSummary.of(persistenceException)
+					);
 				}
 			}
 		}

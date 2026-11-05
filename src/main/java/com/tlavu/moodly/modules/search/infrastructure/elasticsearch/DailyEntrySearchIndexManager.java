@@ -51,7 +51,10 @@ public class DailyEntrySearchIndexManager {
 		try (InputStream mappingStream = mapping.getInputStream()) {
 			return mappingStream.readAllBytes();
 		} catch (IOException exception) {
-			throw new SearchIndexMappingException("Could not read the configured Elasticsearch index mapping", exception);
+			throw new SearchIndexMappingException(
+					"Could not read the configured Elasticsearch index mapping",
+					exception
+			);
 		}
 	}
 

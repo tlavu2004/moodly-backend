@@ -30,7 +30,10 @@ public class StatsService {
 	private final OwnedHabitService ownedHabitService;
 	private final StatsAggregationRepository statsAggregationRepository;
 
-	public List<MoodTrendView> findMoodTrend(String userId, FindMoodTrendInput input) {
+	public List<MoodTrendView> findMoodTrend(
+			String userId,
+			FindMoodTrendInput input
+	) {
 		LocalDate from = input.period().startDate(input.today());
 		LocalDate to = input.period().endDate(input.today());
 

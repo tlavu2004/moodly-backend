@@ -41,26 +41,51 @@ public class DailyEntryService {
 			UpdateHabitLogInput input
 	) {
 		Habit habit = ownedHabitService.require(userId, input.habitId());
-		if (!habit.isActive() && !dailyEntryRepository.findByUserIdAndDate(userId, date)
-				.map(existing -> existing.getHabits().stream()
-						.anyMatch(log -> input.habitId().equals(log.getHabitId())))
-				.orElse(false)) {
+
+		if (
+				!habit.isActive() &&
+				!dailyEntryRepository.findByUserIdAndDate(userId, date)
+						.map(existing -> existing.getHabits().stream()
+								.anyMatch(log -> input.habitId().equals(log.getHabitId()))
+						).orElse(false)
+		) {
 			throw HabitException.archived();
 		}
+
 		DailyEntry entry = ensureEntry(userId, date);
-		Query existing = Query.query(Criteria.where("_id").is(entry.getId())
-				.and("habits.habitId").is(input.habitId()));
+		Query existing = Query.query(
+				Criteria.where("_id")
+						.is(entry.getId())
+						.and("habits.habitId")
+						.is(input.habitId())
+		);
 		Update replace = new Update().set("habits.$.done", input.done())
-				.set("habits.$.note", input.note()).set("updatedAt", Instant.now());
+				.set("habits.$.note", input.note())
+				.set("updatedAt", Instant.now());
+
 		if (mongoTemplate.updateFirst(existing, replace, DailyEntry.class).getMatchedCount() == 0) {
-			Query missing = Query.query(Criteria.where("_id").is(entry.getId())
-					.and("habits.habitId").ne(input.habitId()));
-			Update append = new Update().push("habits", new HabitLog(input.habitId(), input.done(), input.note()))
-					.set("updatedAt", Instant.now());
-			if (mongoTemplate.updateFirst(missing, append, DailyEntry.class).getMatchedCount() == 0) {
+			Query missing = Query.query(
+					Criteria.where("_id")
+							.is(entry.getId())
+							.and("habits.habitId")
+							.ne(input.habitId()));
+			Update append = new Update().push(
+					"habits",
+					new HabitLog(
+							input.habitId(),
+							input.done(),
+							input.note()
+					)
+			).set("updatedAt", Instant.now());
+
+			if (
+					mongoTemplate.updateFirst(missing, append, DailyEntry.class)
+							.getMatchedCount() == 0
+			) {
 				mongoTemplate.updateFirst(existing, replace, DailyEntry.class);
 			}
 		}
+
 		return DailyEntryView.from(dailyEntryRepository.findById(entry.getId())
 				.orElseThrow(() -> new DailyEntryPersistenceException("Daily entry disappeared after habit update")));
 	}
@@ -73,12 +98,23 @@ public class DailyEntryService {
 		DailyEntry entry = ensureEntry(userId, date);
 		DailyEntry updated = mongoTemplate.findAndModify(
 				Query.query(Criteria.where("_id").is(entry.getId())),
-				new Update().set("mood", new Mood(input.score(), input.tags(), input.note()))
-						.set("updatedAt", Instant.now()),
-				FindAndModifyOptions.options().returnNew(true), DailyEntry.class);
-		return DailyEntryView.from(Optional.ofNullable(updated)
-				.orElseThrow(() -> new DailyEntryPersistenceException(
-						"Daily entry disappeared during mood update")));
+				new Update().set(
+						"mood",
+						new Mood(
+								input.score(),
+								input.tags(),
+								input.note()
+						)
+				).set("updatedAt", Instant.now()),
+				FindAndModifyOptions.options().returnNew(true),
+				DailyEntry.class
+		);
+
+		return DailyEntryView.from(
+				Optional.ofNullable(updated)
+						.orElseThrow(() -> new DailyEntryPersistenceException(
+								"Daily entry disappeared during mood update"))
+		);
 	}
 
 	public List<DailyEntryView> findBetween(
@@ -99,7 +135,11 @@ public class DailyEntryService {
 			int page,
 			int size
 	) {
-		PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date"));
+		PageRequest pageRequest = PageRequest.of(
+				page,
+				size,
+				Sort.by(Sort.Direction.DESC, "date")
+		);
 
 		return dailyEntryRepository.findPageByUserIdAndDateRange(userId, from, to, pageRequest)
 				.map(DailyEntryView::from);
@@ -112,17 +152,31 @@ public class DailyEntryService {
 
 	private DailyEntry ensureEntry(String userId, LocalDate date) {
 		Instant now = Instant.now();
+
 		try {
 			return Optional.ofNullable(mongoTemplate.findAndModify(
-					Query.query(Criteria.where("userId").is(userId).and("date").is(date)),
-					new Update().setOnInsert("userId", userId).setOnInsert("date", date)
-							.setOnInsert("habits", List.of()).setOnInsert("createdAt", now)
+					Query.query(
+							Criteria.where("userId")
+									.is(userId)
+									.and("date")
+									.is(date)
+					),
+					new Update().setOnInsert("userId", userId)
+							.setOnInsert("date", date)
+							.setOnInsert("habits", List.of())
+							.setOnInsert("createdAt", now)
 							.setOnInsert("updatedAt", now),
-					FindAndModifyOptions.options().upsert(true).returnNew(true), DailyEntry.class)).orElseThrow(() -> new DailyEntryPersistenceException("Daily entry was not returned after upsert"));
+					FindAndModifyOptions.options()
+							.upsert(true)
+							.returnNew(true),
+					DailyEntry.class
+			)).orElseThrow(() -> new DailyEntryPersistenceException("Daily entry was not returned after upsert"));
 		} catch (DuplicateKeyException race) {
 			return dailyEntryRepository.findByUserIdAndDate(userId, date)
 					.orElseThrow(() -> new DailyEntryPersistenceException(
-							"Daily entry collided without an existing entry for the same user and date", race));
+							"Daily entry collided without an existing entry for the same user and date",
+							race
+					));
 		}
 	}
 }

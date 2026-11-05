@@ -29,7 +29,9 @@ public enum MoodTrendPeriod {
 	}
 
 	public LocalDate startDate(LocalDate date) {
-		return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+		return date.with(
+			TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+		);
 	}
 
 	public LocalDate endDate(LocalDate date) {

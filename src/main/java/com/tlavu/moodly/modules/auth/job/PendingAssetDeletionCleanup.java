@@ -18,7 +18,11 @@ import org.springframework.dao.DataAccessException;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-@ConditionalOnProperty(name = "moodly.cloudinary.pending-cleanup.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+		name = "moodly.cloudinary.pending-cleanup.enabled",
+		havingValue = "true",
+		matchIfMissing = true
+)
 public class PendingAssetDeletionCleanup {
 	private final PendingAssetDeletionRepository pendingDeletions;
 	private final UserProfileRepository profiles;
@@ -37,12 +41,15 @@ public class PendingAssetDeletionCleanup {
 					}
 					continue;
 				}
+
 				cloudinary.deleteImage(pending.getPublicId());
 				pendingDeletions.delete(pending);
 			} catch (RuntimeException exception) {
 				pending.recordFailure(Instant.now());
+
 				try {
 					pendingDeletions.save(pending);
+
 					if (exception instanceof AvatarAssetDeletionException || exception instanceof DataAccessException) {
 						log.warn("Cloudinary avatar cleanup retry failed: pendingId={}, attempt={}, cause={}", pending.getId(), pending.getCleanupAttempts(), ExceptionLogSummary.of(exception));
 					} else {

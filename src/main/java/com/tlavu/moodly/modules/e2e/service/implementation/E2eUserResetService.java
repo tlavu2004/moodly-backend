@@ -124,7 +124,11 @@ public class E2eUserResetService {
 			for (DailyEntry entry : entries) {
 				String entryId = entry.getId();
 				DailyEntrySearchDocument indexed = elasticsearchClient.get(
-						indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
+						indexManager.getIndexName(),
+						entryId,
+						DailyEntrySearchDocument.class
+				);
+
 				if (!DailyEntrySearchDocument.from(entry).equals(indexed)) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
 							new E2eSearchVerificationException("Search document verification failed for " + entryId)

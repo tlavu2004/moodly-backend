@@ -48,6 +48,7 @@ public class HabitService {
 
 	public HabitView update(String userId, String habitId, UpdateHabitInput input) {
 		Habit habit = ownedHabitService.require(userId, habitId);
+
 		verifyVersion(habit, input.version());
 		habit.update(input.name(), input.icon());
 
@@ -56,6 +57,7 @@ public class HabitService {
 
 	public HabitView archive(String userId, String habitId, long version) {
 		Habit habit = ownedHabitService.require(userId, habitId);
+
 		verifyVersion(habit, version);
 		habit.archive();
 
@@ -64,6 +66,7 @@ public class HabitService {
 
 	public HabitView restore(String userId, String habitId, long version) {
 		Habit habit = ownedHabitService.require(userId, habitId);
+
 		verifyVersion(habit, version);
 		habit.restore();
 

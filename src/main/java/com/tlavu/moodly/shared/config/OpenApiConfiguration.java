@@ -38,18 +38,17 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 
 @Configuration
 public class OpenApiConfiguration {
-
 	private static final String BEARER_AUTH = "bearerAuth";
 	private static final String MAINTENANCE_KEY = "maintenanceKey";
 
 	@Bean
 	OpenAPI moodlyOpenApi() {
-		return new OpenAPI()
-				.info(new Info()
+		return new OpenAPI().info(
+				new Info()
 						.title("Moodly API")
 						.version("v1")
-						.description("Moodly backend API. Authenticate requests with an Auth0 access token. Calendar dates use Asia/Ho_Chi_Minh; weeks start on Monday."))
-				.addServersItem(
+						.description("Moodly backend API. Authenticate requests with an Auth0 access token. Calendar dates use Asia/Ho_Chi_Minh; weeks start on Monday.")
+				).addServersItem(
 						new Server().url("http://localhost:8080")
 								.description("Local development server")
 				)
