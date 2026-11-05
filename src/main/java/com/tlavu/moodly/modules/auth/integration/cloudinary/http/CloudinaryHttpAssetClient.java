@@ -52,7 +52,9 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				apiKey,
 				apiSecret,
 				requestTimeout,
-				HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+				HttpClient.newBuilder()
+						.connectTimeout(connectTimeout)
+						.build()
 		);
 	}
 
@@ -118,8 +120,6 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 			Thread.currentThread().interrupt();
 
 			throw new AvatarServiceUnavailableException(exception);
-		} catch (AvatarException | AvatarServiceUnavailableException exception) {
-			throw exception;
 		} catch (IOException | JacksonException exception) {
 			throw new AvatarServiceUnavailableException(exception);
 		}
@@ -164,8 +164,6 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 					"Cloudinary deletion was interrupted.",
 					exception
 			);
-		} catch (AvatarAssetDeletionException exception) {
-			throw exception;
 		} catch (IOException exception) {
 			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion failed.",
