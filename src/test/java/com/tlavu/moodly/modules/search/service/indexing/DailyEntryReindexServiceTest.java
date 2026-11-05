@@ -12,7 +12,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.LocalDate;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -75,13 +75,13 @@ class DailyEntryReindexServiceTest {
 
 	@Test
 	void mapsElasticsearchIoFailureToSearchInfrastructureUnavailable() throws Exception {
-		doThrow(new IOException("down")).when(indexManager).recreate();
+		doThrow(new ElasticsearchTransportException("down")).when(indexManager).recreate();
 		DailyEntryReindexService service = new DailyEntryReindexService(mongoTemplate, searchWriter, indexManager, 2);
 
 		assertThatThrownBy(service::reindex)
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("Elasticsearch reindex is unavailable")
-				.hasCauseInstanceOf(IOException.class);
+				.hasCauseInstanceOf(ElasticsearchTransportException.class);
 	}
 
 	@Test

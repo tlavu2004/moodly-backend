@@ -2,7 +2,7 @@ package com.tlavu.moodly.modules.search.monitoring;
 
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
@@ -30,7 +30,7 @@ public class ElasticsearchHealthIndicator implements HealthIndicator {
 							? Health.up()
 							: Health.down()
 			).withDetail("status", status).build();
-		} catch (IOException | ElasticsearchException failure) {
+		} catch (ElasticsearchTransportException | ElasticsearchException failure) {
 			return Health.down()
 					.withDetail(
 							"error",

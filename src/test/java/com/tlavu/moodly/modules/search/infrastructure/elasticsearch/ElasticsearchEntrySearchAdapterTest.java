@@ -14,7 +14,7 @@ import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
 import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -67,14 +67,14 @@ class ElasticsearchEntrySearchAdapterTest {
 
 	@Test
 	void mapsElasticsearchIoFailureToUnavailableError() throws Exception {
-		doThrow(new IOException("down"))
+		doThrow(new ElasticsearchTransportException("down"))
 				.when(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap());
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient, indexManager);
 
 		assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("tired", null, null, 0, 50), 0))
 				.isInstanceOf(SearchInfrastructureUnavailableException.class)
 				.hasMessage("Elasticsearch search is unavailable")
-				.hasCauseInstanceOf(IOException.class);
+				.hasCauseInstanceOf(ElasticsearchTransportException.class);
 	}
 
 	@Test

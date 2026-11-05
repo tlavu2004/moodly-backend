@@ -5,7 +5,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchFailureClassifier;
 
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.ApplicationArguments;
@@ -37,7 +37,7 @@ public class DailyEntrySearchIndexInitializer implements ApplicationRunner {
 
 		try {
 			indexManager.createIfMissing();
-		} catch (IOException exception) {
+		} catch (ElasticsearchTransportException exception) {
 			throw SearchInfrastructureUnavailableException.duringIndexInitialization(exception);
 		} catch (ElasticsearchException exception) {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {

@@ -8,7 +8,7 @@ import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.service.view.HighlightFragmentView;
 import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -133,7 +133,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 					size,
 					total
 			);
-		} catch (IOException exception) {
+		} catch (ElasticsearchTransportException exception) {
 			throw SearchInfrastructureUnavailableException.duringSearch(exception);
 		} catch (ElasticsearchException exception) {
 			if (ElasticsearchFailureClassifier.isUnavailable(exception)) {

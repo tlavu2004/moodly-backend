@@ -66,7 +66,7 @@ public class ElasticsearchClient implements AutoCloseable {
 			String method,
 			String path,
 			Object payload
-	) throws IOException {
+	) {
 		return request(method, path, payload, false);
 	}
 
@@ -75,7 +75,7 @@ public class ElasticsearchClient implements AutoCloseable {
 			String path,
 			Object payload,
 			boolean allowMissing
-	) throws IOException {
+	) {
 		HttpRequest.BodyPublisher body = payload == null
 				? HttpRequest.BodyPublishers.noBody()
 				: HttpRequest.BodyPublishers.ofString(
@@ -112,17 +112,19 @@ public class ElasticsearchClient implements AutoCloseable {
 			return response.body().isBlank()
 					? json.createObjectNode()
 					: json.readTree(response.body());
+		} catch (IOException failure) {
+			throw new ElasticsearchTransportException("Elasticsearch request failed", failure);
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
 
-			throw new IOException(
+			throw new ElasticsearchTransportException(
 					"Elasticsearch request interrupted",
 					interrupted
 			);
 		}
 	}
 
-	public boolean exists(String index) throws IOException {
+	public boolean exists(String index) {
 		return request(
 				"HEAD",
 				path(index),
@@ -131,7 +133,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		) != null;
 	}
 
-	public void createIndex(String index, String mapping) throws IOException {
+	public void createIndex(String index, String mapping) {
 		request(
 				"PUT",
 				path(index),
@@ -139,7 +141,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		);
 	}
 
-	public void deleteIndex(String index) throws IOException {
+	public void deleteIndex(String index) {
 		request(
 				"DELETE",
 				path(index),
@@ -147,7 +149,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		);
 	}
 
-	public void index(String index, String id, Object document) throws IOException {
+	public void index(String index, String id, Object document) {
 		request(
 				"PUT",
 				documentPath(index, id),
@@ -155,7 +157,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		);
 	}
 
-	public void delete(String index, String id) throws IOException {
+	public void delete(String index, String id) {
 		JsonNode result = request(
 				"DELETE",
 				documentPath(index, id),
@@ -168,7 +170,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		}
 	}
 
-	public <T> T get(String index, String id, Class<T> type) throws IOException {
+	public <T> T get(String index, String id, Class<T> type) {
 		JsonNode result = request(
 				"GET",
 				documentPath(index, id),
@@ -185,7 +187,7 @@ public class ElasticsearchClient implements AutoCloseable {
 				: null;
 	}
 
-	public JsonNode search(String index, Map<String, Object> query) throws IOException {
+	public JsonNode search(String index, Map<String, Object> query) {
 		return request(
 				"POST",
 				path(index) + "/_search",
@@ -193,7 +195,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		);
 	}
 
-	public void refresh(String index) throws IOException {
+	public void refresh(String index) {
 		request(
 				"POST",
 				path(index) + "/_refresh",
@@ -201,7 +203,7 @@ public class ElasticsearchClient implements AutoCloseable {
 		);
 	}
 
-	public void deleteByUser(String index, String userId) throws IOException {
+	public void deleteByUser(String index, String userId) {
 		String endpoint = path(index) + "/_delete_by_query?refresh=true";
 		Map<String, Object> query = Map.of("query", Map.of("term", Map.of("userId", userId)));
 		JsonNode result;
@@ -222,7 +224,7 @@ public class ElasticsearchClient implements AutoCloseable {
 				result.path("timed_out").asBoolean() ||
 				!result.path("failures").isEmpty()
 		) {
-			throw new IOException("Elasticsearch delete-by-query did not complete");
+			throw new ElasticsearchTransportException("Elasticsearch delete-by-query did not complete");
 		}
 	}
 

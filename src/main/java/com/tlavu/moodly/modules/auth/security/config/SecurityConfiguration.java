@@ -6,6 +6,7 @@ import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import com.tlavu.moodly.shared.error.exception.common.ErrorResponseWriteException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -222,11 +223,12 @@ public class SecurityConfiguration {
 			ObjectMapper objectMapper,
 			GlobalErrorCode errorCode,
 			String path
-	) throws IOException {
+	) {
 		response.setStatus(errorCode.getStatus().value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-		objectMapper.writeValue(
+		try {
+			objectMapper.writeValue(
 				response.getOutputStream(),
 				ApiResponse.error(
 						new ApiError(
@@ -241,6 +243,9 @@ public class SecurityConfiguration {
 								)
 						)
 				)
-		);
+			);
+		} catch (IOException failure) {
+			throw new ErrorResponseWriteException(failure);
+		}
 	}
 }

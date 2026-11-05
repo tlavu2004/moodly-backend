@@ -84,7 +84,7 @@ class DailyEntrySearchIndexManagerTest {
 
 	@Test
 	void preservesElasticsearchIoFailureForTheCallerToClassify() throws Exception {
-		IOException transportFailure = new IOException("Elasticsearch unavailable");
+		ElasticsearchTransportException transportFailure = new ElasticsearchTransportException("Elasticsearch unavailable");
 		when(elasticsearchClient.exists("entries-test")).thenThrow(transportFailure);
 
 		assertThatThrownBy(manager()::createIfMissing).isSameAs(transportFailure);

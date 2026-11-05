@@ -13,7 +13,8 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.Elasticsearc
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
 import com.tlavu.moodly.modules.search.exception.SearchException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
+import com.tlavu.moodly.shared.error.exception.common.OperationInterruptedException;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
@@ -118,7 +119,7 @@ public class CdcDeliveryService {
 				);
 			}
 			deadLetterRepository.delete(deadLetter);
-		} catch (InterruptedException exception) {
+		} catch (OperationInterruptedException exception) {
 			Thread.currentThread().interrupt();
 			handleReplayFailure(deadLetter, exception, attempts.value());
 
@@ -126,7 +127,7 @@ public class CdcDeliveryService {
 					"CDC dead-letter replay was interrupted " + deadLetter.getId(),
 					exception
 			);
-		} catch (IOException exception) {
+		} catch (ElasticsearchTransportException exception) {
 			handleReplayFailure(deadLetter, exception, attempts.value());
 
 			throw SearchInfrastructureUnavailableException.duringReplay(exception);
@@ -174,7 +175,7 @@ public class CdcDeliveryService {
 					operation,
 					attempts
 			);
-		} catch (InterruptedException exception) {
+		} catch (OperationInterruptedException exception) {
 			Thread.currentThread().interrupt();
 
 			saveDeadLetter(
@@ -185,7 +186,7 @@ public class CdcDeliveryService {
 					exception,
 					attempts.value()
 			);
-		} catch (IOException | ElasticsearchException exception) {
+		} catch (ElasticsearchTransportException | ElasticsearchException exception) {
 			saveDeadLetter(
 					eventId,
 					operationType,
@@ -239,8 +240,8 @@ public class CdcDeliveryService {
 			String entryId,
 			ThrowingOperation operation,
 			AttemptCount attempts
-	) throws IOException, InterruptedException {
-		IOException lastIoFailure = null;
+	) {
+		ElasticsearchTransportException lastIoFailure = null;
 		ElasticsearchException lastRuntimeFailure = null;
 
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -249,7 +250,7 @@ public class CdcDeliveryService {
 				operation.run();
 
 				return;
-			} catch (IOException exception) {
+			} catch (ElasticsearchTransportException exception) {
 				if (isNonTransient(exception)) {
 					throw exception;
 				}
@@ -304,7 +305,7 @@ public class CdcDeliveryService {
 			String entryId,
 			int attempt,
 			Exception exception
-	) throws InterruptedException {
+	) {
 		Duration delay = backoffForAttempt(initialBackoff, attempt);
 
 		log.warn(
@@ -331,7 +332,7 @@ public class CdcDeliveryService {
 	}
 
 	private boolean isNonTransient(Exception exception) {
-		if (exception instanceof IOException) {
+		if (exception instanceof ElasticsearchTransportException) {
 			return false;
 		}
 		if (exception instanceof ElasticsearchException elasticsearchException) {
@@ -358,7 +359,7 @@ public class CdcDeliveryService {
 
 	@FunctionalInterface
 	private interface ThrowingOperation {
-		void run() throws IOException;
+		void run();
 	}
 
 	private static final class AttemptCount {

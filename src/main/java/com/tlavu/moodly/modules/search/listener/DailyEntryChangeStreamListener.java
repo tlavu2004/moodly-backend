@@ -16,6 +16,7 @@ import com.tlavu.moodly.modules.search.service.indexing.DailyEntryReindexService
 import com.tlavu.moodly.modules.search.model.mongodb.CdcResumeToken;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.Instant;
+import com.tlavu.moodly.shared.error.exception.common.OperationInterruptedException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -149,9 +150,13 @@ public class DailyEntryChangeStreamListener {
 	}
 
 	/** Waits until the registered change-stream subscription is active. */
-	public synchronized boolean awaitRegistration(Duration timeout) throws InterruptedException {
-		return subscription != null &&
-				subscription.await(timeout);
+	public synchronized boolean awaitRegistration(Duration timeout) {
+		try {
+			return subscription != null && subscription.await(timeout);
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new OperationInterruptedException("CDC subscription registration interrupted", interrupted);
+		}
 	}
 
 	private void register(CdcResumeToken checkpoint) {

@@ -17,7 +17,8 @@ import com.tlavu.moodly.modules.search.repository.CdcDeadLetterRepository;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
+import com.tlavu.moodly.shared.error.exception.common.OperationInterruptedException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -92,8 +93,8 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void retriesTransientDeliveryAndSucceeds() throws Exception {
-		doThrow(new IOException("Elasticsearch unavailable"))
-				.doThrow(new IOException("Elasticsearch unavailable"))
+		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable"))
+				.doThrow(new ElasticsearchTransportException("Elasticsearch unavailable"))
 				.doNothing()
 				.when(searchWriter).delete("entry-1");
 		CdcDeliveryService service = service();
@@ -119,8 +120,8 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void preservesTheInterruptFlagAndStoresDeadLetterWhenRetrySleepIsInterrupted() throws Exception {
-		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
-		doThrow(new InterruptedException("shutdown")).when(retrySleeper).sleep(Duration.ofMillis(1));
+		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
+		doThrow(new OperationInterruptedException("CDC retry wait interrupted", new InterruptedException("shutdown"))).when(retrySleeper).sleep(Duration.ofMillis(1));
 		CdcDeliveryService service = service();
 
 		try {
@@ -136,7 +137,7 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void storesDeadLetterAfterTransientRetriesAreExhausted() throws Exception {
-		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
+		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		CdcDeliveryService service = service();
 
 		service.deliverDelete("event-1", "entry-1");
@@ -148,12 +149,12 @@ class CdcDeliveryServiceTest {
 		assertThat(deadLetter.getValue().getEntryId()).isEqualTo("entry-1");
 		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(3);
 		verify(searchWriter, times(3)).delete("entry-1");
-		verify(monitor).deadLettered(any(IOException.class));
+		verify(monitor).deadLettered(any(ElasticsearchTransportException.class));
 	}
 
 	@Test
 	void surfacesDeadLetterPersistenceFailureWithTheOriginalDeliveryFailure() throws Exception {
-		IOException deliveryFailure = new IOException("Elasticsearch unavailable");
+		ElasticsearchTransportException deliveryFailure = new ElasticsearchTransportException("Elasticsearch unavailable");
 		DataAccessResourceFailureException persistenceFailure =
 				new DataAccessResourceFailureException("Mongo unavailable");
 		doThrow(deliveryFailure).when(searchWriter).delete("entry-1");
@@ -170,7 +171,7 @@ class CdcDeliveryServiceTest {
 		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
 		entry.setId("entry-1");
 		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenReturn("serialized-payload");
-		doThrow(new IOException("Elasticsearch unavailable"))
+		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable"))
 				.when(searchWriter).index(eq("entry-1"), any(DailyEntrySearchDocument.class));
 		CdcDeliveryService service = service();
 
@@ -263,7 +264,7 @@ class CdcDeliveryServiceTest {
 
 	@Test
 	void retainsDeadLetterAndAddsAttemptsWhenReplayFails() throws Exception {
-		doThrow(new IOException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
+		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable")).when(searchWriter).delete("entry-1");
 		CdcDeadLetter deadLetter = new CdcDeadLetter("event-1", "delete", "entry-1", null, "old", 3, Instant.now());
 		when(deadLetterRepository.findById("dead-letter-1")).thenReturn(Optional.of(deadLetter));
 		CdcDeliveryService service = service();
@@ -275,12 +276,12 @@ class CdcDeliveryServiceTest {
 		assertThat(deadLetter.getAttempts()).isEqualTo(6);
 		assertThat(deadLetter.getError()).isEqualTo("Elasticsearch unavailable");
 		verify(deadLetterRepository).save(deadLetter);
-		verify(monitor).deadLettered(any(IOException.class));
+		verify(monitor).deadLettered(any(ElasticsearchTransportException.class));
 	}
 
 	@Test
 	void keepsReplayFailureClassificationWhenItsStateCannotBePersisted() throws Exception {
-		IOException deliveryFailure = new IOException("Elasticsearch unavailable");
+		ElasticsearchTransportException deliveryFailure = new ElasticsearchTransportException("Elasticsearch unavailable");
 		DataAccessResourceFailureException persistenceFailure =
 				new DataAccessResourceFailureException("Mongo unavailable");
 		doThrow(deliveryFailure).when(searchWriter).delete("entry-1");

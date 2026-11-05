@@ -2,6 +2,11 @@ package com.tlavu.moodly.modules.auth.security.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import jakarta.servlet.http.HttpServletResponse;
+import tools.jackson.databind.ObjectMapper;
+import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
+import com.tlavu.moodly.shared.error.exception.common.ErrorResponseWriteException;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -31,6 +36,18 @@ class SecurityConfigurationTest {
 		assertThat(validator.validate(token("https://other.auth0.com/", List.of(AUDIENCE), Instant.now().plusSeconds(60))).hasErrors()).isTrue();
 		assertThat(validator.validate(token(ISSUER, List.of("https://wrong-audience"), Instant.now().plusSeconds(60))).hasErrors()).isTrue();
 		assertThat(validator.validate(token(ISSUER, List.of(AUDIENCE), Instant.now().minusSeconds(120))).hasErrors()).isTrue();
+	}
+
+	@Test
+	void wrapsErrorResponseStreamFailure() throws Exception {
+		HttpServletResponse response = org.mockito.Mockito.mock(HttpServletResponse.class);
+		IOException failure = new IOException("client disconnected");
+		org.mockito.Mockito.when(response.getOutputStream()).thenThrow(failure);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+				SecurityConfiguration.writeError(response, new ObjectMapper(), GlobalErrorCode.UNAUTHORIZED, "/habits"))
+				.isInstanceOf(ErrorResponseWriteException.class)
+				.hasCause(failure);
 	}
 
 	private Jwt token(String issuer, List<String> audience, Instant expiresAt) {

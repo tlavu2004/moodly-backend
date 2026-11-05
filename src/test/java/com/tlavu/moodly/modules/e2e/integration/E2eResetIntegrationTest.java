@@ -28,7 +28,7 @@ import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocum
 import com.tlavu.moodly.support.CdcSearchTestSupport;
 import com.tlavu.moodly.support.ElasticsearchTestConfiguration;
 import com.tlavu.moodly.support.MongoTestConfiguration;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -176,7 +176,7 @@ class E2eResetIntegrationTest {
 		return "/" + indexManager.getIndexName() + "/_delete_by_query?refresh=true";
 	}
 
-	private void assertDeleteRetriedAfterRefresh() throws IOException {
+	private void assertDeleteRetriedAfterRefresh() {
 		InOrder order = inOrder(elasticsearchClient);
 		order.verify(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
 		order.verify(elasticsearchClient).refresh(indexManager.getIndexName());
@@ -189,7 +189,7 @@ class E2eResetIntegrationTest {
 	@Test
 	void returnsServiceUnavailableWhenIndexingFails() throws Exception {
 		listener.stop();
-		doThrow(new IOException("connection refused"))
+		doThrow(new ElasticsearchTransportException("connection refused"))
 				.when(searchWriter).index(any(DailyEntry.class));
 
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))

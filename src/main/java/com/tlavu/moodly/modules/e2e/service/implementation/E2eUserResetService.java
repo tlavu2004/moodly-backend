@@ -14,7 +14,7 @@ import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySe
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.DailyEntrySearchWriter;
 import com.tlavu.moodly.modules.search.model.elasticsearch.DailyEntrySearchDocument;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import java.io.IOException;
+import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -136,7 +136,7 @@ public class E2eUserResetService {
 					entries.size(),
 					"verified"
 			);
-		} catch (IOException | ElasticsearchException exception) {
+		} catch (ElasticsearchTransportException | ElasticsearchException exception) {
 			throw SearchInfrastructureUnavailableException.duringE2eIndexing(exception);
 		}
 	}
