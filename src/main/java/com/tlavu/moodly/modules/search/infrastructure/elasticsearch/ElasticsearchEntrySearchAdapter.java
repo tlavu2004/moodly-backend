@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchDocumentMalformedException;
+
 import tools.jackson.databind.JsonNode;
 import com.tlavu.moodly.modules.search.service.port.EntrySearchQueryPort;
 import com.tlavu.moodly.modules.search.service.input.EntrySearchInput;
@@ -103,7 +105,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 				if (!source.isObject()) {
 					log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", id);
 
-					throw new IllegalStateException("Elasticsearch hit " + id + " has no source");
+					throw new SearchDocumentMalformedException("Elasticsearch hit " + id + " has no source");
 				}
 
 				Map<String, List<String>> fragments = new LinkedHashMap<>();

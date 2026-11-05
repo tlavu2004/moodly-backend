@@ -8,6 +8,11 @@ import com.tlavu.moodly.shared.error.contract.ProviderHttpStatus;
 public final class AvatarServiceUnavailableException extends ApplicationException implements ProviderHttpStatus {
 	private final int providerStatus;
 
+	public AvatarServiceUnavailableException(int providerStatus) {
+		super(AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE);
+		this.providerStatus = providerStatus;
+	}
+
 	public AvatarServiceUnavailableException(Throwable cause) {
 		super(AuthErrorCode.AVATAR_SERVICE_UNAVAILABLE, cause);
 		this.providerStatus = 0;

@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchDocumentMalformedException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
@@ -89,7 +90,7 @@ class ElasticsearchEntrySearchAdapterTest {
 
 		try {
 			assertThatThrownBy(() -> adapter.search("user-1", new EntrySearchInput("private-query", null, null, 0, 50), 0))
-					.isInstanceOf(IllegalStateException.class)
+					.isInstanceOf(SearchDocumentMalformedException.class)
 					.hasMessage("Elasticsearch hit entry-1 has no source");
 			assertThat(events.list).singleElement().satisfies(event -> {
 				assertThat(event.getFormattedMessage()).contains("hitId=entry-1", "rebuild the index")

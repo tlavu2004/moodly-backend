@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.e2e.service.implementation;
 
+import com.tlavu.moodly.modules.e2e.exception.E2eSearchVerificationException;
+
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchClient;
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
 import com.tlavu.moodly.modules.e2e.service.view.E2eResetView;
@@ -125,7 +127,7 @@ public class E2eUserResetService {
 						indexManager.getIndexName(), entryId, DailyEntrySearchDocument.class);
 				if (!DailyEntrySearchDocument.from(entry).equals(indexed)) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
-							new IllegalStateException("Search document verification failed for " + entryId)
+							new E2eSearchVerificationException("Search document verification failed for " + entryId)
 					);
 				}
 			}

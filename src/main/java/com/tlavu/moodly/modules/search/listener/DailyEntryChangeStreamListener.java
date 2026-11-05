@@ -1,5 +1,11 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import com.tlavu.moodly.modules.search.exception.CdcEventProcessingException;
+
+import com.tlavu.moodly.modules.search.exception.CdcEventMalformedException;
+
+import com.tlavu.moodly.modules.search.exception.CdcCheckpointException;
+
 import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
@@ -18,7 +24,7 @@ import com.tlavu.moodly.modules.entries.model.DailyEntry;
 import java.time.Instant;
 import com.tlavu.moodly.shared.error.exception.common.OperationInterruptedException;
 import java.time.Duration;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonDocument;
@@ -106,7 +112,9 @@ public class DailyEntryChangeStreamListener {
 		rebuildPending = false;
 		CdcResumeToken checkpoint = resumeTokenRepository.findById(streamId).orElse(null);
 		if (checkpoint == null || reindexService.isIndexMissing()) {
-			Instant baseline = Objects.requireNonNull(operationTime.get(), "MongoDB did not return an operation time");
+			Instant baseline = Optional.ofNullable(operationTime.get())
+					.orElseThrow(() -> new CdcCheckpointException(
+							"MongoDB did not return an operation time"));
 			reindexService.reindex();
 			checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
 			resumeTokenRepository.save(checkpoint);
@@ -191,30 +199,26 @@ public class DailyEntryChangeStreamListener {
 			DailyEntry> message
 	) {
 		try {
-			ChangeStreamDocument<Document> raw = Objects.requireNonNull(
-					message.getRaw(),
-					"Change Stream message has no raw event"
-			);
-			BsonDocument resumeToken = Objects.requireNonNull(
-				raw.getResumeToken(),
-				"Change Stream event has no resume token"
-			);
+			ChangeStreamDocument<Document> raw = Optional.ofNullable(message.getRaw())
+					.orElseThrow(() -> new CdcEventMalformedException(
+							"Change Stream message has no raw event"));
+			BsonDocument resumeToken = Optional.ofNullable(raw.getResumeToken())
+					.orElseThrow(() -> new CdcEventMalformedException(
+							"Change Stream event has no resume token"));
 			String eventId = resumeToken.toString();
 			OperationType operationType = raw.getOperationType();
 
 			if (operationType == OperationType.DELETE) {
-				BsonDocument documentKey = Objects.requireNonNull(
-						raw.getDocumentKey(),
-						"Delete event has no document key"
-				);
-				BsonValue id = Objects.requireNonNull(
-						documentKey.get("_id"),
-						"Delete event has no entry ID"
-				);
+				BsonDocument documentKey = Optional.ofNullable(raw.getDocumentKey())
+						.orElseThrow(() -> new CdcEventMalformedException(
+								"Delete event has no document key"));
+				BsonValue id = Optional.ofNullable(documentKey.get("_id"))
+						.orElseThrow(() -> new CdcEventMalformedException(
+								"Delete event has no entry ID"));
 				String entryId = switch (id.getBsonType()) {
 					case OBJECT_ID -> id.asObjectId().getValue().toHexString();
 					case STRING -> id.asString().getValue();
-					default -> throw new IllegalStateException(
+					default -> throw new CdcEventMalformedException(
 							"Delete event has an unsupported entry ID type: " + id.getBsonType()
 					);
 				};
@@ -242,7 +246,7 @@ public class DailyEntryChangeStreamListener {
 					)
 			);
 		} catch (Exception exception) {
-			throw new IllegalStateException(
+			throw new CdcEventProcessingException(
 					"Could not synchronize a " + collectionName + " change event",
 					exception
 			);
@@ -280,7 +284,9 @@ public class DailyEntryChangeStreamListener {
 				listenerContainer.remove(subscription);
 				subscription = null;
 			}
-			Instant baseline = Objects.requireNonNull(operationTime.get(), "MongoDB did not return an operation time");
+			Instant baseline = Optional.ofNullable(operationTime.get())
+					.orElseThrow(() -> new CdcCheckpointException(
+							"MongoDB did not return an operation time"));
 			reindexService.reindex();
 			CdcResumeToken checkpoint = CdcResumeToken.fromOperationTime(streamId, baseline, Instant.now());
 			resumeTokenRepository.save(checkpoint);

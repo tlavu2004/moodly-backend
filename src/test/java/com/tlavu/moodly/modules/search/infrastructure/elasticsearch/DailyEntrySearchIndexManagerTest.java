@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchIndexMappingException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -62,7 +63,7 @@ class DailyEntrySearchIndexManagerTest {
 				elasticsearchClient, "entries-test", unreadableMapping);
 
 		assertThatThrownBy(manager::recreate)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(SearchIndexMappingException.class)
 				.hasMessage("Could not read the configured Elasticsearch index mapping")
 				.hasCauseInstanceOf(IOException.class);
 		verifyNoInteractions(elasticsearchClient);
@@ -77,7 +78,7 @@ class DailyEntrySearchIndexManagerTest {
 				elasticsearchClient, "entries-test", unreadableMapping);
 
 		assertThatThrownBy(manager::createIfMissing)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(SearchIndexMappingException.class)
 				.hasCauseInstanceOf(IOException.class);
 		verify(elasticsearchClient, never()).createIndex(any(), any());
 	}

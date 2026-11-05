@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.entries.service.implementation;
 
+import com.tlavu.moodly.modules.entries.exception.DailyEntryPersistenceException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,7 +73,7 @@ class DailyEntryServiceTest {
 
 		assertThatThrownBy(() -> dailyEntryService.setMood("user-1", date,
 				new com.tlavu.moodly.modules.entries.service.input.SetMoodInput(3, List.of(), null)))
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(DailyEntryPersistenceException.class)
 				.hasCause(collision);
 	}
 }

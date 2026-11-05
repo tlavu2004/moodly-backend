@@ -1,5 +1,9 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.modules.auth.exception.AvatarCleanupTaskException;
+
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
+
 import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
@@ -223,7 +227,7 @@ public class AvatarService {
 						return pending;
 					} catch (DuplicateKeyException race) {
 						return pendingDeletions.findByPublicId(publicId)
-								.orElseThrow(() -> new IllegalStateException(
+								.orElseThrow(() -> new AvatarCleanupTaskException(
 										"Avatar cleanup task collided without a task for the same asset"
 										, race
 								));
@@ -298,7 +302,7 @@ public class AvatarService {
 					.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(value.getBytes(StandardCharsets.UTF_8)));
 		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(e);
+			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", e);
 		}
 	}
 }

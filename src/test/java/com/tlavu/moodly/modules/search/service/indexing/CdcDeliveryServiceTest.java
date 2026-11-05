@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
+import com.tlavu.moodly.modules.search.exception.CdcConfigurationException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,11 +49,11 @@ class CdcDeliveryServiceTest {
 	void rejectsInvalidRetryConfigurationBeforeStartingDelivery() {
 		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
 				objectMapper, retrySleeper, 0, 1))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(CdcConfigurationException.class)
 				.hasMessage("moodly.cdc.retry.max-attempts must be at least 1");
 		assertThatThrownBy(() -> new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
 				objectMapper, retrySleeper, 1, -1))
-				.isInstanceOf(IllegalArgumentException.class)
+				.isInstanceOf(CdcConfigurationException.class)
 				.hasMessage("moodly.cdc.retry.initial-backoff-ms must not be negative");
 		verifyNoInteractions(searchWriter, deadLetterRepository);
 	}

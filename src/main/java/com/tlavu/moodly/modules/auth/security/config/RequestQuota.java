@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.security.config;
 
+import com.tlavu.moodly.modules.auth.exception.RateLimitConfigurationException;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +27,7 @@ final class RequestQuota {
 				window.isZero() ||
 				window.isNegative()
 		) {
-			throw new IllegalArgumentException("Rate limit requests, max subjects and window must be positive");
+			throw new RateLimitConfigurationException("Rate limit requests, max subjects and window must be positive");
 		}
 
 		this.requests = requests;

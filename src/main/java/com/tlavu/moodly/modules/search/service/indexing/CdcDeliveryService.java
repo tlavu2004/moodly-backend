@@ -1,5 +1,11 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
+import com.tlavu.moodly.modules.search.exception.CdcConfigurationException;
+
+import com.tlavu.moodly.modules.search.exception.CdcPayloadSerializationException;
+
+import com.tlavu.moodly.modules.search.exception.CdcDeliveryStateException;
+
 import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchException;
@@ -47,10 +53,10 @@ public class CdcDeliveryService {
 			@Value("${moodly.cdc.retry.initial-backoff-ms}") long initialBackoffMs
 	) {
 		if (maxAttempts < 1) {
-			throw new IllegalArgumentException("moodly.cdc.retry.max-attempts must be at least 1");
+			throw new CdcConfigurationException("moodly.cdc.retry.max-attempts must be at least 1");
 		}
 		if (initialBackoffMs < 0) {
-			throw new IllegalArgumentException("moodly.cdc.retry.initial-backoff-ms must not be negative");
+			throw new CdcConfigurationException("moodly.cdc.retry.initial-backoff-ms must not be negative");
 		}
 		this.searchWriter = searchWriter;
 		this.deadLetterRepository = deadLetterRepository;
@@ -296,7 +302,7 @@ public class CdcDeliveryService {
 			throw lastRuntimeFailure;
 		}
 
-		throw new IllegalStateException("CDC delivery ended without an Elasticsearch failure");
+		throw new CdcDeliveryStateException("CDC delivery ended without an Elasticsearch failure");
 	}
 
 	private void waitBeforeRetry(
@@ -350,7 +356,7 @@ public class CdcDeliveryService {
 		try {
 			return objectMapper.writeValueAsString(document);
 		} catch (JacksonException exception) {
-			throw new IllegalStateException(
+			throw new CdcPayloadSerializationException(
 					"Could not serialize CDC search document",
 					exception
 			);

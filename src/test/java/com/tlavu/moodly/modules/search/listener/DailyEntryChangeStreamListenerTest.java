@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import com.tlavu.moodly.modules.search.exception.CdcEventProcessingException;
+import com.tlavu.moodly.modules.search.exception.CdcEventMalformedException;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -62,6 +64,14 @@ class DailyEntryChangeStreamListenerTest {
 	private ChangeStreamDocument<org.bson.Document> raw;
 
 	private DailyEntryChangeStreamListener listener;
+
+	@Test
+	void rejectsMalformedEventsWithoutSavingACheckpoint() {
+		assertThatThrownBy(() -> invoke("onMessage", Message.class, message))
+				.hasCauseInstanceOf(CdcEventProcessingException.class)
+				.hasRootCauseInstanceOf(CdcEventMalformedException.class);
+		verifyNoInteractions(deliveryService, resumeTokenRepository);
+	}
 
 	@Test
 	void preservesInterruptionWhileAwaitingRegistration() throws Exception {

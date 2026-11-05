@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
+import com.tlavu.moodly.modules.auth.exception.AvatarCleanupTaskException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -350,7 +351,7 @@ class AvatarServiceTest {
 		when(pendingDeletions.save(any(PendingAssetDeletion.class))).thenThrow(collision);
 
 		assertThatThrownBy(service::delete)
-				.isInstanceOf(IllegalStateException.class)
+				.isInstanceOf(AvatarCleanupTaskException.class)
 				.hasCause(collision);
 		verify(avatarProfileWriter, never()).clearIfCurrent(any(), any());
 	}

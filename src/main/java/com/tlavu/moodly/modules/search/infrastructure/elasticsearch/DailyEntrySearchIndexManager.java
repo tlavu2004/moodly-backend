@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.SearchIndexMappingException;
+
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +51,7 @@ public class DailyEntrySearchIndexManager {
 		try (InputStream mappingStream = mapping.getInputStream()) {
 			return mappingStream.readAllBytes();
 		} catch (IOException exception) {
-			throw new IllegalStateException("Could not read the configured Elasticsearch index mapping", exception);
+			throw new SearchIndexMappingException("Could not read the configured Elasticsearch index mapping", exception);
 		}
 	}
 

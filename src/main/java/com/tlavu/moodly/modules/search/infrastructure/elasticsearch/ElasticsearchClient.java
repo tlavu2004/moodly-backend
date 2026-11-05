@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 
+import com.tlavu.moodly.modules.search.exception.ElasticsearchConfigurationException;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -40,7 +42,7 @@ public class ElasticsearchClient implements AutoCloseable {
 				uri.getFragment() != null ||
 				!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
 		) {
-			throw new IllegalArgumentException(
+			throw new ElasticsearchConfigurationException(
 					"Elasticsearch requires one HTTP(S) endpoint without embedded credentials"
 			);
 		}
@@ -48,7 +50,7 @@ public class ElasticsearchClient implements AutoCloseable {
 				username.isEmpty() != password.isEmpty() ||
 				(!username.isEmpty() && !"https".equals(uri.getScheme()))
 		) {
-			throw new IllegalArgumentException(
+			throw new ElasticsearchConfigurationException(
 					"Elasticsearch Basic authentication requires HTTPS and both credentials"
 			);
 		}
@@ -230,7 +232,7 @@ public class ElasticsearchClient implements AutoCloseable {
 
 	static String path(String index) {
 		if (!index.matches("[a-z0-9][a-z0-9_.-]*")) {
-			throw new IllegalArgumentException("Invalid Elasticsearch index name");
+			throw new ElasticsearchConfigurationException("Invalid Elasticsearch index name");
 		}
 
 		return "/" + index;

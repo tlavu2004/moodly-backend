@@ -1,5 +1,7 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
+
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
@@ -97,10 +99,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 				throw AvatarException.uploadNotFound();
 			}
 			if (response.statusCode() != 200) {
-				throw new AvatarServiceUnavailableException(
-						new IllegalStateException("Cloudinary verification failed"),
-						response.statusCode()
-				);
+				throw new AvatarServiceUnavailableException(response.statusCode());
 			}
 
 			JsonNode asset = objectMapper.readTree(response.body());
@@ -182,7 +181,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 						.digest(value.getBytes(StandardCharsets.UTF_8))
 			);
 		} catch (NoSuchAlgorithmException exception) {
-			throw new IllegalStateException(exception);
+			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", exception);
 		}
 	}
 
