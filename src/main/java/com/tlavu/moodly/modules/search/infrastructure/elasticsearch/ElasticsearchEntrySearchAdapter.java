@@ -10,7 +10,6 @@ import com.tlavu.moodly.modules.search.service.view.EntrySearchView;
 import com.tlavu.moodly.modules.search.service.view.HighlightFragmentView;
 import com.tlavu.moodly.modules.search.service.view.HighlightRangeView;
 import com.tlavu.moodly.shared.error.exception.common.SearchInfrastructureUnavailableException;
-import com.tlavu.moodly.modules.search.infrastructure.elasticsearch.ElasticsearchTransportException;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -25,7 +24,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
-
+	private static final String HIGHLIGHT_START_TAG = "<em>";
+	private static final String HIGHLIGHT_END_TAG = "</em>";
 	private static final List<String> SEARCH_FIELDS = List.of(
 			"mood.note",
 			"habits.note",
@@ -90,8 +90,8 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 							),
 							"highlight", Map.of(
 									"fields", highlight,
-									"pre_tags", List.of("<em>"),
-									"post_tags", List.of("</em>")
+									"pre_tags", List.of(HIGHLIGHT_START_TAG),
+									"post_tags", List.of(HIGHLIGHT_END_TAG)
 							)
 					)
 			).path("hits");
@@ -103,9 +103,14 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 				JsonNode source = hit.path("_source");
 
 				if (!source.isObject()) {
-					log.error("Search index inconsistency: hitId={} is missing _source; rebuild the index", id);
+					log.error(
+							"Search index inconsistency: hitId={} is missing _source; rebuild the index",
+							id
+					);
 
-					throw new SearchDocumentMalformedException("Elasticsearch hit " + id + " has no source");
+					throw new SearchDocumentMalformedException(
+							"Elasticsearch hit " + id + " has no source"
+					);
 				}
 
 				Map<String, List<String>> fragments = new LinkedHashMap<>();
@@ -113,6 +118,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 				hit.path("highlight").properties()
 						.forEach(field -> {
 							List<String> values = new ArrayList<>();
+
 							field.getValue().forEach(value -> values.add(value.asString()));
 							fragments.put(field.getKey(), values);
 						});
@@ -173,7 +179,7 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 		int cursor = 0;
 
 		while (cursor < marked.length()) {
-			int startTag = marked.indexOf("<em>", cursor);
+			int startTag = marked.indexOf(HIGHLIGHT_START_TAG, cursor);
 
 			if (startTag < 0) {
 				text.append(marked, cursor, marked.length());
@@ -181,7 +187,11 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			}
 
 			text.append(marked, cursor, startTag);
-			int endTag = marked.indexOf("</em>", startTag + 4);
+
+			int endTag = marked.indexOf(
+					HIGHLIGHT_END_TAG,
+					startTag + HIGHLIGHT_START_TAG.length()
+			);
 
 			if (endTag < 0) {
 				text.append(marked, startTag, marked.length());
@@ -190,9 +200,9 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
 			int start = text.length();
 
-			text.append(marked, startTag + 4, endTag);
+			text.append(marked, startTag + HIGHLIGHT_START_TAG.length(), endTag);
 			ranges.add(new HighlightRangeView(start, text.length()));
-			cursor = endTag + 5;
+			cursor = endTag + HIGHLIGHT_END_TAG.length();
 		}
 
 		return new HighlightFragmentView(text.toString(), List.copyOf(ranges));
