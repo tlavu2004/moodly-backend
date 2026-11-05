@@ -47,3 +47,13 @@ This table records the first review; the follow-up fixes and the official standa
 ## Client compatibility check
 
 The adjacent `moodly-frontend` currently stores `error.code` in `ApiRequestError`, but its feature code does not branch on the former shared 400/404/409 codes or `SEARCH_UNAVAILABLE`. `getUserFacingError` maps 5xx responses to a generic safe message. No frontend code migration is required for the module-code changes in this branch. A missing-source 500 has the same generic client message as other internal failures; operators distinguish it by the backend hit-ID log and request ID, not by a new public error code.
+
+## Follow-up for safe production diagnostics
+
+The failed replay-state persistence log in `CdcDeliveryService.handleReplayFailure` uses `ExceptionLogSummary`. It includes bounded cause types and selected stack locations. Full stack frames and suppressed failures are currently absent from this summary. Although the original persistence failure is retained as a suppressed exception, routine production logs may provide too little context to diagnose it.
+
+- Evaluate an explicitly enabled diagnostic mode that emits bounded stack frames for the primary failure, its causes, and suppressed failures. Keep routine logs concise.
+- Include exception types, frame locations, safe typed status codes, and available request or event identifiers. Exclude raw exception messages, provider response bodies, credentials, and user content. Passing the original throwable directly to the logger requires a logging policy review because it would include raw messages.
+- Bound frame count, traversal depth, suppressed-failure count, and total output size. Detect repeated throwable objects to prevent cyclic traversal.
+- Add tests for cause and suppressed-failure traversal, cycle handling, output bounds, sensitive-message exclusion, and the default behavior when diagnostic mode is disabled.
+- Validate the diagnostic output with a failed replay-state persistence scenario on staging before enabling it in production.
