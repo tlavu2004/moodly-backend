@@ -1,5 +1,8 @@
 package com.tlavu.moodly.modules.search.listener;
 
+import lombok.RequiredArgsConstructor;
+import lombok.AccessLevel;
+
 import com.tlavu.moodly.modules.search.exception.CdcEventProcessingException;
 
 import com.tlavu.moodly.modules.search.exception.CdcEventMalformedException;
@@ -51,6 +54,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "moodly.cdc.enabled", havingValue = "true", matchIfMissing = true)
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class DailyEntryChangeStreamListener {
 	private final DefaultMessageListenerContainer listenerContainer;
 	private final CdcResumeTokenRepository resumeTokenRepository;
@@ -84,26 +88,6 @@ public class DailyEntryChangeStreamListener {
 				streamId,
 				() -> mongoOperationTime(mongoTemplate)
 		);
-	}
-
-	DailyEntryChangeStreamListener(
-			DefaultMessageListenerContainer listenerContainer,
-			CdcResumeTokenRepository resumeTokenRepository,
-			CdcDeliveryService deliveryService,
-			DailyEntryReindexService reindexService,
-			CdcMonitor monitor,
-			String collectionName,
-			String streamId,
-			Supplier<Instant> operationTime
-	) {
-		this.listenerContainer = listenerContainer;
-		this.resumeTokenRepository = resumeTokenRepository;
-		this.deliveryService = deliveryService;
-		this.reindexService = reindexService;
-		this.monitor = monitor;
-		this.collectionName = collectionName;
-		this.streamId = streamId;
-		this.operationTime = operationTime;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)

@@ -1,5 +1,8 @@
 package com.tlavu.moodly.modules.auth.security.config;
 
+import lombok.RequiredArgsConstructor;
+import lombok.AccessLevel;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import com.tlavu.moodly.shared.error.code.global.GlobalErrorCode;
 
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 final class RequestQuotaFilter extends OncePerRequestFilter {
 	private static final PathPatternRequestMatcher.Builder PATHS = PathPatternRequestMatcher.withDefaults();
 	private static final RequestMatcher EXEMPT = new OrRequestMatcher(
@@ -32,11 +36,6 @@ final class RequestQuotaFilter extends OncePerRequestFilter {
 
 	private final RequestQuota quota;
 	private final ObjectMapper objectMapper;
-
-	RequestQuotaFilter(RequestQuota quota, ObjectMapper objectMapper) {
-		this.quota = quota;
-		this.objectMapper = objectMapper;
-	}
 
 	@Override
 	protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
