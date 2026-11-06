@@ -62,6 +62,28 @@ class RequestQuotaTest {
 	}
 
 	@Test
+	void userReceivesRetryAfterAndIsAdmittedAfterRemainingWindowDurationExpires() {
+		AtomicLong clock = new AtomicLong(0);
+		// Window: 60 seconds, Quota: 1 request
+		RequestQuota quota = new RequestQuota(1, 10, Duration.ofSeconds(60), clock::get);
+
+		// 1st request at t=0s is admitted
+		assertThat(quota.retryAfter("user-1")).isZero();
+
+		// 31 seconds elapsed in the 60s window
+		clock.set(Duration.ofSeconds(31).toNanos());
+
+		// 2nd request at t=31s: throttled with exactly 29 seconds remaining (60 - 31 = 29)
+		assertThat(quota.retryAfter("user-1")).isEqualTo(29);
+
+		// Advance clock by 29 seconds to reach 60s (window boundary)
+		clock.set(Duration.ofSeconds(60).toNanos());
+
+		// Next request after waiting the Retry-After interval is admitted
+		assertThat(quota.retryAfter("user-1")).isZero();
+	}
+
+	@Test
 	void concurrentRequestsCannotOverspendTheSameQuota() throws Exception {
 		RequestQuota quota = new RequestQuota(5, 10, Duration.ofMinutes(1), () -> 0);
 		CountDownLatch start = new CountDownLatch(1);
