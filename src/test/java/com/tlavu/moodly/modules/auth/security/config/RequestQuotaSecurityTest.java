@@ -60,6 +60,32 @@ class RequestQuotaSecurityTest {
 		mvc.perform(get("/actuator/health").with(alice)).andExpect(status().isOk());
 	}
 
+	@Test
+	void isolatesQuotaIndependentlyBetweenDistinctAuthenticatedUsers() throws Exception {
+		JwtRequestPostProcessor userA = jwt().jwt(token -> token.subject("auth0|user_alpha"));
+		JwtRequestPostProcessor userB = jwt().jwt(token -> token.subject("auth0|user_beta"));
+
+		// User A: 1st request -> 200 OK
+		mvc.perform(get("/quota-test").with(userA)).andExpect(status().isOk());
+
+		// User A: 2nd request -> 429 Too Many Requests (reaches rate limit)
+		mvc.perform(get("/quota-test").with(userA))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("Retry-After"))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
+
+		// User B: 1st request -> 200 OK (unaffected by User A's exhausted quota)
+		mvc.perform(get("/quota-test").with(userB)).andExpect(status().isOk());
+
+		// User B: 2nd request -> 429 Too Many Requests (User B exhausts their own quota)
+		mvc.perform(get("/quota-test").with(userB))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("Retry-After"))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
+	}
+
 	@RestController
 	static class TestRoutes {
 		@GetMapping({"/quota-test", "/actuator/health", "/internal/cdc/quota-test"})
