@@ -1,7 +1,13 @@
 HELP.md
 target/
+
+### Environment files ###
+.env
 .env.local
 .env.test
+.env.prod
+.env.production
+
 docs/testing/bruno/moodly-local-verification/environments/local.bru
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
