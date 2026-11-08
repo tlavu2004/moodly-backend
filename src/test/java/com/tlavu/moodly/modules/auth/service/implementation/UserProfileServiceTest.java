@@ -65,7 +65,8 @@ class UserProfileServiceTest {
 		UserProfile winner = new UserProfile("auth0|user-123", "user@example.com", Instant.now());
 		when(currentUser.identity()).thenReturn(new CurrentUserIdentity("auth0|user-123", "user@example.com"));
 		when(profiles.findByAuth0Subject("auth0|user-123"))
-				.thenReturn(Optional.empty(), Optional.of(winner));
+				.thenReturn(Optional.empty())
+				.thenReturn(Optional.of(winner));
 		when(profiles.save(any(UserProfile.class))).thenThrow(new DuplicateKeyException("subject index"));
 
 		assertThat(service.synchronizeCurrent()).isEqualTo(ProfileView.from(winner));
