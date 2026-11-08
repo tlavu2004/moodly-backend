@@ -1,0 +1,71 @@
+version: 2
+updates:
+  # Maven dependencies (Java 25 / Spring Boot)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    open-pull-requests-limit: 5
+    target-branch: "main"
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions CI/CD workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    open-pull-requests-limit: 3
+    target-branch: "main"
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Docker base images (Dockerfile for Render)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    open-pull-requests-limit: 3
+    target-branch: "main"
+    commit-message:
+      prefix: "build(docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      docker-images:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

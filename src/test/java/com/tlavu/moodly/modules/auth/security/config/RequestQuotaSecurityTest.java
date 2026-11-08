@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.auth.security.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.tlavu.moodly.shared.filter.RequestIdFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -17,6 +19,7 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 		"moodly.rate-limit.requests=1",
 		"moodly.rate-limit.window=1h"
 })
-@Import({SecurityConfiguration.class, RequestQuotaSecurityTest.TestRoutes.class})
+@Import({SecurityConfiguration.class, RequestIdFilter.class, RequestQuotaSecurityTest.TestRoutes.class})
 @ActiveProfiles("prod")
 class RequestQuotaSecurityTest {
 	@Autowired
@@ -58,6 +61,57 @@ class RequestQuotaSecurityTest {
 				.andExpect(status().isOk());
 		mvc.perform(get("/actuator/health")).andExpect(status().isOk());
 		mvc.perform(get("/actuator/health").with(alice)).andExpect(status().isOk());
+	}
+
+	@Test
+	void isolatesQuotaIndependentlyBetweenDistinctAuthenticatedUsers() throws Exception {
+		JwtRequestPostProcessor userA = jwt().jwt(token -> token.subject("auth0|user_alpha"));
+		JwtRequestPostProcessor userB = jwt().jwt(token -> token.subject("auth0|user_beta"));
+
+		// User A: 1st request -> 200 OK
+		mvc.perform(get("/quota-test").with(userA)).andExpect(status().isOk());
+
+		// User A: 2nd request -> 429 Too Many Requests (reaches rate limit)
+		mvc.perform(get("/quota-test").with(userA))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("Retry-After"))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
+
+		// User B: 1st request -> 200 OK (unaffected by User A's exhausted quota)
+		mvc.perform(get("/quota-test").with(userB)).andExpect(status().isOk());
+
+		// User B: 2nd request -> 429 Too Many Requests (User B exhausts their own quota)
+		mvc.perform(get("/quota-test").with(userB))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("Retry-After"))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
+	}
+
+	@Test
+	void rateLimitErrorEnvelopeIncludesRateLimitExceededAndMatchingRequestId() throws Exception {
+		JwtRequestPostProcessor user = jwt().jwt(token -> token.subject("auth0|user_envelope"));
+
+		// 1st request consumes allowed quota
+		mvc.perform(get("/quota-test").with(user)).andExpect(status().isOk());
+
+		// 2nd request triggers 429 rate limit error envelope
+		MvcResult result = mvc.perform(get("/quota-test").with(user))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("Retry-After"))
+				.andExpect(header().exists(RequestIdFilter.HEADER))
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"))
+				.andExpect(jsonPath("$.error.status").value(429))
+				.andExpect(jsonPath("$.error.path").value("/quota-test"))
+				.andReturn();
+
+		String headerRequestId = result.getResponse().getHeader(RequestIdFilter.HEADER);
+		assertThat(headerRequestId).isNotBlank();
+
+		String body = result.getResponse().getContentAsString();
+		assertThat(body).contains("\"requestId\":\"" + headerRequestId + "\"");
 	}
 
 	@RestController

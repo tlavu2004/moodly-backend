@@ -170,7 +170,9 @@ public class DailyEntryService {
 							.upsert(true)
 							.returnNew(true),
 					DailyEntry.class
-			)).orElseThrow(() -> new DailyEntryPersistenceException("Daily entry was not returned after upsert"));
+			)).orElseThrow(() -> new DailyEntryPersistenceException(
+					"Daily entry was not returned after upsert"
+			));
 		} catch (DuplicateKeyException race) {
 			return dailyEntryRepository.findByUserIdAndDate(userId, date)
 					.orElseThrow(() -> new DailyEntryPersistenceException(

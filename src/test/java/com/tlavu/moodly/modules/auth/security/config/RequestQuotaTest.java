@@ -34,6 +34,56 @@ class RequestQuotaTest {
 	}
 
 	@Test
+	void userQuotasRemainIsolatedWhenOneUserExhaustsAllowance() {
+		AtomicLong clock = new AtomicLong(0);
+		// Allow 3 requests per 60 seconds
+		RequestQuota quota = new RequestQuota(3, 10, Duration.ofSeconds(60), clock::get);
+
+		// User A uses up their entire quota (3 requests allowed)
+		assertThat(quota.retryAfter("user-a")).isZero();
+		assertThat(quota.retryAfter("user-a")).isZero();
+		assertThat(quota.retryAfter("user-a")).isZero();
+
+		// User A's 4th request is throttled
+		assertThat(quota.retryAfter("user-a")).isEqualTo(60);
+
+		// User B is fresh and unaffected by User A's exhaustion
+		assertThat(quota.retryAfter("user-b")).isZero();
+		assertThat(quota.retryAfter("user-b")).isZero();
+		assertThat(quota.retryAfter("user-b")).isZero();
+
+		// User B's 4th request is now throttled independently
+		assertThat(quota.retryAfter("user-b")).isEqualTo(60);
+
+		// Advancing clock past the window boundary resets both users
+		clock.set(Duration.ofSeconds(61).toNanos());
+		assertThat(quota.retryAfter("user-a")).isZero();
+		assertThat(quota.retryAfter("user-b")).isZero();
+	}
+
+	@Test
+	void userReceivesRetryAfterAndIsAdmittedAfterRemainingWindowDurationExpires() {
+		AtomicLong clock = new AtomicLong(0);
+		// Window: 60 seconds, Quota: 1 request
+		RequestQuota quota = new RequestQuota(1, 10, Duration.ofSeconds(60), clock::get);
+
+		// 1st request at t=0s is admitted
+		assertThat(quota.retryAfter("user-1")).isZero();
+
+		// 31 seconds elapsed in the 60s window
+		clock.set(Duration.ofSeconds(31).toNanos());
+
+		// 2nd request at t=31s: throttled with exactly 29 seconds remaining (60 - 31 = 29)
+		assertThat(quota.retryAfter("user-1")).isEqualTo(29);
+
+		// Advance clock by 29 seconds to reach 60s (window boundary)
+		clock.set(Duration.ofSeconds(60).toNanos());
+
+		// Next request after waiting the Retry-After interval is admitted
+		assertThat(quota.retryAfter("user-1")).isZero();
+	}
+
+	@Test
 	void concurrentRequestsCannotOverspendTheSameQuota() throws Exception {
 		RequestQuota quota = new RequestQuota(5, 10, Duration.ofMinutes(1), () -> 0);
 		CountDownLatch start = new CountDownLatch(1);

@@ -207,7 +207,11 @@ public class ElasticsearchClient implements AutoCloseable {
 
 	public void deleteByUser(String index, String userId) {
 		String endpoint = path(index) + "/_delete_by_query?refresh=true";
-		Map<String, Object> query = Map.of("query", Map.of("term", Map.of("userId", userId)));
+		Map<String, Object> query = Map.of(
+				"query", Map.of(
+						"term", Map.of("userId", userId)
+				)
+		);
 		JsonNode result;
 
 		try {
@@ -226,20 +230,25 @@ public class ElasticsearchClient implements AutoCloseable {
 				result.path("timed_out").asBoolean() ||
 				!result.path("failures").isEmpty()
 		) {
-			throw new ElasticsearchTransportException("Elasticsearch delete-by-query did not complete");
+			throw new ElasticsearchTransportException(
+					"Elasticsearch delete-by-query did not complete"
+			);
 		}
 	}
 
 	static String path(String index) {
 		if (!index.matches("[a-z0-9][a-z0-9_.-]*")) {
-			throw new ElasticsearchConfigurationException("Invalid Elasticsearch index name");
+			throw new ElasticsearchConfigurationException(
+					"Invalid Elasticsearch index name"
+			);
 		}
 
 		return "/" + index;
 	}
 
 	private static String documentPath(String index, String id) {
-		return path(index) + "/_doc/" + UriUtils.encodePathSegment(id, StandardCharsets.UTF_8);
+		return path(index) + "/_doc/" +
+				UriUtils.encodePathSegment(id, StandardCharsets.UTF_8);
 	}
 
 	@Override

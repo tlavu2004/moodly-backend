@@ -179,7 +179,10 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 						.digest(value.getBytes(StandardCharsets.UTF_8))
 			);
 		} catch (NoSuchAlgorithmException exception) {
-			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", exception);
+			throw new AssetSignatureException(
+					"SHA-1 is unavailable for asset signing",
+					exception
+			);
 		}
 	}
 

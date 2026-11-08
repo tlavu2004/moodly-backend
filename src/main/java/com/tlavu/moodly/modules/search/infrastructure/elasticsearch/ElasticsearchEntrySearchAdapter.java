@@ -48,9 +48,9 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 
 		try {
 			List<Object> filters = new ArrayList<>();
-			filters.add(
-					Map.of("term", Map.of("userId", userId))
-			);
+			filters.add(Map.of(
+					"term", Map.of("userId", userId)
+			));
 
 			Map<String, String> dates = new LinkedHashMap<>();
 
@@ -61,10 +61,13 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 				dates.put("lte", to.toString());
 			}
 			if (!dates.isEmpty()) {
-				filters.add(Map.of("range", Map.of("date", dates)));
+				filters.add(Map.of(
+						"range", Map.of("date", dates)
+				));
 			}
 
 			Map<String, Object> highlight = new LinkedHashMap<>();
+
 			SEARCH_FIELDS.forEach(field -> highlight.put(field, Map.of()));
 
 			JsonNode hits = elasticsearchClient.search(
@@ -205,6 +208,9 @@ public class ElasticsearchEntrySearchAdapter implements EntrySearchQueryPort {
 			cursor = endTag + HIGHLIGHT_END_TAG.length();
 		}
 
-		return new HighlightFragmentView(text.toString(), List.copyOf(ranges));
+		return new HighlightFragmentView(
+				text.toString(),
+				List.copyOf(ranges)
+		);
 	}
 }

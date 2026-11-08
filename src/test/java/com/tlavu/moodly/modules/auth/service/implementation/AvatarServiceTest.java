@@ -41,6 +41,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 
+// Keep lambdas for JDT method-reference nullability compatibility.
+@SuppressWarnings("Convert2MethodRef")
 @ExtendWith(MockitoExtension.class)
 class AvatarServiceTest {
 
@@ -139,7 +141,9 @@ class AvatarServiceTest {
 		stale.replaceAvatar(NAMESPACE + "old-avatar", 1, "image/png", 100, Instant.now());
 		UserProfile latest = new UserProfile(SUBJECT, "user@example.com", Instant.now());
 		latest.replaceAvatar(firstReplacement, 2, "image/png", 100, Instant.now());
-		when(profiles.findByAuth0Subject(SUBJECT)).thenReturn(Optional.of(stale), Optional.of(latest));
+		when(profiles.findByAuth0Subject(SUBJECT))
+				.thenReturn(Optional.of(stale))
+				.thenReturn(Optional.of(latest));
 		when(pendingUploads.findByPublicIdAndAuth0Subject(publicId, SUBJECT))
 				.thenReturn(Optional.of(new PendingAvatarUpload(publicId, SUBJECT, Instant.now().plusSeconds(60))));
 		when(cloudinary.findImage(publicId)).thenReturn(new ConfirmedAsset(publicId, 3, "image/png", 100));
@@ -149,7 +153,7 @@ class AvatarServiceTest {
 		verify(avatarProfileWriter).replaceIfCurrent(latest, firstReplacement);
 		ArgumentCaptor<PendingAssetDeletion> queued = ArgumentCaptor.forClass(PendingAssetDeletion.class);
 		verify(pendingDeletions, times(2)).save(queued.capture());
-		assertThat(queued.getAllValues()).extracting(PendingAssetDeletion::getPublicId)
+		assertThat(queued.getAllValues()).extracting(deletion -> deletion.getPublicId())
 				.containsExactlyInAnyOrder(NAMESPACE + "old-avatar", firstReplacement);
 	}
 
