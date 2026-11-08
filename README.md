@@ -1,12 +1,474 @@
-# Moodly
+# Moodly - Habit & Mood Tracker Backend
 
-Moodly is a modular-monolith Habit & Mood Tracker built with Spring Boot, MongoDB, Elasticsearch CDC, and Auth0-validated JWT authentication.
+Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform** built with **Java 25** and **Spring Boot 4.1.0**. It is engineered as a **Headless Backend Architecture** — providing high-throughput REST APIs, asynchronous **Change Data Capture (CDC)** event streaming from **MongoDB Replica Set** to **Elasticsearch OSS 7.10.2**, **Auth0** OAuth2/JWT security, and **Cloudinary** media management.
 
-Planned BE + FE work: [Mood trend period navigation](docs/roadmap/mood-trend-periods.md).
+> [!NOTE]
+> - This repository contains the **Full Backend & Infrastructure Stack** (Spring Boot + MongoDB Replica Set + Elasticsearch).
+> - The **Frontend Client** (React 19 + TypeScript + Vite + Tailwind CSS) is managed in a separate repository: [moodly-frontend](https://github.com/tlavu2004/moodly-frontend).
+> - Planned roadmap: [Mood trend period navigation](docs/roadmap/mood-trend-periods.md).
+> - Exception handling follows the [Moodly Exception Standard](docs/blueprint/exception-standardization-blueprint.md).
+> - Architectural phases and MongoDB pipeline exercises: [Moodly Blueprint](docs/blueprint/moodly-blueprint.md).
 
-Backend exception handling follows the [Moodly Exception Standard](docs/blueprint/exception-standardization-blueprint.md).
+---
 
-## Keep the OpenAPI document current
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Architecture & Design](#architecture--design)
+- [Change Data Capture (CDC) Pipeline](#change-data-capture-cdc-pipeline)
+- [Database & Storage Schema](#database--storage-schema)
+- [Tech Stack](#tech-stack)
+- [API Overview](#api-overview)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Deployment (Render)](#deployment-render)
+- [Deep-Dive Operations & Runbook](#deep-dive-operations--runbook)
+  - [OpenAPI Contract Synchronization](#openapi-contract-synchronization)
+  - [CI/CD & Container Publishing](#cicd--container-publishing)
+  - [Auth0 Resilience & Startup Network Handling](#auth0-resilience--startup-network-handling)
+  - [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing)
+  - [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict)
+  - [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard)
+  - [Automated Integration Test Harness](#automated-integration-test-harness)
+- [Authors](#authors)
+- [License](#license)
+
+---
+
+## Key Features
+
+### Habit Management & Streak Calculation
+- **Habit Lifecycle**: Create, update, archive, and restore habits with custom target frequencies (`DAILY`, `WEEKLY`, `CUSTOM`).
+- **Real-Time Streak Tracking**: Dynamic calculation of current and best completion streaks calculated across the user's entry timeline.
+- **Optimistic Concurrency Control**: All mutations enforce version checking (`@Version`) returning `409 Conflict` on concurrent stale writes.
+
+### Daily Entries & Mood Journaling
+- **Atomic Daily Journaling**: One canonical entry per day per user, capturing mood scores (1–5 scale), textual reflections, and habit check-ins.
+- **Field-Level Atomic Upserts**: Simultaneous updates to disparate daily logs resolve safely without race conditions.
+- **Last-Writer-Wins Semantics**: Conflicting edits to identical fields resolve predictably.
+
+### Asynchronous Change Data Capture (CDC)
+- **Oplog-Driven Streaming**: Taps directly into the MongoDB Replica Set Change Stream to stream daily entry mutations into Elasticsearch asynchronously.
+- **Resilient Delivery**: Automatic retry with exponential backoff (3 attempts) on transport failures.
+- **Dead-Letter Queue (DLQ)**: Poison pills or exhausted events are persisted in `cdc_dead_letters` and report `DEGRADED` health for zero data loss.
+- **Operator Replay**: Internal administrative endpoints allow manual single-event replaying or full index rebuilds.
+
+### Full-Text Elasticsearch Search
+- **Fuzzy & Range Queries**: Fast multi-term search across user notes and entry history via Elasticsearch OSS 7.10.2.
+- **Search Highlighting**: Server-side extraction and normalization of matched keyword fragments with highlight ranges.
+- **Strict Data Isolation**: Search queries are strictly partitioned by authenticated subject (`userId`), preventing cross-tenant data leakage.
+
+### HTTP Rate Limiting & User Quota Isolation
+- **Per-Subject Quota**: Token-bucket algorithm with nanosecond precision isolating distinct authenticated users (default: 120 req/60s).
+- **Graceful Throttling**: Throttled requests receive standard `429 Too Many Requests` responses with a dynamic `Retry-After` header.
+- **Unified Error Envelope**: Structured error responses exposing `RATE_LIMIT_EXCEEDED`, timestamp, path, and tracing `X-Request-ID`.
+
+### Auth0 Enterprise Security
+- **Stateless OAuth2 Resource Server**: Validates signed RS256 JWT tokens against Auth0 JWKS endpoints.
+- **Idempotent User Bootstrapping**: `PUT /auth/profile` bootstraps application-managed user profiles with no hidden side effects.
+- **Custom Access Denied & Authentication Entry Points**: Traps 401/403 failures into standardized JSON envelopes without leaking stack traces.
+
+### Cloudinary Media Lifecycle Management
+- **Signed Upload Signatures**: Server-generated HMAC-SHA1 signatures ensuring zero client-side credential exposure.
+- **Strict Media Constraints**: Enforces whitelist MIME checks (`jpg`, `jpeg`, `png`, `webp`) and file size limits (5 MiB).
+- **Orphan Asset Cleanup**: Automated scheduled background jobs (`PendingAssetDeletionCleanup`) continuously delete stale/replaced avatars from Cloudinary.
+
+### E2E Synthetic Reset Guard
+- **Automated Test Guard**: Dedicated reset endpoint (`/internal/e2e/reset`) for automated Playwright browser tests.
+- **Double Protection**: Hard-disabled in production via `@Profile("!prod & !production")` and guarded by a cryptographic constant-time token check.
+
+---
+
+## Architecture & Design
+
+Moodly is designed as a **Modular Monolith** — structured by clear domain boundaries inside a single deployable unit.
+
+```mermaid
+graph TD
+    Client[Client SPA / API Consumer] --> RateLimit[RequestQuotaFilter <br/><i>Per-User Rate Limiting</i>]
+    RateLimit --> Security[Spring Security <br/><i>Auth0 JWT RS256</i>]
+    Security --> Web[Presentation Layer <br/><i>Controllers, Error Advice</i>]
+    
+    subgraph Modules[Modular Monolith Domain Modules]
+        AuthModule[auth module <br/><i>Profiles, Avatar, Security</i>]
+        HabitsModule[habits module <br/><i>Habits, Streaks</i>]
+        EntriesModule[entries module <br/><i>Daily Entries, Mood Logs</i>]
+        StatsModule[stats module <br/><i>Aggregated Trends</i>]
+        SearchModule[search module <br/><i>Search Client, CDC Engine</i>]
+        E2eModule[e2e module <br/><i>Synthetic Reset</i>]
+    end
+
+    Web --> Modules
+    
+    subgraph Storage[Data & Infrastructure Layer]
+        MongoDB[(MongoDB Replica Set <br/><i>Primary Source of Truth</i>)]
+        Elasticsearch[(Elasticsearch OSS 7.10.2 <br/><i>Derived Search Projection</i>)]
+        Cloudinary[Cloudinary Media CDN]
+        Auth0[Auth0 Identity Provider]
+    end
+
+    AuthModule --> Cloudinary
+    Security -.-> Auth0
+    EntriesModule --> MongoDB
+    HabitsModule --> MongoDB
+    AuthModule --> MongoDB
+
+    MongoDB -. Oplog Change Stream .-> SearchModule
+    SearchModule --> Elasticsearch
+```
+
+### Module Boundaries
+```
+src/main/java/com/tlavu/moodly/
+├── modules/
+│   ├── auth/          # Profile synchronization, avatar signatures, cleanup jobs, Spring Security
+│   ├── habits/        # Habit definitions, frequencies, optimistic versioning
+│   ├── entries/       # Daily entries, mood ratings, habit logs, atomic upserts
+│   ├── stats/         # Mood analytics, streak calculations, timeline aggregations
+│   ├── search/        # Elasticsearch client, Change Stream listener, CDC worker, DLQ replay
+│   └── e2e/           # Dedicated synthetic test account reset helper (non-prod only)
+└── shared/            # Cross-cutting error envelope, RequestIdFilter, MDC logging, time utilities
+```
+
+---
+
+## Change Data Capture (CDC) Pipeline
+
+Moodly decouples primary transactional writes from full-text search indexing using an event-driven CDC pipeline:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Authenticated User
+    participant EntryService as DailyEntryService
+    participant Mongo as MongoDB (Replica Set)
+    participant Listener as DailyEntryChangeStreamListener
+    participant Delivery as CdcDeliveryService
+    participant ES as Elasticsearch OSS 7
+    participant DLQ as cdc_dead_letters (Mongo)
+
+    User->>EntryService: Update today entry (Mood / Notes / Habits)
+    EntryService->>Mongo: Atomic upsert entry (Oplog committed)
+    Mongo-->>EntryService: Entry document saved
+    EntryService-->>User: 200 OK (ApiResponse)
+
+    Note over Mongo,Listener: Asynchronous Oplog Streaming
+    Mongo->>Listener: On ChangeStream event (Insert / Update)
+    Listener->>Delivery: Deliver mutation event
+    
+    alt Successful Delivery
+        Delivery->>ES: PUT /daily_entries_search/_doc/{id}
+        ES-->>Delivery: 200 / 201 Created
+        Delivery->>Mongo: Checkpoint resume token
+    else Transport Failure (Retry ≤ 3 attempts)
+        Delivery->>Delivery: Exponential backoff (initial 200ms)
+        Delivery->>ES: Retry delivery
+    else Delivery Exhausted (Poison Pill)
+        Delivery->>DLQ: Save to cdc_dead_letters
+        Note over Delivery,DLQ: Health Indicator -> DEGRADED
+    end
+```
+
+---
+
+## Database & Storage Schema
+
+Moodly uses **MongoDB 7.x** (configured as a single-node replica set for Oplog access) as the authoritative source of truth, alongside **Elasticsearch OSS 7.10.2** for search projections.
+
+```mermaid
+erDiagram
+    USER_PROFILE ||--o{ HABIT : owns
+    USER_PROFILE ||--o{ DAILY_ENTRY : writes
+    USER_PROFILE ||--o{ PENDING_AVATAR_UPLOAD : initiates
+    USER_PROFILE ||--o{ PENDING_ASSET_DELETION : queues
+    DAILY_ENTRY ||--|| DAILY_ENTRY_SEARCH : projects
+
+    USER_PROFILE {
+        string id PK
+        string auth0Subject UK
+        string email
+        string avatarPublicId
+        integer avatarVersion
+        string avatarContentType
+        long avatarBytes
+        timestamp avatarUpdatedAt
+        timestamp createdAt
+    }
+
+    HABIT {
+        string id PK
+        string userId FK
+        string name
+        string icon
+        string targetFrequency
+        boolean archived
+        long version
+        timestamp createdAt
+    }
+
+    DAILY_ENTRY {
+        string id PK
+        string userId FK
+        date entryDate UK
+        integer moodScore
+        string moodLabel
+        string notes
+        json habitLogs
+        long version
+        timestamp createdAt
+    }
+
+    PENDING_AVATAR_UPLOAD {
+        string id PK
+        string publicId UK
+        string auth0Subject FK
+        timestamp expiresAt
+        timestamp createdAt
+    }
+
+    PENDING_ASSET_DELETION {
+        string id PK
+        string publicId UK
+        integer retryCount
+        timestamp createdAt
+    }
+
+    CDC_DEAD_LETTER {
+        string id PK
+        string eventId
+        string operation
+        string entryId
+        json payload
+        string failureReason
+        integer retryCount
+        timestamp createdAt
+    }
+
+    CDC_RESUME_TOKEN {
+        string id PK
+        string streamId UK
+        string resumeToken
+        timestamp updatedAt
+    }
+
+    DAILY_ENTRY_SEARCH {
+        string id PK
+        string userId
+        date date
+        integer moodScore
+        string moodLabel
+        text notes
+        array habitsCompleted
+        timestamp indexedAt
+    }
+```
+
+---
+
+## Tech Stack
+
+| Category | Technology | Description |
+| :--- | :--- | :--- |
+| **Language** | Java 25 | Latest modern Java with virtual threads, pattern matching, and JDT null safety |
+| **Framework** | Spring Boot 4.1.0 | WebMvc, Actuator, Security, Validation |
+| **Primary Database** | MongoDB 7.x | Single-node Replica Set for document persistence and Change Streams |
+| **Search Engine** | Elasticsearch OSS 7.10.2 | Derived read index for full-text search with highlighting |
+| **Authentication** | Auth0 (OAuth2 / RS256 JWT) | Delegated identity with audience and issuer verification |
+| **Media Storage** | Cloudinary | Cloud image CDN with server-signed upload presets |
+| **API Documentation** | Springdoc OpenAPI 3.1.1 | Automated contract generation with zero-drift schema checks |
+| **Build & Tooling** | Apache Maven 3.9+ / Make | Strict reproducible builds, multi-stage caching |
+| **Testing** | JUnit 5, AssertJ, Mockito, Test MockMvc | Unit, Security, and Docker-backed Integration Test Suites |
+| **Code Quality** | JaCoCo 0.8.14 | Line & branch coverage enforcement (Instruction ≥ 80%, Branch ≥ 70%) |
+| **CI / CD** | GitHub Actions | Automated PR testing, container building, and Dependabot auto-updates |
+| **Containerization** | Docker & Docker Compose | Multi-stage JRE Alpine container with non-root security |
+| **Hosting** | Render | Deployed as a managed container web service |
+
+---
+
+## API Overview
+
+Base URL: `http://localhost:8080` (or your Render domain)
+
+| Group | Base Path | Description | Access |
+| :--- | :--- | :--- | :--- |
+| **Auth & Profile** | `/auth/profile`, `/me/avatar` | Bootstrap profile, request avatar upload signature, confirm avatar | Authenticated |
+| **Daily Entries** | `/entries` | Get range entries, get/update today's mood, notes, and habit completions | Authenticated |
+| **Habit Tracking** | `/habits` | Create, list, update, archive, restore habits, calculate streaks | Authenticated |
+| **Search** | `/entries/search` | Query daily entry reflections with fuzzy matching and highlights | Authenticated |
+| **Dashboard** | `/dashboard` | Retrieve consolidated daily overview, active streaks, and current mood | Authenticated |
+| **CDC Maintenance** | `/internal/cdc` | Rebuild search index, replay individual dead-letter events | Operator (`SCOPE_moodly:admin`) + Key |
+| **E2E Reset** | `/internal/e2e/reset` | Reset synthetic browser test account (strictly disabled on prod) | Non-prod + Secret Token |
+| **Observability** | `/actuator/health` | Service readiness, MongoDB status, Elasticsearch & CDC health | Public (components masked in prod) |
+
+OpenAPI specification is committed at:
+```
+docs/api/json/moodly-openapi.json
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- **Java 25** (Eclipse Temurin recommended)
+- **Maven 3.9+**
+- **Docker Desktop** (with Compose v2)
+- **Make** (installed by default on Linux/macOS, available via Git Bash / Chocolatey on Windows)
+
+---
+
+### Step 1: Clone Repository and Configure Environment
+
+```bash
+git clone https://github.com/tlavu2004/moodly-backend.git
+cd moodly-backend
+
+# Create your local development environment file
+cp .env.local.example .env.local
+cp .env.test.example .env.test
+```
+
+Edit `.env.local` with your development credentials:
+- **Auth0**: Create an API in your Auth0 dashboard, note its Identifier (`AUTH0_AUDIENCE`) and Domain (`AUTH0_ISSUER_URI`).
+- **Cloudinary**: Create a signed upload preset (`moodly_local_signed`), set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`.
+
+---
+
+### Step 2: Start Infrastructure & Run the Application
+
+#### Option A: Using Make (Recommended)
+
+1. **Start MongoDB Replica Set & Elasticsearch**:
+   ```bash
+   make local-up
+   ```
+   *This starts the Compose stack, initializes the single-node replica set inside MongoDB, and waits for MongoDB to become PRIMARY and Elasticsearch to report green/yellow.*
+
+2. **Verify services**:
+   ```bash
+   make local-status
+   make local-replica-status
+   make local-elasticsearch-status
+   ```
+
+3. **Run Spring Boot**:
+   ```bash
+   make local-run
+   ```
+   *The application will boot on `http://localhost:8080`.*
+
+4. **Stop services when finished**:
+   ```bash
+   make local-stop
+   ```
+
+#### Option B: Direct Shell / Maven Execution
+
+```bash
+# Start infrastructure containers
+bash scripts/docker/start-infrastructure.sh local
+
+# Run backend with local profile
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+---
+
+### Step 3: Run Tests
+
+Moodly includes comprehensive Unit, Integration, and Security test suites:
+
+```bash
+# Run unit and security tests
+mvn test
+
+# Run quality gates, packaging, and JaCoCo coverage checks
+make verify
+
+# Run CDC and Elasticsearch integration test suite (requires local Docker)
+make cdc-test
+```
+
+---
+
+## Environment Variables
+
+### Core & Profiles
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :---: |
+| `SPRING_PROFILES_ACTIVE` | Active profile (`local`, `test`, `prod`) | No | `local` |
+| `PORT` | Web server port | No | `8080` |
+| `APP_CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | **Yes** (Prod) | `http://localhost:5173,http://localhost:3000` |
+
+### Database & Elasticsearch
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :---: |
+| `MONGODB_URI` | MongoDB connection URI (Replica Set required) | **Yes** (Prod) | `mongodb://localhost:27017/moodly_local?replicaSet=rs0` |
+| `ELASTICSEARCH_URIS` | Elasticsearch cluster HTTP(S) endpoint | **Yes** (Prod) | `http://localhost:9200` |
+| `ELASTICSEARCH_USERNAME` | Elasticsearch basic auth username | No | — |
+| `ELASTICSEARCH_PASSWORD` | Elasticsearch basic auth password | No | — |
+| `MOODLY_SEARCH_INDEX_NAME` | Name of the search projection index | No | `daily_entries_search` |
+| `MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED` | Auto-verify and create index mapping on boot | No | `true` |
+
+### Auth0 Security
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :---: |
+| `AUTH0_ISSUER_URI` | Auth0 tenant URL (must include trailing slash) | **Yes** | — |
+| `AUTH0_AUDIENCE` | Unique API Identifier configured in Auth0 | **Yes** | — |
+| `MOODLY_CDC_ADMIN_AUTHORITY` | Granted authority required for maintenance APIs | No | `SCOPE_moodly:admin` |
+
+### Cloudinary CDN
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :---: |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary account cloud name | **Yes** | — |
+| `CLOUDINARY_API_KEY` | Cloudinary API Key | **Yes** | — |
+| `CLOUDINARY_API_SECRET` | Cloudinary API Secret (keep strictly confidential) | **Yes** | — |
+| `CLOUDINARY_UPLOAD_PRESET`| Signed upload preset configured in Cloudinary | **Yes** | — |
+| `CLOUDINARY_FOLDER` | Target folder prefix for media storage | No | `moodly/local` |
+
+### Rate Limiting (Token Bucket)
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :---: |
+| `MOODLY_RATE_LIMIT_ENABLED` | Toggle HTTP rate limiting | No | `false` |
+| `MOODLY_RATE_LIMIT_REQUESTS`| Max request allowance per window | No | `120` |
+| `MOODLY_RATE_LIMIT_WINDOW` | Rate limit window duration | No | `60s` |
+
+---
+
+## Deployment (Render)
+
+Moodly is fully production-configured for deployment on [Render](https://render.com) using its multi-stage `Dockerfile`.
+
+### Multi-Stage Container Design
+1. **Builder Stage (`maven:3.9.16-eclipse-temurin-25-alpine`)**: Leverages Docker BuildKit cache mounts (`--mount=type=cache,target=/root/.m2`) to download dependencies and compile without caching build artifacts in the final layer.
+2. **Runtime Stage (`eclipse-temurin:25-jre-alpine`)**: Minimal Alpine JRE footprint running under a dedicated non-root user (`USER moodly`).
+3. **Container Resource Optimization**:
+   ```dockerfile
+   ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+   ```
+   *Dynamically scales heap limits to 75% of available container memory, perfectly tuned for Render instances (512MB / 1GB RAM).*
+4. **Built-in Healthcheck**:
+   ```dockerfile
+   HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+       CMD wget --quiet --spider http://localhost:8080/actuator/health || exit 1
+   ```
+
+### Deploying on Render:
+1. Create a new **Web Service** on Render connected to this repository.
+2. Select **Docker** environment.
+3. Configure the **Health Check Path** to `/actuator/health`.
+4. In **Environment Variables**, define `SPRING_PROFILES_ACTIVE=prod` alongside your production MongoDB Atlas URI, Elasticsearch URL, Auth0 domain/audience, and Cloudinary secrets.
+
+---
+
+## Deep-Dive Operations & Runbook
+
+### OpenAPI Contract Synchronization
 
 When changing controllers, request/response DTOs, OpenAPI annotations, or response type names, regenerate `docs/api/json/moodly-openapi.json`, review its diff, and commit it with the code change. Schema names can change even when endpoint paths do not. CI regenerates this file and fails if it differs from the committed version.
 
@@ -19,7 +481,7 @@ sed 's/\r$//' src/main/resources/scripts/openapi/generate-openapi.sh | bash
 git diff -- docs/api/json/moodly-openapi.json
 ```
 
-## CI and image publishing
+### CI/CD & Container Publishing
 
 Pull requests targeting `main` run application and OpenAPI verification, followed by a container build. Run `PR CI` manually to check a feature branch before opening a pull request. Feature-branch pushes rely on the pull request run once a PR is open, avoiding duplicate verification.
 
@@ -29,97 +491,86 @@ A new PR run cancels an older run for the same PR. Release runs for the same ref
 
 External actions are pinned to full commit SHAs, with their major versions recorded in comments. Verify the upstream release commit when updating a pin. The main branch ruleset requires the PR verification and PR container build checks before merging.
 
-## Local setup
-
-Requirements: Java 25, Maven, and Docker Desktop.
-
-### Auth0 startup network failures
+### Auth0 Resilience & Startup Network Handling
 
 JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even when the local Docker services are healthy. The backend uses 10-second connect and read timeouts, with at most three attempts and a 500 ms delay for connection refusals/timeouts. Persistent failures still stop startup; issuer, audience, signature and expiry validation remain mandatory. HTTP errors and TLS certificate errors are not retried.
 
 Optional Spring properties:
-	- `moodly.auth0.http.connect-timeout`
-	- `moodly.auth0.http.read-timeout`
-	- `moodly.auth0.http.max-attempts` (1–5)
-	- `moodly.auth0.http.retry-delay`.
+- `moodly.auth0.http.connect-timeout`
+- `moodly.auth0.http.read-timeout`
+- `moodly.auth0.http.max-attempts` (1–5)
+- `moodly.auth0.http.retry-delay`
 
-Their environment equivalents are
-	- `MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`
-	- `MOODLY_AUTH0_HTTP_READ_TIMEOUT`
-	- `MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`
-	- `MOODLY_AUTH0_HTTP_RETRY_DELAY`.
+Their environment equivalents are:
+- `MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`
+- `MOODLY_AUTH0_HTTP_READ_TIMEOUT`
+- `MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`
+- `MOODLY_AUTH0_HTTP_RETRY_DELAY`
 
 No new secret is required. If all attempts fail, check network/proxy/firewall access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
 
 Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
-### Auth0 and Cloudinary local services
-
-Before starting the Phase 3 backend, configure the hosted development services and fill the corresponding blank values in `.env.local`:
-
+#### Auth0 and Cloudinary Local Services Configuration
+Before starting the backend, configure the hosted development services and fill the corresponding values in `.env.local`:
 - In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:3000`) to its allowed callback, logout, and web-origin URLs.
 - In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
-- Set `CLOUDINARY_FOLDER` to `moodly/local`. The Phase 3 backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
+- Set `CLOUDINARY_FOLDER` to `moodly/local`. The backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
 
-`make local-run` exports these variables before launching the `local` profile. For production, activate `prod` (or `production`, which includes `prod`) explicitly and supply the settings in `application-prod.yaml` through the deployment environment. Production requires `MONGODB_URI` and `ELASTICSEARCH_URIS` rather than the local host/port variables, and disables Swagger and the E2E reset endpoint. CDC maintenance requires both an Auth0 JWT with `MOODLY_CDC_ADMIN_AUTHORITY` (default `SCOPE_moodly:admin`) and the existing `X-Maintenance-Key` header. Grant that authority only to operators; keep the maintenance key private.
+### CDC Maintenance, Dead-Letter Queue & Reindexing
 
-1. Start MongoDB as a single-node replica set and Elasticsearch:
+1. **Start MongoDB Replica Set and Elasticsearch**:
+   ```bash
+   make local-up
+   ```
+   Each local/test Compose stack contains only MongoDB and Elasticsearch. `make local-up` and `make test-up` initialize the single-node replica set inside the running MongoDB container, then wait for MongoDB to become PRIMARY and Elasticsearch to be healthy. The operation is safe to repeat; `local-start` and `test-start` use the same flow. No stopped initialization container is left in Docker Desktop. Run these Make targets from a Bash-capable environment (Git Bash on Windows) at the repository root. Alternatively run `bash scripts/docker/start-infrastructure.sh local` (or `test`). Once initialized, the replica-set configuration persists in the MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's health check reports healthy only when it is writable PRIMARY.
 
-	```bash
-	make local-up
-	```
+2. **Verify Cluster & Elasticsearch Mapping**:
+   ```bash
+   make local-status
+   make local-replica-status
+   make local-elasticsearch-status
+   curl http://localhost:9200/_cat/indices/daily_entries_search?v
+   curl http://localhost:9200/daily_entries_search/_mapping?pretty
+   ```
+   Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data-oss7` Docker volume.
 
-	Each local/test Compose stack contains only MongoDB and Elasticsearch. `make local-up` and `make test-up` initialize the single-node replica set inside the running MongoDB container, then wait for MongoDB to become PRIMARY and Elasticsearch to be healthy. The operation is safe to repeat; `local-start` and `test-start` use the same flow. No stopped initialization container is left in Docker Desktop. Run these Make targets from a Bash-capable environment (Git Bash on Windows), at the repository root. Alternatively run `bash scripts/docker/start-infrastructure.sh local` (or `test`). On a fresh volume, use this flow rather than Docker Desktop's Start button or bare `docker compose up`. Once initialized, the replica-set configuration persists in the MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's health check reports healthy only when it is writable PRIMARY.
+3. **Reindex Triggers & Change Stream Operations**:
+   The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB.
+   To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+   ```bash
+   curl -X POST http://localhost:8080/internal/cdc/reindex \
+       -H "X-Maintenance-Key: your-local-secret"
+   ```
+   Outside production, the maintenance header is the guard. Production also requires the operator JWT with `MOODLY_CDC_ADMIN_AUTHORITY` (default `SCOPE_moodly:admin`).
 
-2. Verify MongoDB:
+4. **Dead-Letter Handling & Exponential Backoff**:
+   Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with:
+   ```bash
+   curl -X POST http://localhost:8080/internal/cdc/dead-letters/{id}/replay \
+       -H "X-Maintenance-Key: your-local-secret"
+   ```
+   CDC health reports `DEGRADED` while dead letters remain; alert on this status and replay or rebuild the projection. A stopped listener or unavailable dead-letter count reports `DOWN`. In production, health details are hidden from public callers.
 
-	```bash
-	make local-status
-	make local-replica-status
-	```
+5. **Search Query Eventual Consistency**:
+   `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
 
-	Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data-oss7` Docker volume.
+6. **Pending Avatar Cleanup**:
+   Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
 
-3. Run the application:
+7. **Elasticsearch OSS 7.10.2 & Managed Deployment (Searchly / Self-Hosted)**:
+   Both Compose stacks pin the official Elasticsearch OSS 7.10.2 image. The backend uses JSON REST endpoints for index management, document CRUD, search, refresh, and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep older Elasticsearch volumes available for rollback and mount only with their original engine version.
+   For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Local Compose binds the unauthenticated Elasticsearch port to loopback. MongoDB remains authoritative.
+   When deployed on Render or cloud instances, if the application stops, CDC pauses. On restart, it resumes from MongoDB's checkpoint if the index exists and the token is still valid. A missing index or expired change-stream history triggers a rebuild from MongoDB. For index loss during uptime, monitor search errors and CDC dead letters, rebuild via the maintenance endpoint, and replay pending failures.
 
-	```bash
-	make local-run
-	```
+### Mutation Replay & Concurrency Contracts (409 Conflict)
 
-	When the backend exits, or you press Ctrl+C, `local-run` and `local-build-run` stop the local stack and keep its containers and volumes. Use `make local-up` to start the services independently, then `make local-stop` when finished.
+- `POST /habits` creates a new UUID for every accepted request and does not accept an idempotency key. A client must not automatically replay it after a timeout or lost response; it should read the habit list before a user chooses to submit it again.
+- `PATCH /habits/{habitId}` and the archive/restore POSTs require the latest habit `version`. A stale version returns HTTP `409 Conflict`; read the current habit before deciding on another change.
+- `PUT /entries/today/mood` and `PATCH /entries/today` set the requested state. Repeating the same body leaves the same visible mood or habit-log state, but updates metadata and can emit another CDC event. Concurrent updates to different fields or habit logs are applied atomically; simultaneous updates to the same field follow last-writer-wins semantics. Avatar replacement uses a conditional profile update and retries competing replacements. Avatar upload signature/confirmation still has no general replay guarantee; each signature allocates a new public ID and confirmation consumes its pending upload.
+- **Habit Streak Query Cost**: `GET /habits/{habitId}/streak` reads the authenticated user's entries on or before today for each requested habit. The frontend currently calls it once per active habit, in parallel. This repeated history read is accepted for small habit lists; a future summary endpoint should calculate all streaks from one history read if staging latency or habit counts exceed the threshold.
 
-	On startup, Moodly creates `daily_entries_search` when it is missing. Existing mappings require an explicit migration.
-
-	Verify the cluster, index, and mapping after the application has started:
-
-	```bash
-	make local-elasticsearch-status
-	curl http://localhost:9200/_cat/indices/daily_entries_search?v
-	curl http://localhost:9200/daily_entries_search/_mapping?pretty
-	```
-
-	The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
-
-	```bash
-	curl -X POST http://localhost:8080/internal/cdc/reindex \
-		-H "X-Maintenance-Key: your-local-secret"
-	```
-
-	Outside production, the maintenance header is the guard. Production also requires the operator JWT described above.
-
-	Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with `POST /internal/cdc/dead-letters/{id}/replay` using the same maintenance header. CDC health is `DEGRADED` while dead letters remain; alert on this status and replay or rebuild the projection. A stopped listener or unavailable dead-letter count reports `DOWN`. In production, health details are hidden from public callers.
-
-	`GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
-
-	Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
-
-	The CDC verification scenarios in `docs/testing/moodly.http` cover insert, update, reindex/duplicate delivery, dead-letter replay, and health. The delete scenario uses `mongosh` until an entry-delete API is introduced.
-
-4. Open `docs/testing/moodly.http` with the VS Code REST Client extension, set `@accessToken` to an Auth0 access token for the Moodly API audience, then send authenticated requests. The API no longer accepts `X-User-Id`; ownership is derived only from the JWT `sub` claim.
-
-5. After Auth0 authenticates the SPA, call `PUT /auth/profile` once to idempotently bootstrap the application-owned profile. Other protected endpoints resolve ownership from the verified JWT and never create users as a hidden side effect.
-
-### Reset the local Playwright account
+### E2E Playwright Synthetic User Reset Guard
 
 The E2E reset endpoint is disabled by default and is not registered with the `prod` or `production` profile. To enable it for local Playwright runs, set `MOODLY_E2E_RESET_ENABLED=true`, choose a long random `MOODLY_E2E_RESET_TOKEN`, and set `MOODLY_E2E_USER_ID` to the Auth0 `sub` of the dedicated synthetic E2E account in `.env.local`. The account subject is read only from server configuration; the request cannot select a user. Keep the reset token in `.env.local` and out of frontend source and Git.
 
@@ -137,31 +588,9 @@ $headers = @{ 'X-E2E-Reset-Token' = $resetToken }
 
 Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
 
-### Mutation replay contract
+### Automated Integration Test Harness
 
-`POST /habits` creates a new UUID for every accepted request and does not accept an idempotency key. A client must not automatically replay it after a timeout or lost response; it should read the habit list before a user chooses to submit it again.
-
-`PATCH /habits/{habitId}` and the archive/restore POSTs require the latest habit `version`. A stale version returns HTTP 409 `CONFLICT`; read the current habit before deciding on another change.
-
-`PUT /entries/today/mood` and `PATCH /entries/today` set the requested state. Repeating the same body leaves the same visible mood or habit-log state, but updates metadata and can emit another CDC event. Concurrent updates to different fields or habit logs are applied atomically; simultaneous updates to the same field follow last-writer-wins semantics. Avatar replacement uses a conditional profile update and retries competing replacements. Avatar upload signature/confirmation still has no general replay guarantee; each signature allocates a new public ID and confirmation consumes its pending upload.
-
-### Habit streak query cost
-
-`GET /habits/{habitId}/streak` reads the authenticated user's entries on or before today for each requested habit. The frontend currently calls it once per active habit, in parallel. This repeated history read is accepted for small habit lists; a future summary endpoint should calculate all streaks from one history read if staging latency or habit counts exceed the frontend README's temporary threshold.
-
-## Elasticsearch OSS 7.10.2
-
-Both Compose stacks pin the official Elasticsearch OSS 7.10.2 image. The backend uses the JSON REST endpoints for index management, document CRUD, search, refresh and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep any older Elasticsearch volume available for rollback and mount it only with its original engine version.
-
-For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Local Compose binds the unauthenticated Elasticsearch port to loopback. MongoDB remains authoritative.
-
-The Searchly Starter dashboard reported a 20 MB allowance and its root endpoint reported Elasticsearch OSS 7.10.2. Compose verifies upstream OSS behavior. Before using Searchly from Render, confirm the actual quota, credentials, supported endpoints (including index create/delete, refresh and cluster health), and behavior when the index is missing. Check capacity for a full rebuild including index overhead. Searchly traffic, permissions and limits require a separate smoke test against the provisioned account.
-
-When Render stops the application, CDC pauses. On restart, it resumes from MongoDB's checkpoint if the index exists and the token is still valid. A missing index or expired change-stream history triggers a rebuild from MongoDB. For index loss during uptime, monitor search errors and CDC dead letters, rebuild via the maintenance endpoint and replay pending failures. The Compose server disables automatic index creation. Confirm Searchly's behavior so that a write action cannot silently create an empty projection with a different mapping.
-
-## Test
-
-Automated integration tests use the existing `moodly-test`. Compose stack: exactly one MongoDB replica-set container and one Elasticsearch container. Docker Desktop (or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
+Automated integration tests use the existing `moodly-test` Compose stack: exactly one MongoDB replica-set container and one Elasticsearch container. Docker Desktop (or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
 
 ```bash
 make test       # run tests
@@ -184,4 +613,26 @@ With CDC disabled, the existing CDC health indicator reports DOWN even when Mong
 
 `make test-up` intentionally leaves the manual stack running for inspection; finish that session with `make test-stop`. It is not a prerequisite for automated tests.
 
-See [Moodly blueprint](`docs/blueprint/moodly-blueprint.md`) for the phase plan, MongoDB pipeline exercises, and branch/commit workflow.
+---
+
+## Authors
+
+| Student ID | Full Name | GitHub |
+| :--- | :--- | :--- |
+| **22120443** | Trương Lê Anh Vũ | [@tlavu2004](https://github.com/tlavu2004) |
+
+---
+
+## Contribution
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/amazing-feature`.
+3. Commit your changes following Conventional Commits: `git commit -m 'feat: add amazing feature'`.
+4. Push to the branch: `git push origin feature/amazing-feature`.
+5. Open a Pull Request against `main`.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
