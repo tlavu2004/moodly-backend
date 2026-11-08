@@ -11,7 +11,10 @@ public class CdcRetrySleeper {
 			Thread.sleep(duration);
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
-			throw new OperationInterruptedException("CDC retry wait interrupted", interrupted);
+			throw new OperationInterruptedException(
+					"CDC retry wait interrupted",
+					interrupted
+			);
 		}
 	}
 }

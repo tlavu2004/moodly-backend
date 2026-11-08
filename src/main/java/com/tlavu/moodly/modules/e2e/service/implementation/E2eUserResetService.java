@@ -131,7 +131,9 @@ public class E2eUserResetService {
 
 				if (!DailyEntrySearchDocument.from(entry).equals(indexed)) {
 					throw SearchInfrastructureUnavailableException.duringE2eVerification(
-							new E2eSearchVerificationException("Search document verification failed for " + entryId)
+							new E2eSearchVerificationException(
+									"Search document verification failed for " + entryId
+							)
 					);
 				}
 			}

@@ -53,10 +53,14 @@ public class CdcDeliveryService {
 			@Value("${moodly.cdc.retry.initial-backoff-ms}") long initialBackoffMs
 	) {
 		if (maxAttempts < 1) {
-			throw new CdcConfigurationException("moodly.cdc.retry.max-attempts must be at least 1");
+			throw new CdcConfigurationException(
+					"moodly.cdc.retry.max-attempts must be at least 1"
+			);
 		}
 		if (initialBackoffMs < 0) {
-			throw new CdcConfigurationException("moodly.cdc.retry.initial-backoff-ms must not be negative");
+			throw new CdcConfigurationException(
+					"moodly.cdc.retry.initial-backoff-ms must not be negative"
+			);
 		}
 
 		this.searchWriter = searchWriter;

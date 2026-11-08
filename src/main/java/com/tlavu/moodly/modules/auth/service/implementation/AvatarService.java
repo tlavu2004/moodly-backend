@@ -302,7 +302,10 @@ public class AvatarService {
 					.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(value.getBytes(StandardCharsets.UTF_8)));
 		} catch (NoSuchAlgorithmException e) {
-			throw new AssetSignatureException("SHA-1 is unavailable for asset signing", e);
+			throw new AssetSignatureException(
+					"SHA-1 is unavailable for asset signing",
+					e
+			);
 		}
 	}
 }
