@@ -3,19 +3,21 @@ set -euo pipefail
 
 mode="${1:-}"
 case "$mode" in
-  local|test) ;;
-  *) echo "Usage: $0 local|test" >&2; exit 2 ;;
+  local) ;;
+  *) echo "Usage: $0 local" >&2; exit 2 ;;
 esac
 
 cd "$(dirname "$0")/../.."
-# Local ports must come from .env.local, even after exporting test settings.
-if [ "$mode" = local ]; then
-  for key in ${!MONGODB_@} ${!ELASTICSEARCH_@}; do
-    unset "$key"
-  done
+# Infrastructure coordinates are independent of caller test namespace settings.
+for key in ${!MONGODB_@} ${!ELASTICSEARCH_@}; do
+  unset "$key"
+done
+unset MOODLY_SEARCH_INDEX_NAME
+infra_env="${MOODLY_INFRA_ENV_FILE:-.env.local}"
+if [ ! -f "$infra_env" ] && [ -z "${MOODLY_INFRA_ENV_FILE:-}" ]; then
+  infra_env=.env.local.example
 fi
-
-compose=(docker compose -p "moodly-$mode" --env-file ".env.$mode" -f "compose.$mode.yaml")
+compose=(docker compose -p moodly-local --env-file "$infra_env" -f compose.local.yaml)
 
 # PRIMARY health requires initialization first, so do not use --wait here.
 "${compose[@]}" up -d mongodb elasticsearch

@@ -1,11 +1,12 @@
 .DEFAULT_GOAL := help
 
-compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f compose.$(1).yaml
+infra_env = $(if $(MOODLY_INFRA_ENV_FILE),$(MOODLY_INFRA_ENV_FILE),$(if $(wildcard .env.local),.env.local,.env.local.example))
+compose = docker compose -p moodly-local --env-file "$(infra_env)" -f compose.local.yaml
 
 .PHONY: help
 define help_text
 Backend
-  make local-run / test-run               Run the backend against the selected stack
+  make local-run / test-run               Run the local or isolated test backend on shared infrastructure
   make local-build-run / test-build-run   Build before running the backend
   make test-cdc-run                       Alias for test-run
   make test-search-run                    Manual test backend with CDC and search enabled
@@ -16,17 +17,17 @@ Tests and OpenAPI
   make verify                             Run tests, build, and check coverage
   make cdc-test                           Run CDC integration tests
   make openapi                            Generate the OpenAPI contract
-Docker - replace STACK with local or test
-  make STACK-up                           Start the stack and wait for readiness
-  make STACK-start / STACK-await          Aliases for STACK-up
-  make STACK-stop                         Stop containers
-  make STACK-down                         Remove containers and the stack network
-  make STACK-clean                        Delete stack data volumes (requires CONFIRM=yes)
-  make STACK-status / STACK-logs          List containers or follow their logs
-  make STACK-replica-status               Check MongoDB replica state
-  make STACK-elasticsearch-status         Check Elasticsearch cluster health
-  make validate-STACK                     Validate Compose without printing values
-  make config-STACK                       Show resolved Compose configuration (may expose secrets)
+Shared Docker Infrastructure (used by local and test)
+  make local-up                           Start the stack and wait for readiness
+  make local-start / local-await          Aliases for local-up
+  make local-stop                         Stop containers
+  make local-down                         Remove containers and the stack network
+  make local-clean                        Delete stack data volumes (requires CONFIRM=yes)
+  make local-status / local-logs          List containers or follow their logs
+  make local-replica-status               Check MongoDB replica state
+  make local-elasticsearch-status         Check Elasticsearch cluster health
+  make validate-local                     Validate Compose without printing values
+  make config-local                       Show resolved Compose configuration (may expose secrets)
   make                                    Show this help without starting containers
 endef
 
@@ -68,41 +69,38 @@ cdc-test:
 openapi:
 	bash src/main/resources/scripts/openapi/generate-openapi.sh
 
-# Shared Compose commands for local and test
-.PHONY: local-up local-stop local-down local-status local-replica-status local-elasticsearch-status local-logs local-clean
-.PHONY: test-up test-stop test-down test-status test-replica-status test-elasticsearch-status test-logs test-clean
-.PHONY: local-start local-await test-start test-await config-local config-test validate-local validate-test
+# The operator owns the one shared infrastructure stack.
+.PHONY: local-up local-start local-await local-stop local-down local-status local-replica-status local-elasticsearch-status local-logs local-clean config-local validate-local
 
 local-start local-await: local-up
-test-start test-await: test-up
 
-local-up test-up: %-up:
-	bash scripts/docker/start-infrastructure.sh $*
+local-up:
+	bash scripts/docker/start-infrastructure.sh local
 
-local-stop test-stop: %-stop:
-	$(call compose,$*) stop
+local-stop:
+	$(compose) stop
 
-local-down test-down: %-down:
-	$(call compose,$*) down
+local-down:
+	$(compose) down
 
-local-status test-status: %-status:
-	$(call compose,$*) ps
+local-status:
+	$(compose) ps
 
-local-replica-status test-replica-status: %-replica-status:
-	$(call compose,$*) exec mongodb sh -c 'exec mongosh --quiet --port "$$MONGODB_CONTAINER_PORT" --eval "rs.status().members[0].stateStr"'
+local-replica-status:
+	$(compose) exec mongodb sh -c 'exec mongosh --quiet --port "$$MONGODB_CONTAINER_PORT" --eval "rs.status().members[0].stateStr"'
 
-local-elasticsearch-status test-elasticsearch-status: %-elasticsearch-status:
-	set -a; . ./.env.$*; set +a; curl -fsS "http://$${ELASTICSEARCH_HOST}:$${ELASTICSEARCH_PORT}/_cluster/health?pretty"
+local-elasticsearch-status:
+	$(compose) exec elasticsearch curl -fsS 'http://localhost:9200/_cluster/health?pretty'
 
-local-logs test-logs: %-logs:
-	$(call compose,$*) logs -f mongodb elasticsearch
+local-logs:
+	$(compose) logs -f mongodb elasticsearch
 
-local-clean test-clean: %-clean:
-	@if [ "$(CONFIRM)" != "yes" ]; then echo "Refusing to delete $* data volumes. Re-run with CONFIRM=yes." >&2; exit 2; fi
-	$(call compose,$*) down -v --remove-orphans
+local-clean:
+	@if [ "$(CONFIRM)" != "yes" ]; then echo "Refusing to delete shared local/test volumes. Re-run with CONFIRM=yes." >&2; exit 2; fi
+	$(compose) down -v --remove-orphans
 
-config-local config-test: config-%:
-	$(call compose,$*) config
+config-local:
+	$(compose) config
 
-validate-local validate-test: validate-%:
-	$(call compose,$*) config --quiet
+validate-local:
+	$(compose) config --quiet

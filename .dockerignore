@@ -10,3 +10,6 @@ src/test
 *.iml
 *.ipr
 *.iws
+
+.moodly-test.lock
+**/__pycache__

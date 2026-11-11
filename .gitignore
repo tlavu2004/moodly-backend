@@ -40,3 +40,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# OS lease for shared test namespaces (never commit or unlink while in use)
+.moodly-test.lock
+
+# Python tooling bytecode
+__pycache__/

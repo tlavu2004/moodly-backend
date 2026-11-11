@@ -20,8 +20,10 @@ import java.util.Map;
 import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import java.util.concurrent.TimeUnit;
 import org.springframework.context.ConfigurableApplicationContext;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
-/** One Compose stack per test JVM; its configured test database/index are disposable. */
+/** Reserved test namespaces on shared local infrastructure; never owns its lifecycle. */
 // Keep lambdas for JDT method-reference nullability compatibility.
 @SuppressWarnings("Convert2MethodRef")
 final class ComposeTestEnvironment {
@@ -33,6 +35,7 @@ final class ComposeTestEnvironment {
 	private FileChannel lockChannel;
 	private FileLock lock;
 	private boolean closed;
+	private boolean initialized;
 
 	static synchronized void finishCurrentGroup() {
 		if (instance != null) {
@@ -55,19 +58,16 @@ final class ComposeTestEnvironment {
 	}
 
 	private ComposeTestEnvironment() {
-		String envFile = System.getenv().getOrDefault("MOODLY_TEST_ENV_FILE",
-				Files.exists(Path.of(".env.test")) ? ".env.test" : ".env.test.example");
-		compose = List.of("docker", "compose", "-p", "moodly-test", "--env-file", envFile, "-f", "compose.test.yaml");
 		try {
 			Files.createDirectories(Path.of("target"));
-			lockChannel = FileChannel.open(Path.of("target/compose-test.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			lockChannel = FileChannel.open(Path.of(".moodly-test.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 			lock = lockChannel.tryLock();
 			if (lock == null) {
 				lockChannel.close();
-				throw new IllegalStateException("Another test process is using moodly-test. Run tests sequentially.");
+				throw new IllegalStateException("Test resources are in use. Stop the other manual/automated test session.");
 			}
 		} catch (IOException failure) {
-			throw new IllegalStateException("Could not lock the Compose test stack", failure);
+			throw new IllegalStateException("Could not lock reserved test resources", failure);
 		}
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			try {
@@ -76,36 +76,47 @@ final class ComposeTestEnvironment {
 				System.err.println("Compose shutdown cleanup failed: " + failure.getClass().getSimpleName());
 			}
 		}, "moodly-compose-test-cleanup"));
-		for (String line : command(null, "config", "--environment").split("\\R")) {
-			int separator = line.indexOf('=');
-			if (separator > 0) {
-				settings.put(line.substring(0, separator), line.substring(separator + 1));
+		try {
+			String python = System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win") ? "python" : "python3";
+			JsonNode configuration = JsonMapper.builder().build().readTree(execute(null,
+					List.of(python, "scripts/docker/shared-infrastructure.py", "config")));
+			for (String key : List.of("MONGODB_HOST", "MONGODB_PORT", "MONGODB_REPLICA_SET", "MONGODB_DATABASE",
+					"ELASTICSEARCH_HOST", "ELASTICSEARCH_PORT", "MOODLY_SEARCH_INDEX_NAME")) {
+				settings.put(key, configuration.get(key).asText());
 			}
-		}
-		command(null, "up", "-d", "mongodb", "elasticsearch");
-		boolean ready = false;
-		for (int attempt = 0; attempt < MAX_MONGO_PING_ATTEMPTS; attempt++) {
-			try {
-				command(null, "exec", "-T", "mongodb", "sh", "-c",
-						"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");
-				ready = true;
-				break;
-			} catch (IllegalStateException failure) {
+			compose = List.of("docker", "compose", "-p", "moodly-local", "--env-file",
+					configuration.get("envFile").asText(), "-f", "compose.local.yaml");
+			database();
+			index();
+			command(null, "up", "-d", "mongodb", "elasticsearch");
+			boolean ready = false;
+			for (int attempt = 0; attempt < MAX_MONGO_PING_ATTEMPTS; attempt++) {
 				try {
-					Thread.sleep(2000);
-				} catch (InterruptedException interrupted) {
-					Thread.currentThread().interrupt();
-					throw new IllegalStateException("Interrupted waiting for Compose MongoDB", interrupted);
+					command(null, "exec", "-T", "mongodb", "sh", "-c",
+							"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");
+					ready = true;
+					break;
+				} catch (IllegalStateException failure) {
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException interrupted) {
+						Thread.currentThread().interrupt();
+						throw new IllegalStateException("Interrupted waiting for Compose MongoDB", interrupted);
+					}
 				}
 			}
+			if (!ready) {
+				throw new IllegalStateException("Timed out waiting for Compose MongoDB");
+			}
+			command(Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "mongodb", "sh", "-c",
+					"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
+			command(null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
+			initialized = true;
+			System.out.println("Integration tests use reserved test namespaces on shared stack moodly-local.");
+		} catch (RuntimeException failure) {
+			close();
+			throw failure;
 		}
-		if (!ready) {
-			throw new IllegalStateException("Timed out waiting for Compose MongoDB");
-		}
-		command(Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "mongodb", "sh", "-c",
-				"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
-		command(null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
-		System.out.println("Integration tests are using Compose stack moodly-test (MongoDB + Elasticsearch).");
 	}
 
 	synchronized void prepare(ConfigurableApplicationContext context) {
@@ -121,16 +132,16 @@ final class ComposeTestEnvironment {
 
 	String database() {
 		String database = settings.get("MONGODB_DATABASE");
-		if (database == null || !database.toLowerCase(java.util.Locale.ROOT).contains("test")) {
-			throw new IllegalStateException("Compose integration tests require a database name containing 'test'");
+		if (!"moodly_test".equals(database)) {
+			throw new IllegalStateException("Only the reserved database moodly_test may be reset");
 		}
 		return database;
 	}
 
 	String index() {
-		String index = settings.getOrDefault("MOODLY_SEARCH_INDEX_NAME", "daily_entries_search");
-		if (!index.matches("[a-z0-9][a-z0-9_-]*")) {
-			throw new IllegalStateException("A single concrete test index name is required");
+		String index = settings.get("MOODLY_SEARCH_INDEX_NAME");
+		if (!"daily_entries_search_test".equals(index)) {
+			throw new IllegalStateException("Only the reserved index daily_entries_search_test may be reset");
 		}
 		return index;
 	}
@@ -180,36 +191,36 @@ final class ComposeTestEnvironment {
 		boolean failed = false;
 		try {
 			closeContexts();
-			resetData();
+			if (initialized) { resetData(); }
 		} catch (Exception failure) {
 			failed = true;
 			System.err.println("Could not reset Compose test data: " + failure.getClass().getSimpleName());
 		} finally {
 			try {
-				command(null, "stop");
-			} catch (Exception failure) {
-				failed = true;
-				System.err.println("Could not stop moodly-test: " + failure.getClass().getSimpleName());
-			}
-			try {
-				lock.release();
-				lockChannel.close();
+				if (lock != null && lock.isValid()) { lock.release(); }
+				if (lockChannel != null) { lockChannel.close(); }
 			} catch (IOException failure) {
 				failed = true;
 			}
 		}
 		if (failed) {
-			throw new IllegalStateException("Compose test cleanup failed; stack volumes were preserved.");
+			throw new IllegalStateException("Test cleanup failed; shared infrastructure was left running.");
 		}
 	}
 
 	private String command(Path input, String... arguments) {
 		List<String> invocation = new ArrayList<>(compose);
 		invocation.addAll(List.of(arguments));
+		return execute(input, invocation);
+	}
+
+	private static String execute(Path input, List<String> invocation) {
 		try {
 			Path output = Files.createTempFile("moodly-compose-", ".log");
 			try {
 				ProcessBuilder builder = new ProcessBuilder(invocation).redirectErrorStream(true).redirectOutput(output.toFile());
+				builder.environment().keySet().removeIf(key -> key.startsWith("MONGODB_")
+						|| key.startsWith("ELASTICSEARCH_") || key.equals("MOODLY_SEARCH_INDEX_NAME"));
 				if (input != null) {
 					builder.redirectInput(input.toFile());
 				}
@@ -220,7 +231,7 @@ final class ComposeTestEnvironment {
 				}
 				String result = Files.readString(output);
 				if (process.exitValue() != 0) {
-					throw new IllegalStateException("Docker Compose failed: " + String.join(" ", arguments) + "\n" + result);
+					throw new IllegalStateException("Docker Compose failed: " + String.join(" ", invocation) + "\n" + result);
 				}
 				return result;
 			} finally {

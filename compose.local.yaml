@@ -3,6 +3,8 @@ services:
     image: mongo:${MONGODB_VERSION}
     container_name: moodly-mongodb-local
     restart: unless-stopped
+    labels:
+      io.moodly.local-database: ${MONGODB_DATABASE:-moodly_local}
     ports:
       - "127.0.0.1:${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
     environment:
@@ -22,6 +24,8 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
     container_name: moodly-elasticsearch-local
+    labels:
+      io.moodly.local-index: ${MOODLY_SEARCH_INDEX_NAME:-daily_entries_search}
     restart: unless-stopped
     environment:
       - discovery.type=single-node
