@@ -92,6 +92,7 @@ public final class DevelopmentLauncher {
 			this.configuration = configuration;
 			this.manual = manual;
 			this.environment = configuration.applicationEnvironment(manual);
+			interruptResult("running");
 			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 				try { close(); } catch (RuntimeException failure) { System.err.println("Backend session cleanup failed"); }
 			}, "moodly-backend-session-cleanup"));
@@ -141,8 +142,16 @@ public final class DevelopmentLauncher {
 			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
 			try { if (testLease != null) { testLease.close(); } }
 			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
-			if (failure != null) { throw failure; }
+			if (failure != null) { interruptResult("failed"); throw failure; }
+			interruptResult("clean");
 		}
+	}
+
+	private static void interruptResult(String status) {
+		String filename = System.getenv("MOODLY_TOOLING_INTERRUPT_RESULT");
+		if (filename == null) { return; }
+		try { Files.writeString(Path.of(filename), status, StandardCharsets.UTF_8); }
+		catch (java.io.IOException failure) { throw new IllegalStateException("Could not record backend cleanup status", failure); }
 	}
 
 	private static void stopTree(Process child) {
