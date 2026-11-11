@@ -34,23 +34,26 @@ No new Maven library dependency or production runtime component is introduced.
 | Retained | `.env.docs.example` and optional `.env.docs` support | Documentation tooling fixtures, not another infrastructure stack |
 | Retained | `scripts/docker/smoke-test.py` | Image smoke orchestration is outside the shared-stack migration |
 
-The private `.env.local` receives only MOODLY_MANUAL_TEST_PORT=8081 if not already
-present; every existing assignment, including credentials, is preserved. Private
+The earlier manual-port setting was removed by the later session migration.
+Local and manual now use the same SERVER_PORT; other assignments, including
+credentials, are preserved. Private
 env files are not committed. The retired test file was subsequently removed after
 a key-name-only check confirmed it contained no credential keys. The launcher and
 JUnit configuration do not depend on it.
 
-## Runtime Behavior
+## Runtime Behavior (Updated by Session Ownership Migration)
 
 - Local backend: SERVER_PORT from the selected local env file, normally 8080.
-- Manual test backend: MOODLY_MANUAL_TEST_PORT from that same file, default 8081.
-- Docs tooling: SERVER_PORT from docs fixture properties, normally 8082.
+- Manual test backend: the same SERVER_PORT, normally 8080; run one backend at a time.
+- Docs tooling: SERVER_PORT from docs fixture properties, normally 8081.
 - Local namespaces retain their existing identities and data.
 - Manual and automated test namespaces remain fixed as moodly_test and
   daily_entries_search_test. Local collisions and unsafe targets are rejected.
 - Manual mode inherits local CDC/search/rate-limit settings and explicit caller
   overrides. There is no second dotenv file overriding these settings.
-- Test completion and backend exit leave shared infrastructure running.
+- The last infrastructure consumer stops only automatically owned services.
+  Preexisting or explicitly pinned services remain running. Manual test data is
+  disposable and resets before launch and after exit.
 - A legacy clean-mongodb.sh .env.test argument still selects guarded test cleanup;
   it does not read the retired env file. Prefer clean-mongodb.sh test.
 

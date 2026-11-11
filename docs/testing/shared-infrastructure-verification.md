@@ -2,6 +2,7 @@
 
 This document records earlier migration stages. The current Java implementation
 and file inventory are documented in [Java Development Tooling Migration](java-tooling-migration.md).
+The later automatic shutdown contract is verified in [Session Ownership Verification](session-ownership-verification.md).
 
 ## Scope
 

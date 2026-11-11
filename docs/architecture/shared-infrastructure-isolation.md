@@ -185,7 +185,8 @@ must not bypass the target guard.
 5. Validate readiness, then clean only the reserved test resources for automated tests.
 6. Create migrations/indexes, start the application, and run the test group.
 7. Stop background writers, close clients/contexts, and reset the owned resources.
-8. Release the lease. Leave shared infrastructure running for local users.
+8. Release the test lease and infrastructure session. Stop only automatically
+   owned services when the final consumer ends; preserve preexisting/pinned services.
 
 A per-checkout file lease protects cooperating processes in that checkout. It does
 not coordinate another checkout or another host. If those must share endpoints,
@@ -240,7 +241,8 @@ Never run a fault-injection or server-reconfiguration test against shared local 
 - Leave old test volumes alone; removal is a separate explicit storage operation.
 - Seed a uniquely identified sentinel in a local namespace, run full integration,
   verify the sentinel survives, then delete only the sentinel created for this check.
-- Verify shared containers remain running after test completion.
+- Verify preexisting/pinned containers remain running after tests, and automatically
+  started containers stop only after the final consumer ends.
 - Verify lock contention, invalid targets, wildcard rejection, startup failures,
   and release of resources on interruption.
 - Run the full application suite, coverage/format checks, and container smoke where
@@ -248,17 +250,16 @@ Never run a fault-injection or server-reconfiguration test against shared local 
 
 ## Moodly Operational Contract
 
-HTTP ports are 8080 for the local backend, 8081 for the manual test backend,
-and 8082 for the temporary OpenAPI documentation profile. This is a repository
-convention, not another deployment environment or a framework requirement.
+Local and manual backends share HTTP port 8080 and run one backend session at a
+time. Docs use 8081. JUnit/MockMvc integration needs no separate listening port.
+These are repository conventions, not extra deployment environments.
 
 Infrastructure lives in `compose.local.yaml`. `.env.local` is the single runtime
-and infrastructure env source, with `.env.local.example` as the fresh-checkout/CI
-fallback. `MOODLY_INFRA_ENV_FILE` selects an explicit source. Local SERVER_PORT
-remains separate from MOODLY_MANUAL_TEST_PORT so both backends can run together.
-Manual mode inherits the local CDC/search/rate-limit settings unless the caller
-overrides them. Test resource identities are fixed as `moodly_test` and
-`daily_entries_search_test`; local namespaces must not collide with either.
+and infrastructure source, with `.env.local.example` as fresh-checkout/CI fallback.
+MOODLY_INFRA_ENV_FILE selects a source explicitly. SERVER_PORT applies to both
+backend modes. Manual inherits local CDC/search/rate-limit settings and explicit
+caller overrides. Test resource identities are moodly_test and
+daily_entries_search_test; local namespaces must not collide with either.
 
 The shell entry points call `run-tooling.sh`, which compiles test-side Java tooling
 and resolves the project's existing dependency classpath through Maven Wrapper.
@@ -275,11 +276,29 @@ no credential values were read or printed. Manual-runtime overrides belong to th
 single local configuration or an explicit command. Ignore rules remain to protect
 stale private files in other checkouts.
 
-The shared Java lease remains in `.moodly-test.lock`, outside target/. Both manual
-and automated sessions use it. Local/backend exit and integration cleanup leave
-`moodly-local` running. Explicit local-stop/local-down affect every consumer.
-Volume deletion is never part of automated cleanup. The lease is per checkout;
-multiple checkouts/hosts need namespace allocation or an external coordinator.
+The shared Java test lease remains in `.moodly-test.lock`, outside target/. Both
+manual and automated sessions use it. The ignored `.moodly-infrastructure/` registry
+coordinates infrastructure ownership with short OS file locks and PID/start-time
+identities. Local and automated tests may share dependencies concurrently; local
+and manual backend sessions are mutually exclusive because they share HTTP port.
+
+A session records the services it had to start. Its final release stops only those
+services, and only when no consumer remains. Services already running before the
+first session remain untouched. Explicit local-up pins the stack; stop/down/clean
+commands refuse active consumers. Cleanup never removes containers, networks, or
+volumes. A partial preexisting stack only stops the missing service tooling started.
+
+Manual test resets its reserved database/index before backend launch and after
+normal exit, startup failure, or Ctrl+C. Backend writers stop before reset; the test
+lease stays held until cleanup ends. Automated contexts keep their per-group reset
+and session-end cleanup. Cleanup failures fail the command. Failed service stops preserve ownership state
+for recovery. Hosted Auth0 accounts and Cloudinary assets are outside this reset.
+
+Force termination cannot execute shutdown hooks. The next session prunes stale PID
+records (using start time to avoid PID reuse) and recovers automatic ownership. Do
+not delete lock/state files while consumers may still be active. Coordination is
+per checkout; raw Docker commands or another checkout bypass it. Multiple hosts or
+parallel checkouts require shared coordination or distinct namespaces.
 
 Python remains used for image smoke tests, OpenAPI JSON normalization, and CI report
 formatting. It is no longer required by local/manual infrastructure commands or
