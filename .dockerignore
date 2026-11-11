@@ -2,8 +2,8 @@
 .github
 .idea
 .vscode
-.env.local
-.env.test
+**/.env*
+!**/.env*.example
 target
 docs
 src/test

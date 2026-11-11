@@ -4,7 +4,7 @@ services:
     container_name: moodly-mongodb-local
     restart: unless-stopped
     ports:
-      - "${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
+      - "127.0.0.1:${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
     environment:
       MONGODB_CONTAINER_PORT: ${MONGODB_CONTAINER_PORT}
       MONGODB_REPLICA_SET: ${MONGODB_REPLICA_SET}
