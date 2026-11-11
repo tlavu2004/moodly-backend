@@ -1,0 +1,258 @@
+package com.tlavu.moodly.support;
+
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/** Development-only tooling shared by the CLI launcher and JUnit infrastructure. */
+public final class SharedInfrastructure {
+
+	public static final String TEST_DATABASE = "moodly_test";
+	public static final String TEST_INDEX = "daily_entries_search_test";
+	public static final Path LOCK_FILE = Path.of(".moodly-test.lock");
+	private static final JsonMapper JSON = JsonMapper.builder().build();
+	private static final Pattern ENV_KEY = Pattern.compile("^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*[=:]");
+
+	private SharedInfrastructure() {}
+
+	public record Configuration(Path envFile, Map<String, String> localEnvironment,
+			String mongoHost, String mongoPort, String mongoContainerPort, String replicaSet,
+			String searchHost, String searchPort) {
+		@Override
+		public String toString() { return "SharedInfrastructure.Configuration[envFile=" + envFile + "]"; }
+
+		public List<String> compose() {
+			return List.of("docker", "compose", "-p", "moodly-local", "--env-file", envFile.toString(), "-f", "compose.local.yaml");
+		}
+
+		public Map<String, String> testSettings() {
+			return Map.of("envFile", envFile.toString(), "MONGODB_HOST", mongoHost,
+					"MONGODB_PORT", mongoPort, "MONGODB_CONTAINER_PORT", mongoContainerPort,
+					"MONGODB_REPLICA_SET", replicaSet, "MONGODB_DATABASE", TEST_DATABASE,
+					"ELASTICSEARCH_HOST", searchHost, "ELASTICSEARCH_PORT", searchPort,
+					"MOODLY_SEARCH_INDEX_NAME", TEST_INDEX);
+		}
+
+		public Map<String, String> applicationEnvironment(boolean manual) {
+			Map<String, String> environment = new LinkedHashMap<>(localEnvironment);
+			environment.put("MOODLY_INFRA_ENV_FILE", envFile.toString());
+			environment.put("SPRING_PROFILES_ACTIVE", manual ? "compose-test" : "local");
+			if (manual) {
+				environment.put("MONGODB_DATABASE", TEST_DATABASE);
+				environment.put("MOODLY_SEARCH_INDEX_NAME", TEST_INDEX);
+				environment.put("SERVER_PORT", environment.getOrDefault("MOODLY_MANUAL_TEST_PORT", "8081"));
+			}
+			validatePort(environment.get("SERVER_PORT"));
+			environment.put("SPRING_MONGODB_URI", "mongodb://" + mongoHost + ":" + mongoPort + "/"
+					+ environment.get("MONGODB_DATABASE") + "?replicaSet=" + replicaSet);
+			environment.put("SPRING_ELASTICSEARCH_URIS", "http://" + searchHost + ":" + searchPort);
+			return environment;
+		}
+	}
+
+	public static Path infrastructureFile() {
+		String selected = System.getenv("MOODLY_INFRA_ENV_FILE");
+		return Path.of(selected != null ? selected : Files.exists(Path.of(".env.local"))
+				? ".env.local" : ".env.local.example").toAbsolutePath().normalize();
+	}
+
+	public static Configuration configuration() {
+		Path file = infrastructureFile();
+		JsonNode services = JSON.readTree(compose(file, null, "config", "--format", "json")).path("services");
+		JsonNode mongo = services.path("mongodb");
+		JsonNode search = services.path("elasticsearch");
+		Map<String, String> environment = runtimeEnvironment(file);
+		validateResources(mongo.path("labels").path("io.moodly.local-database").asText(),
+				search.path("labels").path("io.moodly.local-index").asText(), TEST_DATABASE, TEST_INDEX);
+		String mongoHost = environment.get("MONGODB_HOST");
+		String searchHost = environment.get("ELASTICSEARCH_HOST");
+		if (!Set.of("localhost", "127.0.0.1").contains(mongoHost == null ? "" : mongoHost)
+				|| !Set.of("localhost", "127.0.0.1").contains(searchHost == null ? "" : searchHost)) {
+			throw new IllegalStateException("Shared local/test hosts must be loopback hosts");
+		}
+		return new Configuration(file, Map.copyOf(environment), mongoHost, publishedPort(mongo),
+				mongo.path("environment").path("MONGODB_CONTAINER_PORT").asText(),
+				mongo.path("environment").path("MONGODB_REPLICA_SET").asText(), searchHost, publishedPort(search));
+	}
+
+	static String publishedPort(JsonNode service) {
+		JsonNode ports = service.path("ports");
+		if (ports.size() != 1 || !"127.0.0.1".equals(ports.path(0).path("host_ip").asText())) {
+			throw new IllegalStateException("Shared services must publish exactly one loopback port");
+		}
+		return ports.path(0).path("published").asText();
+	}
+
+	public static void validateResources(String localDatabase, String localIndex, String database, String index) {
+		if (!TEST_DATABASE.equals(database) || !TEST_INDEX.equals(index)) {
+			throw new IllegalStateException("Only the exact reserved test database/index may be reset");
+		}
+		if (localDatabase == null || !localDatabase.matches("[A-Za-z0-9_-]+")
+				|| localIndex == null || !localIndex.matches("[a-z0-9][a-z0-9_-]*")) {
+			throw new IllegalStateException("Local resources must be explicit names without wildcards or lists");
+		}
+		if (localDatabase.equals(database) || localIndex.equals(index)) {
+			throw new IllegalStateException("Local resources collide with reserved test resources");
+		}
+	}
+
+	public static void validatePort(String value) {
+		try {
+			if (value == null || !value.matches("[0-9]+")) { throw new NumberFormatException(); }
+			int port = Integer.parseInt(value);
+			if (port >= 1 && port <= 65535) { return; }
+		} catch (NumberFormatException ignored) {
+			// Report only the setting name, never its contents.
+		}
+		throw new IllegalStateException("Set a valid SERVER_PORT / MOODLY_MANUAL_TEST_PORT in the local env file");
+	}
+
+	static Set<String> dotenvKeys(String content) {
+		Set<String> keys = new LinkedHashSet<>();
+		char quote = 0;
+		for (String line : content.replace("\uFEFF", "").split("\\R")) {
+			if (quote == 0) {
+				var match = ENV_KEY.matcher(line);
+				if (!match.find()) { continue; }
+				keys.add(match.group(1));
+				String value = line.substring(match.end()).stripLeading();
+				if (value.isEmpty() || (value.charAt(0) != '\'' && value.charAt(0) != '"')) { continue; }
+				quote = value.charAt(0);
+				line = value.substring(1);
+			}
+			boolean escaped = false;
+			for (char character : line.toCharArray()) {
+				if (escaped) { escaped = false; }
+				else if (character == '\\') { escaped = true; }
+				else if (character == quote) { quote = 0; break; }
+			}
+		}
+		return keys;
+	}
+
+	public static Map<String, String> runtimeEnvironment(Path file) {
+		try {
+			Map<String, String> placeholders = new LinkedHashMap<>();
+			for (String key : dotenvKeys(Files.readString(file, StandardCharsets.UTF_8))) {
+				placeholders.put(key, "${" + key + "}");
+			}
+			String definition = JSON.writeValueAsString(Map.of("services", Map.of("runtime",
+					Map.of("image", "scratch", "environment", placeholders))));
+			JsonNode resolved = JSON.readTree(compose(file, definition, "config", "--format", "json"))
+					.path("services").path("runtime").path("environment");
+			Map<String, String> environment = new LinkedHashMap<>(System.getenv());
+			resolved.properties().forEach(entry -> environment.put(entry.getKey(), entry.getValue().asText().replace("$$", "$")));
+			return environment;
+		} catch (IOException failure) {
+			throw new IllegalStateException("Could not read the selected local env file", failure);
+		}
+	}
+
+	private static String compose(Path file, String definition, String... arguments) {
+		List<String> invocation = new ArrayList<>(List.of("docker", "compose", "-p", "moodly-local", "--env-file",
+				file.toString(), "-f", definition == null ? "compose.local.yaml" : "-"));
+		invocation.addAll(List.of(arguments));
+		return execute(invocation, definition, null);
+	}
+
+	public static String command(Configuration configuration, Path input, String... arguments) {
+		List<String> invocation = new ArrayList<>(configuration.compose());
+		invocation.addAll(List.of(arguments));
+		return execute(invocation, null, input);
+	}
+
+	private static String execute(List<String> invocation, String definition, Path input) {
+		try {
+			Path output = Files.createTempFile("moodly-tooling-", ".log");
+			try {
+				ProcessBuilder builder = new ProcessBuilder(invocation).redirectError(ProcessBuilder.Redirect.DISCARD).redirectOutput(output.toFile());
+				builder.environment().keySet().removeIf(key -> key.startsWith("MONGODB_")
+						|| key.startsWith("ELASTICSEARCH_") || key.equals("MOODLY_SEARCH_INDEX_NAME"));
+				if (input != null) { builder.redirectInput(input.toFile()); }
+				Process process = builder.start();
+				if (definition != null) {
+					try (var stdin = process.getOutputStream()) { stdin.write(definition.getBytes(StandardCharsets.UTF_8)); }
+				} else if (input == null) { process.getOutputStream().close(); }
+				if (!process.waitFor(180, TimeUnit.SECONDS)) {
+					process.destroyForcibly();
+					throw new IllegalStateException("Docker Compose command timed out");
+				}
+				if (process.exitValue() != 0) {
+					// Expanded config/credential values may occur in Compose diagnostics.
+					throw new IllegalStateException("Docker Compose failed; check configuration and Docker availability");
+				}
+				return Files.readString(output, StandardCharsets.UTF_8);
+			} finally { Files.deleteIfExists(output); }
+		} catch (IOException failure) {
+			throw new IllegalStateException("Docker with Compose is required for development infrastructure", failure);
+		} catch (InterruptedException failure) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted waiting for Docker Compose", failure);
+		}
+	}
+
+	public static void start(Configuration configuration) {
+		command(configuration, null, "up", "-d", "mongodb", "elasticsearch");
+		boolean ready = false;
+		for (int attempt = 0; attempt < 60; attempt++) {
+			try {
+				command(configuration, null, "exec", "-T", "mongodb", "sh", "-c",
+						"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");
+				ready = true;
+				break;
+			} catch (IllegalStateException failure) {
+				try { Thread.sleep(2000); }
+				catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Interrupted waiting for MongoDB", interrupted);
+				}
+			}
+		}
+		if (!ready) { throw new IllegalStateException("Timed out waiting for MongoDB"); }
+		command(configuration, Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "mongodb", "sh", "-c",
+				"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
+		command(configuration, null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
+	}
+
+	public static TestLease lease(Path file) {
+		try {
+			FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			try {
+				FileLock lock = channel.tryLock();
+				if (lock == null) { throw new IllegalStateException("Test resources are in use"); }
+				return new TestLease(channel, lock);
+			} catch (RuntimeException | IOException failure) {
+				channel.close();
+				if (failure instanceof OverlappingFileLockException) {
+					throw new IllegalStateException("Test resources are in use", failure);
+				}
+				throw failure;
+			}
+		} catch (IOException failure) { throw new IllegalStateException("Could not acquire the test lease", failure); }
+	}
+
+	public record TestLease(FileChannel channel, FileLock lock) implements AutoCloseable {
+		@Override
+		public void close() {
+			try {
+				if (lock.isValid()) { lock.release(); }
+				channel.close();
+			} catch (IOException failure) { throw new IllegalStateException("Could not release the test lease", failure); }
+		}
+	}
+}

@@ -27,11 +27,9 @@ SERVICE_DIR="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 
 ENV_FILENAME=${1:-".env.local"}
 # Test cleanup uses the shared lease and fixed namespace, never old env test ports.
-if [ "$ENV_FILENAME" = .env.test ]; then
+if [ "$ENV_FILENAME" = test ] || [ "$ENV_FILENAME" = .env.test ]; then
   cd "$SERVICE_DIR"
-  python_bin=python3
-  if ! command -v "$python_bin" >/dev/null 2>&1; then python_bin=python; fi
-  exec "$python_bin" scripts/docker/shared-infrastructure.py clean-test
+  exec bash scripts/docker/run-tooling.sh clean-test
 fi
 ENV_FILE="$SERVICE_DIR/$ENV_FILENAME"
 

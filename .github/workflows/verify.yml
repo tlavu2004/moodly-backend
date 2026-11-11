@@ -28,9 +28,6 @@ jobs:
       - name: Make Maven Wrapper executable
         run: chmod +x mvnw
 
-      - name: Validate shared infrastructure guards
-        run: python3 -m unittest discover -s scripts/docker -p "test_*.py"
-
       - name: Run tests
         env:
           MOODLY_INFRA_ENV_FILE: .env.local.example

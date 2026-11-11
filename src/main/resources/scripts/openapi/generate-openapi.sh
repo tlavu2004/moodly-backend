@@ -13,23 +13,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Read only the non-secret port; Spring imports the remaining fixture properties.
-# .env.docs files intentionally use unquoted Java-properties-compatible values.
-SERVER_PORT=$(python3 - <<'PYDOCS'
-from pathlib import Path
-port = None
-for path in (Path(".env.docs.example"), Path(".env.docs")):
-    if not path.exists():
-        continue
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        key, separator, value = line.partition("=")
-        if separator and key.strip() == "SERVER_PORT":
-            port = value.strip()
-if port is None or not port.isdigit() or not 1 <= int(port) <= 65535:
-    raise SystemExit("Set a valid SERVER_PORT in .env.docs.example or .env.docs")
-print(port)
-PYDOCS
-)
+# Java tooling reads the same non-secret port properties as the docs profile.
+SERVER_PORT=$(bash scripts/docker/run-tooling.sh docs-port)
 export SERVER_PORT
 
 echo "Starting the documentation profile..."
