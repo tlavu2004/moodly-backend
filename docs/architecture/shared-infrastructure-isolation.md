@@ -2,32 +2,17 @@
 
 ## Purpose and Scope
 
-This guide describes a reusable architecture for sharing development infrastructure
-between applications and test processes without sharing ownership of their data.
-It applies to Spring Boot, NestJS, and other backends, and to relational databases,
-document databases, search engines, caches, queues, and object stores.
+This guide describes a reusable architecture for sharing development infrastructure between applications and test processes without sharing ownership of their data. It applies to Spring Boot, NestJS, and other backends, and to relational databases, document databases, search engines, caches, queues, and object stores.
 
-The deployment environments remain **local**, **test**, and **production**. A
-container, a database, a Spring profile, and a deployment environment are different
-concepts. Sharing one database server does not merge local and test application
-configuration. A short-lived CI runner is part of test, not another environment.
+The deployment environments remain **local**, **test**, and **production**. A container, a database, a Spring profile, and a deployment environment are different concepts. Sharing one database server does not merge local and test application configuration. A short-lived CI runner is part of test, not another environment.
 
-This is a design and operational guide, not a universal framework or a claim that
-logical namespaces provide the same protection as separate machines or accounts.
+This is a design and operational guide, not a universal framework or a claim that logical namespaces provide the same protection as separate machines or accounts.
 
 ## Architecture Decision
 
-On a developer workstation, prefer one infrastructure stack when applications need
-the same compatible engine versions and tests run sequentially. Allocate explicit
-resources to each application and purpose. Preserve production on separate hosted
-infrastructure and credentials. Use fresh infrastructure on CI runners.
+On a developer workstation, prefer one infrastructure stack when applications need the same compatible engine versions and tests run sequentially. Allocate explicit resources to each application and purpose. Preserve production on separate hosted infrastructure and credentials. Use fresh infrastructure on CI runners.
 
-For Moodly, use project `moodly-local` and `compose.local.yaml` for MongoDB and
-Elasticsearch. Local keeps its existing configured database/index. Automated and
-manual test sessions own database `moodly_test` and index
-`daily_entries_search_test`. These names are reserved and disposable. Automated
-cleanup deletes only those exact resources and never stops the shared services.
-Manual test and automated test sessions acquire the same exclusive lease.
+For Moodly, use project `moodly-local` and `compose.local.yaml` for MongoDB and Elasticsearch. Local keeps its existing configured database/index. Automated and manual test sessions own database `moodly_test` and index `daily_entries_search_test`. These names are reserved and disposable. Data cleanup deletes only those exact resources. Infrastructure cleanup separately stops automatically owned services after the final consumer exits, while preserving preexisting or explicitly pinned services. Manual test and automated test sessions acquire the same exclusive lease.
 
 ```mermaid
 flowchart LR
@@ -51,130 +36,63 @@ flowchart LR
 | Separate container and volume | Processes and storage mounts | Host kernel, Docker daemon, hardware |
 | Separate host/account/network | Larger failure and access domains | Depends on the hosting boundary and permissions |
 
-Choose the least expensive boundary that satisfies the actual concurrency,
-permission, compatibility, and failure requirements. Namespace isolation prevents
-routine collisions; credentials and grants constrain damage from a faulty process.
-Neither naming nor a developer file lock is an adversarial security boundary.
+Choose the least expensive boundary that satisfies the actual concurrency, permission, compatibility, and failure requirements. Namespace isolation prevents routine collisions; credentials and grants constrain damage from a faulty process. Neither naming nor a developer file lock is an adversarial security boundary.
 
-Moodly's local MongoDB and Elasticsearch OSS currently have no per-namespace
-credentials. Loopback bindings and exact-target cleanup are safeguards, not RBAC.
-Do not share these unauthenticated services across untrusted users or machines.
+Moodly's local MongoDB and Elasticsearch OSS currently have no per-namespace credentials. Loopback bindings and exact-target cleanup are safeguards, not RBAC. Do not share these unauthenticated services across untrusted users or machines.
 
 ## Naming and Resource Ownership
 
-Use identifiers containing application, purpose, and resource type where needed.
-For multiple apps, examples are `moodly_local`, `moodly_test`, `billing_local`, and
-`billing_test`. Search indexes can be `moodly_entries_local` and
-`moodly_entries_test`. Explicitly preserve established local names during migration
-rather than renaming them and accidentally hiding existing data.
+Use identifiers containing application, purpose, and resource type where needed. For multiple apps, examples are `moodly_local`, `moodly_test`, `billing_local`, and `billing_test`. Search indexes can be `moodly_entries_local` and `moodly_entries_test`. Explicitly preserve established local names during migration rather than renaming them and accidentally hiding existing data.
 
-Maintain a resource manifest with application, environment, endpoint, namespace,
-owner, cleanup policy, and migration version. Distinguish retained local data from
-disposable test data. Never infer cleanup permission from a substring such as
-`test` in a database name. Reject wildcards, aliases, lists, URLs with embedded
-paths, empty names, and unexpected resource names before destructive operations.
+Maintain a resource manifest with application, environment, endpoint, namespace, owner, cleanup policy, and migration version. Distinguish retained local data from disposable test data. Never infer cleanup permission from a substring such as `test` in a database name. Reject wildcards, aliases, lists, URLs with embedded paths, empty names, and unexpected resource names before destructive operations.
 
-A test runner should enumerate the exact resources it owns. It must not discover
-all databases or indexes on a server and delete matching names. A local backend
-must refuse to use reserved test namespaces; test configuration must override
-inherited local connection settings before creating repositories or running jobs.
+A test runner should enumerate the exact resources it owns. It must not discover all databases or indexes on a server and delete matching names. A local backend must refuse to use reserved test namespaces; test configuration must override inherited local connection settings before creating repositories or running jobs.
 
 ## Engine-Specific Patterns
 
 ### PostgreSQL
 
-Prefer a separate database per application/purpose for straightforward ownership
-and cleanup. Separate schemas can reduce database provisioning overhead, but require
-explicit schema/search-path configuration for both runtime and migrations. A schema
-name alone does not prevent cross-schema access. Avoid search paths that include
-schemas writable by unrelated users. Use separate roles and narrow grants; keep
-migration/admin capabilities separate from routine application access.
+Prefer a separate database per application/purpose for straightforward ownership and cleanup. Separate schemas can reduce database provisioning overhead, but require explicit schema/search-path configuration for both runtime and migrations. A schema name alone does not prevent cross-schema access. Avoid search paths that include schemas writable by unrelated users. Use separate roles and narrow grants; keep migration/admin capabilities separate from routine application access.
 
-Migration examples: configure Flyway or Liquibase in Spring, or the selected ORM's
-migration data source in NestJS, to the test database/schema. Validate the target
-before running migrations, truncation, or schema recreation. Transaction rollback
-is useful for repository tests but cannot undo messages, background jobs, another
-connection's committed changes, or external service calls.
+Migration examples: configure Flyway or Liquibase in Spring, or the selected ORM's migration data source in NestJS, to the test database/schema. Validate the target before running migrations, truncation, or schema recreation. Transaction rollback is useful for repository tests but cannot undo messages, background jobs, another connection's committed changes, or external service calls.
 
 ### MySQL and MariaDB
 
-In MySQL, database and schema refer to the same namespace. Use separate databases
-and database-scoped users/grants rather than expecting PostgreSQL-style nested
-schemas. Review engine-specific DDL and transaction behavior; migration/DDL changes
-must not be assumed reversible by a test transaction. Compatibility with MariaDB
-must be evaluated for the actual server version and features in use.
+In MySQL, database and schema refer to the same namespace. Use separate databases and database-scoped users/grants rather than expecting PostgreSQL-style nested schemas. Review engine-specific DDL and transaction behavior; migration/DDL changes must not be assumed reversible by a test transaction. Compatibility with MariaDB must be evaluated for the actual server version and features in use.
 
 ### MongoDB
 
-Use a separate database for each application/purpose. Collection indexes,
-checkpoints, outbox records, dead letters, and scheduled-job records must belong to
-that database. Database deletion is appropriate only for a reserved disposable
-database. If authentication is enabled, grant only the necessary operations on that
-database and explicitly review privileges needed for migrations and cleanup.
+Use a separate database for each application/purpose. Collection indexes, checkpoints, outbox records, dead letters, and scheduled-job records must belong to that database. Database deletion is appropriate only for a reserved disposable database. If authentication is enabled, grant only the necessary operations on that database and explicitly review privileges needed for migrations and cleanup.
 
-Change streams and transaction tests require the appropriate MongoDB deployment
-capabilities. A standalone test server may not represent production behavior.
-With a shared replica set, namespace every listener and checkpoint consistently;
-never let a test listener consume another database's collections.
+Change streams and transaction tests require the appropriate MongoDB deployment capabilities. A standalone test server may not represent production behavior. With a shared replica set, namespace every listener and checkpoint consistently; never let a test listener consume another database's collections.
 
 ### Elasticsearch and Similar Search Engines
 
-Use separate concrete indexes. Both query reads and projection writes must use the
-same configured index. CDC/reindex jobs, templates, aliases, checkpoints, retries,
-and dead letters also need consistent ownership. Reject `_all`, wildcards, aliases,
-and comma-separated lists for cleanup; index naming alone does not authorize it.
+Use separate concrete indexes. Both query reads and projection writes must use the same configured index. CDC/reindex jobs, templates, aliases, checkpoints, retries, and dead letters also need consistent ownership. Reject `_all`, wildcards, aliases, and comma-separated lists for cleanup; index naming alone does not authorize it.
 
-A new test index needs its actual mappings and settings, not merely an empty index.
-Wait for asynchronous projection convergence with bounded polling and diagnostics,
-not fixed sleeps. When engine security is available, scope index privileges to the
-owned resources. Moodly OSS 7.10.2 does not implement the modern Elastic security
-features described in current Elastic documentation.
+A new test index needs its actual mappings and settings, not merely an empty index. Wait for asynchronous projection convergence with bounded polling and diagnostics, not fixed sleeps. When engine security is available, scope index privileges to the owned resources. Moodly OSS 7.10.2 does not implement the modern Elastic security features described in current Elastic documentation.
 
 ### Caches, Queues, Object Storage, and External Services
 
-A database boundary is insufficient if tests still share Redis keys, queue names,
-consumer groups, object keys, filesystem paths, or external accounts. Namespace each
-resource. Do not use global cache flush or broker-wide purge commands. Redis logical
-databases are not equivalent to independently secured servers; cluster support also
-varies. Use separate queue/vhost resources where supported and narrowly scoped
-object prefixes or buckets according to permissions.
+A database boundary is insufficient if tests still share Redis keys, queue names, consumer groups, object keys, filesystem paths, or external accounts. Namespace each resource. Do not use global cache flush or broker-wide purge commands. Redis logical databases are not equivalent to independently secured servers; cluster support also varies. Use separate queue/vhost resources where supported and narrowly scoped object prefixes or buckets according to permissions.
 
-Use local fixtures for automated Auth0/OIDC and Cloudinary-equivalent interactions.
-Real hosted integrations belong in explicitly configured E2E tests with dedicated
-identities/assets. Do not reuse production credentials or treat a database rollback
-as cleanup for an external upload or email.
+Use local fixtures for automated Auth0/OIDC and Cloudinary-equivalent interactions. Real hosted integrations belong in explicitly configured E2E tests with dedicated identities/assets. Do not reuse production credentials or treat a database rollback as cleanup for an external upload or email.
 
 ## Framework Integration
 
 ### Spring Boot
 
-Keep infrastructure coordinates separate from application namespace selection.
-Apply test URI/database/index properties before the application context creates
-clients, indexes, listeners, or scheduled jobs. Use test-only JWT/client beans for
-integration tests and retain real security behavior in dedicated security tests.
-Use an application profile for configuration; do not use a profile name as the
-sole authorization for a database drop. Close listeners and contexts before reset.
-JUnit/IDE and Maven entry points must use the same ownership and cleanup policy.
+Keep infrastructure coordinates separate from application namespace selection. Apply test URI/database/index properties before the application context creates clients, indexes, listeners, or scheduled jobs. Use test-only JWT/client beans for integration tests and retain real security behavior in dedicated security tests. Use an application profile for configuration; do not use a profile name as the sole authorization for a database drop. Close listeners and contexts before reset. JUnit/IDE and Maven entry points must use the same ownership and cleanup policy.
 
 ### NestJS and Other Node.js Backends
 
-Validate environment configuration before compiling the application/testing module.
-Configure the ORM/Mongoose/SQL client and search adapter from a single validated
-resource description. Do not import a default production/local connection before
-test overrides are applied. In Jest or another runner, coordinate global setup,
-worker count, namespace ownership, and teardown; close app instances, pools,
-listeners, and timers before deleting owned resources.
+Validate environment configuration before compiling the application/testing module. Configure the ORM/Mongoose/SQL client and search adapter from a single validated resource description. Do not import a default production/local connection before test overrides are applied. In Jest or another runner, coordinate global setup, worker count, namespace ownership, and teardown; close app instances, pools, listeners, and timers before deleting owned resources.
 
-Use separate data-source instances for concurrent test workers or give each worker
-its own namespaces. In-process dependency-injection overrides do not isolate other
-processes, scheduled jobs, or shared external services.
+Use separate data-source instances for concurrent test workers or give each worker its own namespaces. In-process dependency-injection overrides do not isolate other processes, scheduled jobs, or shared external services.
 
 ### Other Frameworks
 
-The same contract applies to Django, Rails, Laravel, Go, and .NET: validate target,
-acquire ownership, initialize schema/mapping, exercise behavior, stop writers,
-clean only owned data, release ownership. Framework-specific convenience commands
-must not bypass the target guard.
+The same contract applies to Django, Rails, Laravel, Go, and .NET: validate target, acquire ownership, initialize schema/mapping, exercise behavior, stop writers, clean only owned data, release ownership. Framework-specific convenience commands must not bypass the target guard.
 
 ## Lifecycle and Concurrency
 
@@ -185,22 +103,11 @@ must not bypass the target guard.
 5. Validate readiness, then clean only the reserved test resources for automated tests.
 6. Create migrations/indexes, start the application, and run the test group.
 7. Stop background writers, close clients/contexts, and reset the owned resources.
-8. Release the test lease and infrastructure session. Stop only automatically
-   owned services when the final consumer ends; preserve preexisting/pinned services.
+8. Release the test lease and infrastructure session. Stop only automatically owned services when the final consumer ends; preserve preexisting/pinned services.
 
-A per-checkout file lease protects cooperating processes in that checkout. It does
-not coordinate another checkout or another host. If those must share endpoints,
-use a shared lease service or distinct per-worker databases/indexes. Namespace
-allocation and cleanup tracking become necessary only when parallelism requires
-them; do not introduce them for a single sequential workstation workflow.
+A per-checkout file lease protects cooperating processes in that checkout. It does not coordinate another checkout or another host. If those must share endpoints, use a shared lease service or distinct per-worker databases/indexes. Namespace allocation and cleanup tracking become necessary only when parallelism requires them; do not introduce them for a single sequential workstation workflow.
 
-Crashes can leave test records, which the next automated session may clear after
-obtaining the lease. Never delete a lock file to bypass an active OS lock. Release
-is tied to the file handle/process, not the mere existence of the lock filename.
-Cleanup failures must fail the test command and preserve useful diagnostics.
-Normal launcher interruption must stop its backend process tree before releasing
-the lease. A force-killed launcher can orphan children; verify those processes are
-stopped before reusing fixed test namespaces.
+Crashes can leave test records, which the next automated session may clear after obtaining the lease. Never delete a lock file to bypass an active OS lock. Release is tied to the file handle/process, not the mere existence of the lock filename. Cleanup failures must fail the test command and preserve useful diagnostics. Normal launcher interruption must stop its backend process tree before releasing the lease. A force-killed launcher can orphan children; verify those processes are stopped before reusing fixed test namespaces.
 
 ## Test Types and Behavior
 
@@ -212,24 +119,13 @@ stopped before reusing fixed test namespaces.
 | E2E | Browser/API and explicitly chosen integrations | Dedicated synthetic identity and owned resources | E2E runner |
 | Container smoke | Fresh CI fixture infrastructure | Disposable runner/container state | Built image smoke command |
 
-Disable unrelated rate limiting for deterministic bulk functional tests; test 429
-behavior separately with limits enabled. Enable CDC/mapping initialization for
-search scenarios. Reset endpoints must be opt-in outside production, fixed to a
-dedicated identity, and protected independently of ordinary application JWTs.
+Disable unrelated rate limiting for deterministic bulk functional tests; test 429 behavior separately with limits enabled. Enable CDC/mapping initialization for search scenarios. Reset endpoints must be opt-in outside production, fixed to a dedicated identity, and protected independently of ordinary application JWTs.
 
 ## Resource Costs and When to Split Again
 
-One running engine pair avoids duplicate baseline memory, caches, and background
-threads. Namespaces still consume disk, indexes, cache, and operation time; shared
-infrastructure does not make test data free. Stopped containers generally retain
-storage but are not equivalent to a second running JVM in RAM usage. Measure actual
-container memory/CPU and disk rather than treating configured heap as total RSS.
+One running engine pair avoids duplicate baseline memory, caches, and background threads. Namespaces still consume disk, indexes, cache, and operation time; shared infrastructure does not make test data free. Stopped containers generally retain storage but are not equivalent to a second running JVM in RAM usage. Measure actual container memory/CPU and disk rather than treating configured heap as total RSS.
 
-Split into separate containers or hosts when engine versions differ, test load
-makes local work unusable, fault-injection/restarts are required, credentials cannot
-be constrained appropriately, or jobs need independent server-level settings.
-Use fresh services per CI job; sequential groups in a job may reuse those services.
-Never run a fault-injection or server-reconfiguration test against shared local data.
+Split into separate containers or hosts when engine versions differ, test load makes local work unusable, fault-injection/restarts are required, credentials cannot be constrained appropriately, or jobs need independent server-level settings. Use fresh services per CI job; sequential groups in a job may reuse those services. Never run a fault-injection or server-reconfiguration test against shared local data.
 
 ## Migration and Verification Checklist
 
@@ -239,72 +135,183 @@ Never run a fault-injection or server-reconfiguration test against shared local 
 - Update runners, IDE hooks, migrations, cleanup scripts, documentation, and CI.
 - Remove the second Compose definition only after all references are migrated.
 - Leave old test volumes alone; removal is a separate explicit storage operation.
-- Seed a uniquely identified sentinel in a local namespace, run full integration,
-  verify the sentinel survives, then delete only the sentinel created for this check.
-- Verify preexisting/pinned containers remain running after tests, and automatically
-  started containers stop only after the final consumer ends.
-- Verify lock contention, invalid targets, wildcard rejection, startup failures,
-  and release of resources on interruption.
-- Run the full application suite, coverage/format checks, and container smoke where
-  relevant. Record what was executed and what remains outside validation scope.
+- Seed a uniquely identified sentinel in a local namespace, run full integration, verify the sentinel survives, then delete only the sentinel created for this check.
+- Verify preexisting/pinned containers remain running after tests, and automatically started containers stop only after the final consumer ends.
+- Verify lock contention, invalid targets, wildcard rejection, startup failures, and release of resources on interruption.
+- Run the full application suite, coverage/format checks, and container smoke where relevant. Record what was executed and what remains outside validation scope.
+
+## Set Up This Pattern in Another Project
+
+### 1. Choose the Sharing Boundary
+
+Start with one Compose project per application, shared by that application's local backend and test runner. For example, `acme-local` owns one PostgreSQL server with databases `acme_local` and `acme_test`. Multiple applications may share the same server only after agreeing on engine versions, port ownership, credentials, resource names, and a common lifecycle coordinator. Two independent checkout registries must not both claim ownership of the same containers.
+
+Keep production on separate infrastructure and credentials. CI should create fresh services for each job; it can reuse the namespace guard and initialization code without depending on a developer workstation. Splitting infrastructure is still appropriate for incompatible versions, restart/fault tests, or load that disrupts local work.
+
+### 2. Create the Configuration Files
+
+Use the following layout as a starting point. Names are examples for a new application, not additional files required by Moodly.
+
+```text
+compose.local.yaml
+.env.local.example
+.env.local                 # Ignored, private workstation values
+src/...                    # Runtime configuration and application
+<test sources>/...         # Test fixtures, target guard, lifecycle coordinator
+<ignored state directory>/ # Session registry and OS-lock files
+```
+
+Keep `.env*` out of Git and Docker build contexts while allowing tracked `*.example` templates. Load dotenv through a parser or Compose; do not execute arbitrary dotenv content with shell `source`. Validate required values and avoid printing resolved configuration containing passwords. Makefile and shell scripts should remain thin entry points into the project's native tooling language.
+
+This minimal PostgreSQL example uses a version family for readability. Select a compatible version and adopt your project's digest/update policy before using it as a maintained template. Do not add fixed `container_name` values: Compose project names already separate container identities. Distinct projects still need distinct host ports.
+
+```yaml
+# compose.local.yaml
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE}
+    environment:
+      POSTGRES_USER: dev_admin
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:?Set POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_admin -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  postgres_data:
+```
+
+```dotenv
+# .env.local.example
+POSTGRES_IMAGE=postgres:17
+POSTGRES_PORT=5432
+POSTGRES_PASSWORD=
+DB_HOST=127.0.0.1
+LOCAL_DATABASE=acme_local
+TEST_DATABASE=acme_test
+SERVER_PORT=8080
+```
+
+The password must be supplied in the private file before startup. These bootstrap administrator credentials are for provisioning; add separate local and test runtime credentials with database-scoped permissions. The ordinary application must not connect as the bootstrap administrator. Supply migration/cleanup credentials only to the tooling that needs them.
+
+For Git Bash or WSL, copy the template with `cp .env.local.example .env.local`; in PowerShell, use `Copy-Item .env.local.example .env.local`. Edit the private file locally. Run Docker from the same Docker context in every terminal.
+
+### 3. Start and Provision the Shared Server
+
+For the initial operator-managed setup, run:
+
+```bash
+docker compose --env-file .env.local -p acme-local -f compose.local.yaml up -d --wait
+```
+
+This explicit startup is a retained infrastructure session: the application runner must regard the already-running service as preexisting. A Compose command alone does not implement automatic ownership or pinning. Once the coordinator exists, expose an equivalent `local-up` command that records an explicit pin.
+
+On an initially empty PostgreSQL server, create the two databases once:
+
+```bash
+docker compose --env-file .env.local -p acme-local -f compose.local.yaml exec -T postgres psql -v ON_ERROR_STOP=1 -U dev_admin -d postgres <<'SQL'
+CREATE DATABASE acme_local;
+CREATE DATABASE acme_test;
+SQL
+```
+
+The heredoc example requires Bash. In PowerShell, pipe a literal here-string containing the same SQL to the same `psql` command. This is initial provisioning, not a reset command; it intentionally fails if the databases already exist. A maintained bootstrap routine should check exact resource existence and converge idempotently. Do not delete a retained volume to rerun initialization scripts.
+
+Provision distinct roles and grants for these databases before connecting the application. Run the project's actual migrations against each selected database. A healthy server is not proof that credentials, migrations, mappings, or application queries work; validate those separately.
+
+| Engine | Local/Test Resource Pair | Initialization and Reset Adaptation |
+| --- | --- | --- |
+| PostgreSQL | Separate databases, or explicitly secured schemas | Provision roles; run migrations; reset only the reserved database/schema with tooling credentials |
+| MySQL/MariaDB | Separate databases and scoped users | Run migrations for the chosen server; account for DDL commit behavior |
+| MongoDB | Separate databases | Initialize required replica-set capabilities, collection indexes, and database-scoped CDC state |
+| Elasticsearch | Separate concrete indexes | Create real mappings/settings; bind projection and query adapters to the same index |
+| Redis/queues/object storage | Separate keys, queues/groups, or owned object prefixes | Enumerate owned resources; never flush/purge the shared server globally |
+
+### 4. Bind Configuration Before Creating Clients
+
+Represent the resolved target as one validated resource description: server coordinates, local namespace, reserved test namespace, credentials, and enabled jobs. Derive application and cleanup connections from this description. Reject an empty target, local/test equality, an unexpected host, and any resource outside the exact test allowlist before migrations or reset. Check each resource independently, including CDC checkpoints, retries, and dead letters.
+
+For Spring Boot, keep deterministic test fixtures under test resources and apply dynamic connection/namespace properties before the context starts, for example through the project's existing context initializer or `@DynamicPropertySource`. Acquire the test lease before context creation. Close cached contexts and background writers before the final reset/release; a test-method callback alone is insufficient if the context outlives it. Connect IDE and Maven execution to the same coordinator. Use Maven Wrapper for reproducible commands.
+
+For NestJS, implement the coordinator in TypeScript using the existing Node toolchain. Resolve and validate configuration before compiling the testing module; override configuration/client providers before they create connections. In suite setup, acquire ownership and initialize migrations/mappings, then create the application. In teardown, await `app.close()`, close any separately owned pools/listeners, reset the exact test resources, and release ownership in `finally`. Wire interruption handling into the standalone launcher too. Jest, Vitest, and other runners have different worker lifetimes: start sequentially, or explicitly allocate a namespace per worker before enabling parallel execution.
+
+The lifecycle contract is reusable; Moodly's Java implementation is not a dependency for Node, Python, Go, or .NET projects. Implement the small adapter in the project's existing language rather than adding another runtime solely for orchestration.
+
+### 5. Implement Ownership and Failure Handling
+
+Use this framework-independent flow as a design contract, not executable code:
+
+```text
+resolve and validate configuration
+acquire test namespace lease, when running tests
+under registry lock: prune stale sessions and register this consumer
+record stopped services that this registry will own before starting them
+start missing services; wait for readiness; initialize owned test resources
+run backend or tests
+finally: stop writers; close clients; reset only owned test resources
+finally: unregister consumer; stop auto-owned services only if no consumer remains
+finally: release test lease
+```
+
+Keep the registry update serialized across processes, but do not hold its short lock for the entire backend lifetime. Preserve ownership records when startup or shutdown fails so a later invocation can recover. Store process start identity as well as PID to avoid confusing a reused PID with a live consumer. An existing file is not an active lease: use an OS lock or another coordinator with equivalent cross-process guarantees.
+
+Track ownership per service, including partially running stacks. Preserve services that were running before the first session and any explicit operator pin. Reject operator stop/down commands while consumers remain. Cleanup must report failures and must never delete local data or volumes. Handle Ctrl+C and backend startup failure; document that force termination cannot guarantee cleanup.
+
+### 6. Expose a Small Command Contract
+
+| Command Role | Expected Behavior |
+| --- | --- |
+| Local run | Acquire infrastructure session, start backend, stop backend before releasing the session |
+| Integration verify | Acquire exclusive test lease, initialize/reset test data, run tests, clean and release |
+| Manual test run | Use reserved test data; same lease and cleanup policy as automated integration |
+| Local up | Start and explicitly pin infrastructure for repeated sessions |
+| Local status | Show service and ownership state without exposing credentials |
+| Local stop | Refuse active consumers; clear the pin and stop services without removing volumes |
+
+Choose command names appropriate to the project. Keep unit-only tests independent of Docker where possible. Manual and local backends may use the same HTTP port when execution is mutually exclusive; in-process HTTP test clients need no fixed port. Use a separate or dynamically allocated port only when a test actually starts a listening server concurrently.
+
+### 7. Verify Before Removing the Old Stack
+
+- Start from stopped services: integration must start dependencies, pass, clean test data, and stop only what it started.
+- Start from preexisting or pinned services: integration must leave them running.
+- Run a local backend and integration together: test data must stay separate and ending one consumer must not stop the other's dependencies.
+- Put a uniquely identified sentinel in the retained local namespace; verify it survives test reset, then remove only that sentinel.
+- Try local/test name equality, an unexpected host, and wildcard targets: reject them before any destructive operation.
+- Try a second test session: reject or wait on the lease before resetting data.
+- Exercise failed readiness, failed migration, failed cleanup, Ctrl+C, and stale-session recovery; preserve actionable diagnostics and a failing exit status for actual cleanup failures.
+- Verify CDC, search convergence, rate-limit behavior, and hosted E2E cleanup separately where applicable.
+- Run the real CI entry point and record test totals. Remove obsolete configuration only after references and operational behavior have been checked.
 
 ## Moodly Operational Contract
 
-Local and manual backends share HTTP port 8080 and run one backend session at a
-time. Docs use 8081. JUnit/MockMvc integration needs no separate listening port.
-These are repository conventions, not extra deployment environments.
+Local and manual backends share HTTP port 8080 and run one backend session at a time. Docs use 8081. JUnit/MockMvc integration needs no separate listening port. These are repository conventions, not extra deployment environments.
 
-Infrastructure lives in `compose.local.yaml`. `.env.local` is the single runtime
-and infrastructure source, with `.env.local.example` as fresh-checkout/CI fallback.
-MOODLY_INFRA_ENV_FILE selects a source explicitly. SERVER_PORT applies to both
-backend modes. Manual inherits local CDC/search/rate-limit settings and explicit
-caller overrides. Test resource identities are moodly_test and
-daily_entries_search_test; local namespaces must not collide with either.
+Infrastructure lives in `compose.local.yaml`. `.env.local` is the single runtime and infrastructure source, with `.env.local.example` as fresh-checkout/CI fallback. MOODLY_INFRA_ENV_FILE selects a source explicitly. SERVER_PORT applies to both backend modes. Manual inherits local CDC/search/rate-limit settings and explicit caller overrides. Test resource identities are moodly_test and daily_entries_search_test; local namespaces must not collide with either.
 
-The shell entry points call `run-tooling.sh`, which compiles test-side Java tooling
-and resolves the project's existing dependency classpath through Maven Wrapper.
-`DevelopmentLauncher` handles operator commands and backend process lifetime.
-`SharedInfrastructure` handles dotenv parsing via Compose, readiness, target guards,
-and Java FileLock. The JUnit harness calls the same Java implementation directly;
-it does not launch Python or recursively invoke Maven. Neither class is packaged
-into the production application.
+The shell entry points call `run-tooling.sh`, which compiles test-side Java tooling and resolves the project's existing dependency classpath through Maven Wrapper. `DevelopmentLauncher` handles operator commands and backend process lifetime. `SharedInfrastructure` handles dotenv parsing via Compose, readiness, target guards, and Java FileLock. The JUnit harness calls the same Java implementation directly; it does not launch Python or recursively invoke Maven. Neither class is packaged into the production application.
 
-Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay.
-The tracked `.env.test.example` and the retired private `.env.test` are removed.
-The private file was checked by key name only and contained no credential keys;
-no credential values were read or printed. Manual-runtime overrides belong to the
-single local configuration or an explicit command. Ignore rules remain to protect
-stale private files in other checkouts.
+Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay. The tracked `.env.test.example` and the retired private `.env.test` are removed. The private file was checked by key name only and contained no credential keys; no credential values were read or printed. Manual-runtime overrides belong to the single local configuration or an explicit command. Ignore rules remain to protect stale private files in other checkouts.
 
-The shared Java test lease remains in `.moodly-test.lock`, outside target/. Both
-manual and automated sessions use it. The ignored `.moodly-infrastructure/` registry
-coordinates infrastructure ownership with short OS file locks and PID/start-time
-identities. Local and automated tests may share dependencies concurrently; local
-and manual backend sessions are mutually exclusive because they share HTTP port.
+The shared Java test lease remains in `.moodly-test.lock`, outside target/. Both manual and automated sessions use it. The ignored `.moodly-infrastructure/` registry coordinates infrastructure ownership with short OS file locks and PID/start-time identities. Local and automated tests may share dependencies concurrently; local and manual backend sessions are mutually exclusive because they share HTTP port.
 
-A session records the services it had to start. Its final release stops only those
-services, and only when no consumer remains. Services already running before the
-first session remain untouched. Explicit local-up pins the stack; stop/down/clean
-commands refuse active consumers. Cleanup never removes containers, networks, or
-volumes. A partial preexisting stack only stops the missing service tooling started.
+A session records the services it had to start. Its final release stops only those services, and only when no consumer remains. Services already running before the first session remain untouched. Explicit local-up pins the stack; stop/down/clean commands refuse active consumers. Cleanup never removes containers, networks, or volumes. A partial preexisting stack only stops the missing service tooling started.
 
-Manual test resets its reserved database/index before backend launch and after
-normal exit, startup failure, or Ctrl+C. Backend writers stop before reset; the test
-lease stays held until cleanup ends. Automated contexts keep their per-group reset
-and session-end cleanup. Cleanup failures fail the command. Failed service stops preserve ownership state
-for recovery. Hosted Auth0 accounts and Cloudinary assets are outside this reset.
+Manual test resets its reserved database/index before backend launch and after normal exit, startup failure, or Ctrl+C. Backend writers stop before reset; the test lease stays held until cleanup ends. Automated contexts keep their per-group reset and session-end cleanup. Cleanup failures fail the command. Failed service stops preserve ownership state for recovery. Hosted Auth0 accounts and Cloudinary assets are outside this reset.
 
-Force termination cannot execute shutdown hooks. The next session prunes stale PID
-records (using start time to avoid PID reuse) and recovers automatic ownership. Do
-not delete lock/state files while consumers may still be active. Coordination is
-per checkout; raw Docker commands or another checkout bypass it. Multiple hosts or
-parallel checkouts require shared coordination or distinct namespaces.
+Force termination cannot execute shutdown hooks. The next session prunes stale PID records (using start time to avoid PID reuse) and recovers automatic ownership. Do not delete lock/state files while consumers may still be active. Coordination is per checkout; raw Docker commands or another checkout bypass it. Multiple hosts or parallel checkouts require shared coordination or distinct namespaces.
 
-Python remains used for image smoke tests, OpenAPI JSON normalization, and CI report
-formatting. It is no longer required by local/manual infrastructure commands or
-Java integration. Production/hosted settings are outside this workstation migration.
+Python remains used for image smoke tests, OpenAPI JSON normalization, and CI report formatting. It is no longer required by local/manual infrastructure commands or Java integration. Production/hosted settings are outside this workstation migration.
 
 ## References
+
+- [Docker Compose Startup and Health Checks](https://docs.docker.com/compose/how-tos/startup-order/)
+- [NestJS Testing and Application Teardown](https://docs.nestjs.com/fundamentals/testing)
 
 - [PostgreSQL Schema and Search Path Boundaries](https://www.postgresql.org/docs/17/ddl-schemas.html)
 - [MySQL CREATE DATABASE](https://dev.mysql.com/doc/refman/8.4/en/create-database.html)
@@ -312,5 +319,4 @@ Java integration. Production/hosted settings are outside this workstation migrat
 - [Elasticsearch Index Privileges](https://www.elastic.co/guide/en/elasticsearch/reference/current/security-privileges.html/)
 - [Docker Compose Application Model](https://docs.docker.com/compose/intro/compose-application-model/)
 
-These references describe engine behavior, not proof of permissions configured in
-this repository. Adapt version-specific details to the engines actually deployed.
+These references describe engine behavior, not proof of permissions configured in this repository. Adapt version-specific details to the engines actually deployed.
