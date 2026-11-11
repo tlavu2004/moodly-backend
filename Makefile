@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := local-up
+.DEFAULT_GOAL := help
 
 compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f docker-compose.$(1).yml
 
@@ -18,12 +18,13 @@ Docker - replace STACK with local or test
   make STACK-start / STACK-await          Aliases for STACK-up
   make STACK-stop                         Stop containers
   make STACK-down                         Remove containers and the stack network
-  make STACK-clean                        Remove the stack and delete its data volumes
+  make STACK-clean                        Delete stack data volumes (requires CONFIRM=yes)
   make STACK-status / STACK-logs          List containers or follow their logs
   make STACK-replica-status               Check MongoDB replica state
   make STACK-elasticsearch-status         Check Elasticsearch cluster health
-  make config-STACK                       Show resolved Compose configuration
-  make                                    Defaults to local-up
+  make validate-STACK                     Validate Compose without printing values
+  make config-STACK                       Show resolved Compose configuration (may expose secrets)
+  make                                    Show this help without starting containers
 endef
 
 help:
@@ -42,13 +43,13 @@ local-build-run test-build-run: %-build-run:
 test-cdc-run: test-run
 
 test:
-	mvn test
+	./mvnw test
 
 verify:
-	mvn verify
+	./mvnw verify
 
 cdc-test:
-	mvn test -Dtest=CdcSearchInfrastructureIntegrationTest
+	./mvnw test -Dtest=CdcSearchInfrastructureIntegrationTest
 
 openapi:
 	bash src/main/resources/scripts/openapi/generate-openapi.sh
@@ -56,7 +57,7 @@ openapi:
 # Shared Compose commands for local and test
 .PHONY: local-up local-stop local-down local-status local-replica-status local-elasticsearch-status local-logs local-clean
 .PHONY: test-up test-stop test-down test-status test-replica-status test-elasticsearch-status test-logs test-clean
-.PHONY: local-start local-await test-start test-await config-local config-test
+.PHONY: local-start local-await test-start test-await config-local config-test validate-local validate-test
 
 local-start local-await: local-up
 test-start test-await: test-up
@@ -83,7 +84,11 @@ local-logs test-logs: %-logs:
 	$(call compose,$*) logs -f mongodb elasticsearch
 
 local-clean test-clean: %-clean:
+	@if [ "$(CONFIRM)" != "yes" ]; then echo "Refusing to delete $* data volumes. Re-run with CONFIRM=yes." >&2; exit 2; fi
 	$(call compose,$*) down -v --remove-orphans
 
 config-local config-test: config-%:
 	$(call compose,$*) config
+
+validate-local validate-test: validate-%:
+	$(call compose,$*) config --quiet

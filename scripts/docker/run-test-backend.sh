@@ -34,10 +34,10 @@ export SPRING_ELASTICSEARCH_URIS="http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_P
 
 bash scripts/docker/start-infrastructure.sh test
 if [ "${1:-}" = build ]; then
-  mvn clean install -DskipTests
+  ./mvnw package -DskipTests
 fi
 # Devtools restart can report success even when application startup fails.
 status=0
-mvn -Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false spring-boot:run || status=$?
+./mvnw -Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false spring-boot:run || status=$?
 if [ "$status" -eq 130 ] || [ "$status" -eq 143 ]; then status=0; fi
 exit "$status"

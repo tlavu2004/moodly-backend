@@ -32,9 +32,9 @@ trap 'exit 0' INT TERM
 
 bash scripts/docker/start-infrastructure.sh local
 if [ "${1:-}" = build ]; then
-  mvn clean install -DskipTests
+  ./mvnw package -DskipTests
 fi
 status=0
-mvn -Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false spring-boot:run || status=$?
+./mvnw -Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false spring-boot:run || status=$?
 if [ "$status" -eq 130 ] || [ "$status" -eq 143 ]; then status=0; fi
 exit "$status"
