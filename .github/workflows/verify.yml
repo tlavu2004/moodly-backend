@@ -9,7 +9,9 @@ permissions:
 jobs:
   verify:
     name: Verify application and OpenAPI contract
-    runs-on: ubuntu-latest
+    # Temporary MongoDB 8.3 kernel compatibility workaround.
+    # Revisit after validating actions/runner-images#15005 on newer runners.
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -27,6 +29,9 @@ jobs:
 
       - name: Make Maven Wrapper executable
         run: chmod +x mvnw
+
+      - name: Record runner kernel
+        run: uname -sr
 
       - name: Run tests
         env:

@@ -22,6 +22,8 @@ class SharedInfrastructureTest {
 				.isEqualTo("container-not-running");
 		assertThat(SharedInfrastructure.diagnosticCategory("mongosh: not found; synthetic-secret"))
 				.isEqualTo("executable-not-found");
+		assertThat(SharedInfrastructure.diagnosticCategory("MongoDB cannot start: Linux kernel versions 6.19 and newer synthetic-secret"))
+				.isEqualTo("mongodb-kernel-incompatible");
 		assertThat(SharedInfrastructure.diagnosticCategory("unexpected synthetic-secret"))
 				.isEqualTo("unclassified");
 	}

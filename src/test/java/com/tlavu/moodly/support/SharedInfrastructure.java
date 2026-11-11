@@ -214,6 +214,7 @@ public final class SharedInfrastructure {
 	/** Return only fixed categories; never echo command output, arguments, or credentials. */
 	static String diagnosticCategory(String error) {
 		String text = error.toLowerCase(java.util.Locale.ROOT);
+		if (text.contains("mongodb cannot start: linux kernel") || text.contains("12257600")) { return "mongodb-kernel-incompatible"; }
 		if (text.contains("executable file not found") || text.contains("command not found") || text.contains("mongosh: not found")) { return "executable-not-found"; }
 		if (text.contains("not running") || text.contains("restarting")) { return "container-not-running"; }
 		if (text.contains("connection refused") || text.contains("econnrefused")) { return "connection-refused"; }
@@ -224,6 +225,10 @@ public final class SharedInfrastructure {
 	}
 
 	private static void startupDiagnostics() {
+		try {
+			String logs = execute(List.of("docker", "logs", "--tail", "80", "moodly-mongodb-local"), null, null);
+			progress("MongoDB startup log category: " + diagnosticCategory(logs));
+		} catch (RuntimeException failure) { progress("MongoDB startup log category unavailable."); }
 		for (String container : List.of("moodly-mongodb-local", "moodly-elasticsearch-local")) {
 			try {
 				String state = execute(List.of("docker", "inspect", "--format",
