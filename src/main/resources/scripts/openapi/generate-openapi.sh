@@ -19,7 +19,7 @@ application_pid=$!
 
 readonly max_openapi_attempts=45
 for ((attempt=1; attempt<=max_openapi_attempts; attempt++)); do
-  if curl --fail --silent --show-error http://127.0.0.1:8081/v3/api-docs >"$response_path" 2>/dev/null; then
+  if curl --fail --silent --show-error http://127.0.0.1:8082/v3/api-docs >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
     python3 - "$response_path" "$output_path" <<'PY'
 import json

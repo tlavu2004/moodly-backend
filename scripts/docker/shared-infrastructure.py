@@ -112,7 +112,7 @@ def manual(command):
         environment.update({key: value for key, value in config.items() if key != "envFile"})
         environment["MOODLY_INFRA_ENV_FILE"] = config["envFile"]
         environment["SPRING_PROFILES_ACTIVE"] = "compose-test"
-        environment["SERVER_PORT"] = environment.get("MOODLY_TEST_SERVER_PORT", "8082")
+        environment["SERVER_PORT"] = environment.get("MOODLY_TEST_SERVER_PORT", "8081")
         environment["SPRING_MONGODB_URI"] = (f"mongodb://localhost:{config['MONGODB_PORT']}/"
                                                f"{TEST_DATABASE}?replicaSet={config['MONGODB_REPLICA_SET']}")
         environment["SPRING_ELASTICSEARCH_URIS"] = f"http://localhost:{config['ELASTICSEARCH_PORT']}"

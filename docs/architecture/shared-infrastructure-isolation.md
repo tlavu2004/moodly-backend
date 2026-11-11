@@ -248,6 +248,10 @@ Never run a fault-injection or server-reconfiguration test against shared local 
 
 ## Moodly Operational Contract
 
+HTTP ports are 8080 for the local backend, 8081 for the manual test backend,
+and 8082 for the temporary OpenAPI documentation profile. This is a repository
+convention, not an additional environment or a mandatory framework standard.
+
 Infrastructure lives in `compose.local.yaml`. `.env.local` supplies local
 infrastructure coordinates, with `.env.local.example` as a fresh-checkout/CI fallback.
 `MOODLY_INFRA_ENV_FILE` can select an explicit infrastructure file. Real env files
