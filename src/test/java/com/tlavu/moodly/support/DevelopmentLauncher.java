@@ -27,15 +27,13 @@ public final class DevelopmentLauncher {
 			var configuration = SharedInfrastructure.configuration();
 			switch (args[0]) {
 				case "config" -> System.out.println(JsonMapper.builder().build().writeValueAsString(configuration.testSettings()));
-				case "up" -> SharedInfrastructure.start(configuration);
-				case "local" -> System.exit(runBackend(configuration, false, args.length > 1 && args[1].equals("build")));
-				case "manual" -> {
-					int result;
-					try (var lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE)) {
-						result = runBackend(configuration, true, args.length > 1 && args[1].equals("build"));
-					}
-					System.exit(result);
+				case "up" -> InfrastructureSessions.forConfiguration(configuration).pin();
+				case "stop", "down" -> InfrastructureSessions.forConfiguration(configuration).operator(args[0]);
+				case "clean" -> {
+					if (!"yes".equals(System.getenv("CONFIRM"))) { throw new IllegalStateException("Volume deletion requires CONFIRM=yes"); }
+					InfrastructureSessions.forConfiguration(configuration).operator("clean");
 				}
+				case "local", "manual" -> System.exit(runBackend(configuration, args[0].equals("manual"), args.length > 1 && args[1].equals("build")));
 				case "clean-test" -> {
 					try (var lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE)) {
 						System.out.print("Drop reserved MongoDB database moodly_test? Type yes: ");
@@ -70,30 +68,80 @@ public final class DevelopmentLauncher {
 	}
 
 	private static int runBackend(SharedInfrastructure.Configuration configuration, boolean manual, boolean build) throws Exception {
-		Map<String, String> environment = configuration.applicationEnvironment(manual);
-		SharedInfrastructure.start(configuration);
-		if (build) {
-			int result = maven(environment, "package", "-DskipTests");
-			if (result != 0) { return result; }
+		try (var run = new BackendRun(configuration, manual)) {
+			run.open();
+			if (build) {
+				int result = run.maven("package", "-DskipTests");
+				if (result != 0) { return result; }
+			}
+			return run.maven("-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false", "spring-boot:run");
 		}
-		return maven(environment, "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false", "spring-boot:run");
 	}
 
-	private static int maven(Map<String, String> environment, String... arguments) throws Exception {
-		boolean windows = System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win");
-		List<String> command = new ArrayList<>(windows ? List.of("cmd.exe", "/d", "/c", "mvnw.cmd") : List.of("./mvnw"));
-		command.add("--batch-mode");
-		command.addAll(List.of(arguments));
-		ProcessBuilder builder = new ProcessBuilder(command).inheritIO();
-		builder.environment().clear();
-		builder.environment().putAll(environment);
-		Process child = builder.start();
-		Thread shutdown = new Thread(() -> stopTree(child), "moodly-backend-shutdown");
-		Runtime.getRuntime().addShutdownHook(shutdown);
-		try { return child.waitFor(); }
-		finally {
-			stopTree(child);
-			Runtime.getRuntime().removeShutdownHook(shutdown);
+	private static final class BackendRun implements AutoCloseable {
+		private final SharedInfrastructure.Configuration configuration;
+		private final boolean manual;
+		private final Map<String, String> environment;
+		private InfrastructureSessions.Session infrastructure;
+		private SharedInfrastructure.TestLease testLease;
+		private Process child;
+		private boolean ready;
+		private boolean closed;
+
+		BackendRun(SharedInfrastructure.Configuration configuration, boolean manual) {
+			this.configuration = configuration;
+			this.manual = manual;
+			this.environment = configuration.applicationEnvironment(manual);
+			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+				try { close(); } catch (RuntimeException failure) { System.err.println("Backend session cleanup failed"); }
+			}, "moodly-backend-session-cleanup"));
+		}
+
+		void open() {
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Backend session has closed"); }
+				if (manual) { testLease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE); }
+				infrastructure = InfrastructureSessions.forConfiguration(configuration).join(
+						manual ? InfrastructureSessions.Kind.MANUAL : InfrastructureSessions.Kind.LOCAL);
+			}
+			infrastructure.start();
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Backend session has closed"); }
+				ready = true;
+				if (manual) { SharedInfrastructure.resetTestData(configuration); }
+			}
+		}
+
+		int maven(String... arguments) throws Exception {
+			boolean windows = System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win");
+			List<String> command = new ArrayList<>(windows ? List.of("cmd.exe", "/d", "/c", "mvnw.cmd") : List.of("./mvnw"));
+			command.add("--batch-mode");
+			command.addAll(List.of(arguments));
+			ProcessBuilder builder = new ProcessBuilder(command).inheritIO();
+			builder.environment().clear();
+			builder.environment().putAll(environment);
+			Process running;
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Backend session has closed"); }
+				child = builder.start();
+				running = child;
+			}
+			try { return running.waitFor(); }
+			finally { synchronized (this) { stopTree(running); child = null; } }
+		}
+
+		@Override public synchronized void close() {
+			if (closed) { return; }
+			closed = true;
+			if (child != null) { stopTree(child); }
+			RuntimeException failure = null;
+			try { if (manual && ready) { SharedInfrastructure.resetTestData(configuration); } }
+			catch (RuntimeException cleanup) { failure = cleanup; }
+			try { if (infrastructure != null) { infrastructure.close(); } }
+			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
+			try { if (testLease != null) { testLease.close(); } }
+			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
+			if (failure != null) { throw failure; }
 		}
 	}
 

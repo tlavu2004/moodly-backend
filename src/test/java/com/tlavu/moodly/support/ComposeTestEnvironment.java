@@ -1,13 +1,5 @@
 package com.tlavu.moodly.support;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,7 +7,7 @@ import java.util.Map;
 import com.tlavu.moodly.modules.search.listener.DailyEntryChangeStreamListener;
 import org.springframework.context.ConfigurableApplicationContext;
 
-/** Reserved test namespaces on shared local infrastructure; never owns its lifecycle. */
+/** Reserved test namespaces; participates in shared infrastructure session ownership. */
 // Keep lambdas for JDT method-reference nullability compatibility.
 @SuppressWarnings("Convert2MethodRef")
 final class ComposeTestEnvironment {
@@ -23,6 +15,8 @@ final class ComposeTestEnvironment {
 	private final Map<String, String> settings = new LinkedHashMap<>();
 	private final List<ConfigurableApplicationContext> contexts = new ArrayList<>();
 	private SharedInfrastructure.TestLease lease;
+	private SharedInfrastructure.Configuration configuration;
+	private InfrastructureSessions.Session infrastructure;
 	private boolean closed;
 	private boolean initialized;
 
@@ -47,7 +41,6 @@ final class ComposeTestEnvironment {
 	}
 
 	private ComposeTestEnvironment() {
-		lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE);
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			try {
 				close();
@@ -56,15 +49,23 @@ final class ComposeTestEnvironment {
 			}
 		}, "moodly-compose-test-cleanup"));
 		try {
-			var configuration = SharedInfrastructure.configuration();
-			settings.putAll(configuration.testSettings());
-			database();
-			index();
-			SharedInfrastructure.start(configuration);
-			initialized = true;
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Test session has closed"); }
+				lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE);
+				configuration = SharedInfrastructure.configuration();
+				settings.putAll(configuration.testSettings());
+				database();
+				index();
+				infrastructure = InfrastructureSessions.forConfiguration(configuration).join(InfrastructureSessions.Kind.AUTOMATED);
+			}
+			infrastructure.start();
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Test session has closed"); }
+				initialized = true;
+			}
 			System.out.println("Integration tests use reserved test namespaces on shared stack moodly-local.");
 		} catch (RuntimeException failure) {
-			close();
+			try { close(); } catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
 			throw failure;
 		}
 	}
@@ -108,20 +109,7 @@ final class ComposeTestEnvironment {
 	}
 
 	private void resetData() {
-		try (MongoClient mongo = MongoClients.create(mongoUri(database())); HttpClient http = HttpClient.newHttpClient()) {
-			mongo.getDatabase(database()).drop();
-			HttpResponse<Void> response = http.send(HttpRequest.newBuilder(URI.create(searchUri() + "/" + index()))
-					.timeout(Duration.ofSeconds(10)).DELETE().build(), HttpResponse.BodyHandlers.discarding());
-			if (response.statusCode() != 200 && response.statusCode() != 404) {
-				throw new IllegalStateException("Could not reset test index: HTTP " + response.statusCode());
-			}
-			System.out.println("Reset Compose test database " + database() + " and index " + index());
-		} catch (IOException failure) {
-			throw new IllegalStateException("Could not reset Compose test data", failure);
-		} catch (InterruptedException failure) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("Interrupted resetting Compose test data", failure);
-		}
+		SharedInfrastructure.resetTestData(configuration);
 	}
 
 	String mongoUri(String database) {
@@ -134,23 +122,17 @@ final class ComposeTestEnvironment {
 	}
 
 	private synchronized void close() {
-		if (closed) {
-			return;
-		}
+		if (closed) { return; }
 		closed = true;
-		boolean failed = false;
+		RuntimeException failure = null;
 		try {
 			closeContexts();
 			if (initialized) { resetData(); }
-		} catch (Exception failure) {
-			failed = true;
-			System.err.println("Could not reset Compose test data: " + failure.getClass().getSimpleName());
-		} finally {
-			if (lease != null) { lease.close(); }
-		}
-		if (failed) {
-			throw new IllegalStateException("Test cleanup failed; shared infrastructure was left running.");
-		}
+		} catch (RuntimeException cleanup) { failure = cleanup; }
+		try { if (infrastructure != null) { infrastructure.close(); } }
+		catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
+		try { if (lease != null) { lease.close(); } }
+		catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
+		if (failure != null) { throw new IllegalStateException("Test session cleanup failed", failure); }
 	}
-
 }

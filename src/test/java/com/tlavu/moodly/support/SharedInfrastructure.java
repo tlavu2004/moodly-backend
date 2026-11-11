@@ -228,6 +228,28 @@ public final class SharedInfrastructure {
 		command(configuration, null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
 	}
 
+	public static void resetTestData(Configuration configuration) {
+		validateResources(configuration.localEnvironment().get("MONGODB_DATABASE"),
+				configuration.localEnvironment().get("MOODLY_SEARCH_INDEX_NAME"), TEST_DATABASE, TEST_INDEX);
+		String uri = "mongodb://" + configuration.mongoHost() + ":" + configuration.mongoPort() + "/" + TEST_DATABASE
+				+ "?replicaSet=" + configuration.replicaSet() + "&serverSelectionTimeoutMS=10000&connectTimeoutMS=5000";
+		try (var mongo = com.mongodb.client.MongoClients.create(uri);
+				var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build()) {
+			mongo.getDatabase(TEST_DATABASE).drop();
+			var response = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://"
+					+ configuration.searchHost() + ":" + configuration.searchPort() + "/" + TEST_INDEX))
+					.timeout(java.time.Duration.ofSeconds(10)).DELETE().build(), java.net.http.HttpResponse.BodyHandlers.discarding());
+			if (response.statusCode() != 200 && response.statusCode() != 404) {
+				throw new IllegalStateException("Could not reset reserved test index: HTTP " + response.statusCode());
+			}
+			System.out.println("Reset reserved test database/index; local namespaces preserved");
+		} catch (IOException failure) { throw new IllegalStateException("Could not reset reserved test resources", failure); }
+		catch (InterruptedException failure) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted resetting reserved test resources", failure);
+		}
+	}
+
 	public static TestLease lease(Path file) {
 		try {
 			FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);

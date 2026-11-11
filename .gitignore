@@ -47,3 +47,6 @@ build/
 
 # Python tooling bytecode
 __pycache__/
+
+# Local infrastructure ownership registry (no credentials)
+.moodly-infrastructure/

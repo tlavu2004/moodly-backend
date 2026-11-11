@@ -18,10 +18,10 @@ Tests and OpenAPI
   make cdc-test                           Run CDC integration tests
   make openapi                            Generate the OpenAPI contract
 Shared Docker Infrastructure (used by local and test)
-  make local-up                           Start the stack and wait for readiness
+  make local-up                           Start/pin the stack and wait for readiness
   make local-start / local-await          Aliases for local-up
-  make local-stop                         Stop containers
-  make local-down                         Remove containers and the stack network
+  make local-stop                         Stop containers (reject active sessions)
+  make local-down                         Remove containers/network (reject active sessions)
   make local-clean                        Delete stack data volumes (requires CONFIRM=yes)
   make local-status / local-logs          List containers or follow their logs
   make local-replica-status               Check MongoDB replica state
@@ -78,13 +78,13 @@ local-up:
 	bash scripts/docker/start-infrastructure.sh local
 
 local-stop:
-	$(compose) stop
+	bash scripts/docker/run-tooling.sh stop
 
 local-down:
-	$(compose) down
+	bash scripts/docker/run-tooling.sh down
 
 local-status:
-	$(compose) ps
+	$(compose) ps --all
 
 local-replica-status:
 	$(compose) exec mongodb sh -c 'exec mongosh --quiet --port "$$MONGODB_CONTAINER_PORT" --eval "rs.status().members[0].stateStr"'
@@ -97,7 +97,7 @@ local-logs:
 
 local-clean:
 	@if [ "$(CONFIRM)" != "yes" ]; then echo "Refusing to delete shared local/test volumes. Re-run with CONFIRM=yes." >&2; exit 2; fi
-	$(compose) down -v --remove-orphans
+	CONFIRM=$(CONFIRM) bash scripts/docker/run-tooling.sh clean
 
 config-local:
 	$(compose) config

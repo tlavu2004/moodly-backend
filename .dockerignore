@@ -13,3 +13,6 @@ src/test
 
 .moodly-test.lock
 **/__pycache__
+
+# Local infrastructure ownership registry (no credentials)
+.moodly-infrastructure/
