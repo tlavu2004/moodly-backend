@@ -446,6 +446,8 @@ make cdc-test
 
 Moodly is fully production-configured for deployment on [Render](https://render.com) using its multi-stage `Dockerfile`.
 
+Both Dockerfile stages use a readable tag plus an immutable multi-platform image digest. Dependabot checks Docker dependencies weekly; review tag/digest updates together and require image build and smoke checks before merging. A digest pin does not receive base-image security fixes until its update PR is merged.
+
 ### Multi-Stage Container Design
 1. **Builder Stage (`maven:3.9.16-eclipse-temurin-25-alpine`)**: Leverages Docker BuildKit cache mounts (`--mount=type=cache,target=/root/.m2`) to download dependencies and compile without caching build artifacts in the final layer.
 2. **Runtime Stage (`eclipse-temurin:25-jre-alpine`)**: Minimal Alpine JRE footprint running under a dedicated non-root user (`USER moodly`).
