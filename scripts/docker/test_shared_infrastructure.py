@@ -43,6 +43,26 @@ class IsolationGuardsTest(unittest.TestCase):
         self.assertNotIn("MOODLY_SEARCH_INDEX_NAME", environment)
         self.assertEqual("true", environment["MOODLY_CDC_ENABLED"])
 
+    def test_runtime_environment_forwards_standard_custom_and_multiline_values(self):
+        expected = {"SERVER_PORT": "8081", "SPRING_THREADS_VIRTUAL_ENABLED": "true",
+                    "CUSTOM_FEATURE": "on", "CUSTOM_SUBJECT": "synthetic|fixture",
+                    "CUSTOM_MULTILINE": "first\nsecond", "CUSTOM_LITERAL": "literal $$value $word"}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "synthetic.env"
+            path.write_text("\n".join(f"{key}=fixture" for key in expected))
+            rendered = {key: value.replace("$", "$$") for key, value in expected.items()}
+            resolved = json.dumps({"services": {"runtime": {"environment": rendered}}})
+            with patch.object(shared, "compose", return_value=resolved):
+                environment = shared.runtime_environment([path])
+        for key, value in expected.items():
+            self.assertEqual(value, environment[key])
+
+    def test_multiline_value_content_does_not_become_an_environment_key(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "synthetic.env"
+            path.write_text('FIRST="line one\nNOT_A_KEY=fixture\nlast line"\nSECOND=ok\nTHIRD: ok\n')
+            self.assertEqual({"FIRST", "SECOND", "THIRD"}, shared.dotenv_keys(path))
+
     def test_configuration_rejects_public_bindings_before_returning_targets(self):
         services = {
             "mongodb": {"labels": {"io.moodly.local-database": "moodly_local"},
@@ -51,8 +71,12 @@ class IsolationGuardsTest(unittest.TestCase):
             "elasticsearch": {"labels": {"io.moodly.local-index": "daily_entries_search"},
                               "ports": [{"host_ip": "127.0.0.1", "published": "9200"}]},
         }
-        with patch.object(shared, "compose", return_value=json.dumps({"services": services})):
-            with self.assertRaises(ValueError):
+        with patch.object(shared, "compose", return_value=json.dumps({"services": services})), patch.object(
+            shared, "runtime_environment", return_value={"MONGODB_HOST": "localhost", "ELASTICSEARCH_HOST": "localhost",
+                                                         "MONGODB_DATABASE": shared.TEST_DATABASE,
+                                                         "MOODLY_SEARCH_INDEX_NAME": shared.TEST_INDEX}
+        ):
+            with self.assertRaisesRegex(ValueError, "loopback"):
                 shared.configuration()
 
     def test_lease_rejects_another_process_and_releases_after_exception(self):

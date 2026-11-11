@@ -1,12 +1,16 @@
 server:
-  port: 8082
+  port: ${SERVER_PORT}
 
 spring:
+  config:
+    import: "file:.env.docs.example[.properties],optional:file:.env.docs[.properties]"
+  mongodb:
+    uri: ${DOCS_MONGODB_URI}
   data:
     mongodb:
       auto-index-creation: false
   elasticsearch:
-    uris: http://127.0.0.1:9200
+    uris: ${DOCS_ELASTICSEARCH_URIS}
   task:
     scheduling:
       enabled: false
@@ -14,30 +18,30 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://127.0.0.1:65535/docs-jwks
+          jwk-set-uri: ${DOCS_JWK_SET_URI}
 
 moodly:
   entries:
-    collection-name: daily_entries
+    collection-name: ${DOCS_ENTRIES_COLLECTION_NAME}
   cdc:
     enabled: false
-    stream-id: daily_entries
-    maintenance-key: docs-maintenance-key
+    stream-id: ${DOCS_CDC_STREAM_ID}
+    maintenance-key: ${DOCS_CDC_MAINTENANCE_KEY}
     retry:
-      max-attempts: 3
-      initial-backoff-ms: 200
+      max-attempts: ${DOCS_CDC_RETRY_MAX_ATTEMPTS}
+      initial-backoff-ms: ${DOCS_CDC_RETRY_INITIAL_BACKOFF_MS}
     reindex:
-      batch-size: 250
+      batch-size: ${DOCS_CDC_REINDEX_BATCH_SIZE}
   search:
     index:
-      name: daily_entries_search
-      mapping-resource: classpath:elasticsearch/daily_entries_search.json
+      name: ${DOCS_SEARCH_INDEX_NAME}
+      mapping-resource: ${DOCS_SEARCH_MAPPING_RESOURCE}
       initialization-enabled: false
   cloudinary:
-    cloud-name: docs-cloud
-    api-key: docs-api-key
-    api-secret: docs-api-secret
-    upload-preset: docs-upload-preset
-    folder: moodly/docs
+    cloud-name: ${DOCS_CLOUDINARY_CLOUD_NAME}
+    api-key: ${DOCS_CLOUDINARY_API_KEY}
+    api-secret: ${DOCS_CLOUDINARY_API_SECRET}
+    upload-preset: ${DOCS_CLOUDINARY_UPLOAD_PRESET}
+    folder: ${DOCS_CLOUDINARY_FOLDER}
     pending-cleanup:
       enabled: false

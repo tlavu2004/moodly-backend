@@ -7,6 +7,7 @@ target/
 .env.test
 .env.prod
 .env.production
+.env.docs
 
 docs/testing/bruno/moodly-local-verification/environments/local.bru
 .mvn/wrapper/maven-wrapper.jar

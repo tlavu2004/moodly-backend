@@ -1,34 +1,34 @@
 spring:
-  mongodb:
-    uri: mongodb://localhost:27017/moodly_test?replicaSet=rs0
-  elasticsearch:
-    uris: http://localhost:9200
+  config:
+    import: "file:.env.test.example[.properties]"
 
 moodly:
+  rate-limit:
+    enabled: ${TEST_RATE_LIMIT_ENABLED}
   e2e:
     reset:
-      enabled: true
-      token: test-e2e-reset-token
-      user-id: synthetic|moodly-playwright-e2e
+      enabled: ${TEST_E2E_RESET_ENABLED}
+      token: ${TEST_E2E_RESET_TOKEN}
+      user-id: ${TEST_E2E_USER_ID}
   cloudinary:
-    cloud-name: test-cloud
-    api-key: test-api-key
-    api-secret: test-api-secret
-    upload-preset: test-upload-preset
-    folder: moodly/test
+    cloud-name: ${TEST_CLOUDINARY_CLOUD_NAME}
+    api-key: ${TEST_CLOUDINARY_API_KEY}
+    api-secret: ${TEST_CLOUDINARY_API_SECRET}
+    upload-preset: ${TEST_CLOUDINARY_UPLOAD_PRESET}
+    folder: ${TEST_CLOUDINARY_FOLDER}
   entries:
-    collection-name: daily_entries
+    collection-name: ${TEST_ENTRIES_COLLECTION_NAME}
   cdc:
-    enabled: false
-    maintenance-key: test-maintenance-key
-    stream-id: daily_entries
+    enabled: ${TEST_CDC_ENABLED}
+    maintenance-key: ${TEST_CDC_MAINTENANCE_KEY}
+    stream-id: ${TEST_CDC_STREAM_ID}
     retry:
-      max-attempts: 3
-      initial-backoff-ms: 200
+      max-attempts: ${TEST_CDC_RETRY_MAX_ATTEMPTS}
+      initial-backoff-ms: ${TEST_CDC_RETRY_INITIAL_BACKOFF_MS}
     reindex:
-      batch-size: 250
+      batch-size: ${TEST_CDC_REINDEX_BATCH_SIZE}
   search:
     index:
-      name: daily_entries_search_test
-      mapping-resource: classpath:elasticsearch/daily_entries_search.json
-      initialization-enabled: false
+      name: ${MOODLY_SEARCH_INDEX_NAME}
+      mapping-resource: ${TEST_SEARCH_MAPPING_RESOURCE}
+      initialization-enabled: ${TEST_SEARCH_INITIALIZATION_ENABLED}
