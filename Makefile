@@ -8,8 +8,11 @@ Backend
   make local-run / test-run               Run the backend against the selected stack
   make local-build-run / test-build-run   Build before running the backend
   make test-cdc-run                       Alias for test-run
+  make test-search-run                    Manual test backend with CDC and search enabled
 Tests and OpenAPI
   make test                               Run Maven tests
+  make unit-test                          Run tests without Compose integration groups
+  make integration-test                   Run Compose integration groups (disposable data)
   make verify                             Run tests, build, and check coverage
   make cdc-test                           Run CDC integration tests
   make openapi                            Generate the OpenAPI contract
@@ -32,7 +35,7 @@ help:
 
 
 # Backend and Maven entry points
-.PHONY: local-run local-build-run test-run test-cdc-run test-build-run test verify cdc-test openapi
+.PHONY: local-run local-build-run test-run test-cdc-run test-search-run test-build-run test unit-test integration-test verify cdc-test openapi
 
 local-run test-run: %-run:
 	bash scripts/docker/run-$*-backend.sh
@@ -42,8 +45,19 @@ local-build-run test-build-run: %-build-run:
 
 test-cdc-run: test-run
 
+test-search-run:
+	MOODLY_CDC_ENABLED=true MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED=true bash scripts/docker/run-test-backend.sh
+
 test:
 	./mvnw test
+
+# Infrastructure groups follow *IntegrationTest; the application context smoke
+# class also imports MongoTestConfiguration and therefore needs the test stack.
+unit-test:
+	./mvnw test '-Dtest=*Test,*Tests,!*IntegrationTest,!MoodlyApplicationTests'
+
+integration-test:
+	./mvnw test '-Dtest=*IntegrationTest,MoodlyApplicationTests'
 
 verify:
 	./mvnw verify
