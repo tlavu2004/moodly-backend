@@ -308,6 +308,18 @@ Force termination cannot execute shutdown hooks. The next session prunes stale P
 
 Python remains used for image smoke tests, OpenAPI JSON normalization, and CI report formatting. It is no longer required by local/manual infrastructure commands or Java integration. Production/hosted settings are outside this workstation migration.
 
+### MongoDB Image Compatibility
+
+Local and integration MongoDB target the Atlas Free major version, 8.0. Verification, image build/smoke, and release jobs explicitly use `ubuntu-26.04`. The maintained Docker pin is `MONGODB_VERSION` in `.env.local.example`; container smoke reads this public template too. The digest pins the published multi-platform image. When upgrading a workstation, synchronize the private local version and compatibility keys explicitly before running its stack.
+
+Registry verification on November 12, 2026 found `mongo:8.0.34` published; `mongo:8.0.37` and `mongo:8.0.38` returned not found despite release documentation listing newer patches. Release notes alone do not establish official Docker tag availability.
+
+Until a patched image is published and validated, local/test and smoke containers use `MONGODB_GLIBC_TUNABLES=glibc.pthread.rseq=1`, passed as container `GLIBC_TUNABLES`. This temporary workaround lets glibc own rseq and avoids the affected TCMalloc per-CPU-cache path; allocator performance can change. This is not an Atlas configuration change. See [the image compatibility discussion](https://github.com/docker-library/mongo/issues/765) and [MongoDB's Ubuntu fix](https://jira.mongodb.org/browse/SERVER-131779).
+
+After a patched 8.0 image is published, validate it without the workaround on the actual Ubuntu 26.04 CI kernel, then update the pin and remove the workaround from Compose, templates, smoke, and private configuration together. The existing Dockerfile dependency updater must not be assumed to update dotenv digest pins automatically.
+
+An 8.3 volume must not simply be reused as an 8.0 downgrade. Recreate explicitly disposable local volumes and initialize a fresh replica set, or follow a separately reviewed migration procedure. Hosted Atlas data and credentials stay separate. Ordinary app/test cleanup still preserves volumes.
+
 ## References
 
 - [Docker Compose Startup and Health Checks](https://docs.docker.com/compose/how-tos/startup-order/)

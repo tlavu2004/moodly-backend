@@ -1,11 +1,13 @@
 """Exercise a locally loaded image using isolated, disposable test containers.
 
-No env files, host ports, or existing local/test stacks are used. Requires Python
+Only the tracked env template supplies MongoDB image/runtime settings.
+No private env files, host ports, or existing local/test stacks are used. Requires Python
 3 and Docker. All credentials below are synthetic fixtures, never hosted secrets.
 """
 
 import argparse
 import json
+from pathlib import Path
 import subprocess
 import time
 import uuid
@@ -34,6 +36,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", help="Already built/loaded backend image")
     args = parser.parse_args()
+    # Share the maintained image pin/workaround without reading private dotenv files.
+    fixture = dict(line.split("=", 1) for line in
+                   (Path(__file__).resolve().parents[2] / ".env.local.example").read_text().splitlines()
+                   if line.startswith(("MONGODB_VERSION=", "MONGODB_GLIBC_TUNABLES=")))
+    mongo_image = "mongo:" + fixture["MONGODB_VERSION"]
+    mongo_tunables = "GLIBC_TUNABLES=" + fixture["MONGODB_GLIBC_TUNABLES"]
     prefix = "moodly-smoke-" + uuid.uuid4().hex[:12]
     containers = []
 
@@ -47,8 +55,8 @@ def main():
 
     try:
         docker("network", "create", prefix)
-        mongo = start("mongodb", "mongo:8.3.7", "mongod", "--replSet", "rs0", "--bind_ip_all",
-                      options=("--tmpfs", "/data/db", "--tmpfs", "/data/configdb"))
+        mongo = start("mongodb", mongo_image, "mongod", "--replSet", "rs0", "--bind_ip_all",
+                      options=("--tmpfs", "/data/db", "--tmpfs", "/data/configdb", "-e", mongo_tunables))
         wait_for("MongoDB ping", lambda: docker(
             "exec", mongo, "mongosh", "--quiet", "--eval",
             "quit(db.adminCommand({ping:1}).ok ? 0 : 1)", check=False
@@ -74,6 +82,7 @@ def main():
         # stays enabled; no hosted Auth0 or Cloudinary service is contacted.
         oidc_script = '''
 import json
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 # Synthetic RSA public key for discovery/algorithm selection. Its private key
 # was discarded; valid-token behavior is tested in integration/E2E tests.
