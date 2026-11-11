@@ -55,7 +55,6 @@ public final class SharedInfrastructure {
 			if (manual) {
 				environment.put("MONGODB_DATABASE", TEST_DATABASE);
 				environment.put("MOODLY_SEARCH_INDEX_NAME", TEST_INDEX);
-				environment.put("SERVER_PORT", environment.getOrDefault("MOODLY_MANUAL_TEST_PORT", "8081"));
 			}
 			validatePort(environment.get("SERVER_PORT"));
 			environment.put("SPRING_MONGODB_URI", "mongodb://" + mongoHost + ":" + mongoPort + "/"
@@ -119,7 +118,7 @@ public final class SharedInfrastructure {
 		} catch (NumberFormatException ignored) {
 			// Report only the setting name, never its contents.
 		}
-		throw new IllegalStateException("Set a valid SERVER_PORT / MOODLY_MANUAL_TEST_PORT in the local env file");
+		throw new IllegalStateException("Set a valid SERVER_PORT in the local env file");
 	}
 
 	static Set<String> dotenvKeys(String content) {

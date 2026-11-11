@@ -66,13 +66,13 @@ class SharedInfrastructureTest {
 	@Test
 	void manualEnvironmentPreservesCustomKeysAndOverridesOnlyTestIdentity() {
 		var configuration = new SharedInfrastructure.Configuration(Path.of("synthetic.env"), Map.of(
-				"SERVER_PORT", "8080", "MOODLY_MANUAL_TEST_PORT", "8081", "MONGODB_DATABASE", "moodly",
+				"SERVER_PORT", "8080", "MONGODB_DATABASE", "moodly",
 				"MOODLY_SEARCH_INDEX_NAME", "daily_entries_search", "CUSTOM_FEATURE", "literal $value | fixture"),
 				"localhost", "27017", "27017", "rs0", "localhost", "9200");
 		var local = configuration.applicationEnvironment(false);
 		var manual = configuration.applicationEnvironment(true);
 		assertThat(local).containsEntry("SERVER_PORT", "8080").containsEntry("MONGODB_DATABASE", "moodly");
-		assertThat(manual).containsEntry("SERVER_PORT", "8081").containsEntry("MONGODB_DATABASE", "moodly_test")
+		assertThat(manual).containsEntry("SERVER_PORT", "8080").containsEntry("MONGODB_DATABASE", "moodly_test")
 				.containsEntry("MOODLY_SEARCH_INDEX_NAME", "daily_entries_search_test")
 				.containsEntry("CUSTOM_FEATURE", "literal $value | fixture");
 		assertThat(configuration.toString()).doesNotContain("literal", "CUSTOM_FEATURE");
