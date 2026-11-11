@@ -197,6 +197,9 @@ Crashes can leave test records, which the next automated session may clear after
 obtaining the lease. Never delete a lock file to bypass an active OS lock. Release
 is tied to the file handle/process, not the mere existence of the lock filename.
 Cleanup failures must fail the test command and preserve useful diagnostics.
+Normal launcher interruption must stop its backend process tree before releasing
+the lease. A force-killed launcher can orphan children; verify those processes are
+stopped before reusing fixed test namespaces.
 
 ## Test Types and Behavior
 

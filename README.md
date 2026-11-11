@@ -312,6 +312,7 @@ docs/api/json/moodly-openapi.json
 ### Prerequisites
 - **Java 25** (Eclipse Temurin recommended)
 - **Maven Wrapper** (included; downloads the pinned Maven version on first use)
+- **Python 3** for shared-infrastructure guards, test leases, and container smoke
 - **Docker Desktop** (with Compose v2)
 - **GNU Make and Bash** for Make targets (install Make separately on Windows; Git Bash provides Bash)
 
@@ -338,7 +339,7 @@ The local template supplies non-secret infrastructure defaults. Edit `.env.local
 
 ### Step 2: Start Infrastructure & Run the Application
 
-Infrastructure definitions are `compose.local.yaml` and `compose.test.yaml`. Commands select the stack explicitly with `-f`; these environment-specific filenames are not auto-discovered. Project names, container names, and volume names remain unchanged.
+One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The `moodly-local` project, local container names, and local volumes are preserved. Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
 
 #### Option A: Using Make (Recommended)
 
@@ -359,7 +360,7 @@ Infrastructure definitions are `compose.local.yaml` and `compose.test.yaml`. Com
    ```bash
    make local-run
    ```
-   *The application will boot on `http://localhost:8080`.*
+   *The application will boot on `http://localhost:8080`; its exit leaves shared infrastructure running.*
 
 4. **Stop services when finished**:
    ```bash
@@ -533,7 +534,7 @@ Before starting the backend, configure the hosted development services and fill 
    ```bash
    make local-up
    ```
-   Each local/test Compose stack contains only MongoDB and Elasticsearch. `make local-up` and `make test-up` initialize the single-node replica set inside the running MongoDB container, then wait for MongoDB to become PRIMARY and Elasticsearch to be healthy. The operation is safe to repeat; `local-start` and `test-start` use the same flow. No stopped initialization container is left in Docker Desktop. Run these Make targets from a Bash-capable environment (Git Bash on Windows) at the repository root. Alternatively run `bash scripts/docker/start-infrastructure.sh local` (or `test`). Once initialized, the replica-set configuration persists in the MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's health check reports healthy only when it is writable PRIMARY.
+   The shared Compose stack contains only MongoDB and Elasticsearch. `make local-up` initializes the single-node replica set inside the running MongoDB container, then waits for MongoDB to become PRIMARY and Elasticsearch to be healthy. The operation is safe to repeat; `local-start` uses the same flow. No stopped initialization container is left in Docker Desktop. Run these Make targets from a Bash-capable environment (Git Bash on Windows) at the repository root. Alternatively run `bash scripts/docker/start-infrastructure.sh local` for either application environment. Once initialized, the replica-set configuration persists in the MongoDB volume and Docker Desktop Stop/Start works normally. MongoDB's health check reports healthy only when it is writable PRIMARY.
 
 2. **Verify Cluster & Elasticsearch Mapping**:
    ```bash
@@ -569,8 +570,8 @@ Before starting the backend, configure the hosted development services and fill 
    Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
 
 7. **Elasticsearch OSS 7.10.2 & Managed Deployment (Searchly / Self-Hosted)**:
-   Both Compose stacks use the official Elasticsearch OSS 7.10.2 image. The backend uses JSON REST endpoints for index management, document CRUD, search, refresh, and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep older Elasticsearch volumes available for rollback and mount only with their original engine version.
-   For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Local and test Compose bind MongoDB and unauthenticated Elasticsearch ports to loopback. MongoDB remains authoritative.
+   The shared Compose stack uses the official Elasticsearch OSS 7.10.2 image. The backend uses JSON REST endpoints for index management, document CRUD, search, refresh, and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep older Elasticsearch volumes available for rollback and mount only with their original engine version.
+   For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Shared Compose binds MongoDB and unauthenticated Elasticsearch ports to loopback. MongoDB remains authoritative.
    When deployed on Render or cloud instances, if the application stops, CDC pauses. On restart, it resumes from MongoDB's checkpoint if the index exists and the token is still valid. A missing index or expired change-stream history triggers a rebuild from MongoDB. For index loss during uptime, monitor search errors and CDC dead letters, rebuild via the maintenance endpoint, and replay pending failures.
 
 ### Mutation Replay & Concurrency Contracts (409 Conflict)
@@ -598,34 +599,38 @@ $headers = @{ 'X-E2E-Reset-Token' = $resetToken }
 
 Both responses should report the same configured `userId`, `habits: 2`, `entries: 3`, and `searchIndexing: "verified"`. The operation replaces only that subject's Moodly habits and daily entries, then verifies all seeded entries in Elasticsearch before returning success. It does not delete the Auth0 account or its application profile. If the endpoint is disabled, it returns `404`; a missing or incorrect token returns `403`.
 
-`make validate-local` and `make validate-test` validate Compose without printing resolved values. `make config-local` and `make config-test` print resolved configuration and may expose sensitive settings. `make local-down` / `make test-down` preserve volumes. Volume deletion requires an explicit command such as `make test-clean CONFIRM=yes`; it is irreversible.
+`make validate-local` validates Compose without printing resolved values. `make config-local` prints resolved configuration and may expose sensitive settings. `make local-down` preserves volumes. `make local-clean CONFIRM=yes` deletes the shared volumes and affects local as well as test data; it is never part of test cleanup.
 
-### Automated Integration Test Harness
+### Shared Infrastructure and Automated Test Isolation
 
-Automated integration tests use the existing `moodly-test` Compose stack: exactly one MongoDB replica-set container and one Elasticsearch container. Docker Desktop (or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
+See [the reusable architecture and migration guide](docs/architecture/shared-infrastructure-isolation.md) for engine/framework alternatives, resource ownership, concurrency, safety limits, and operation details.
+
+There is one workstation infrastructure project: `moodly-local`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
 
 ```bash
-make unit-test  # unit/security tests without Compose integration groups
-make integration-test  # infrastructure groups; resets disposable test data
-make test       # run all tests
-make verify     # tests, packaging, coverage and formatting checks
-make cdc-test   # CDC/search integration tests only
+make local-up           # optional: test harness can initialize shared infrastructure
+make unit-test          # unit/security tests without infrastructure groups
+make integration-test   # all infrastructure groups; resets only reserved test data
+make test               # complete Java test suite
+make verify             # complete suite, packaging, coverage and formatting gates
+make cdc-test           # CDC/search integration group
+make test-search-run    # manual backend with CDC/search enabled, exclusive test lease
+make local-stop         # operator action: affects every local/test infrastructure user
 ```
 
-Direct `./mvnw test`, `./mvnw verify`, and IDE JUnit runs use the same Compose bootstrap and session cleanup. Only integration tests needing infrastructure start the stack; unit tests do not need Docker. `make unit-test` excludes `*IntegrationTest` and `MoodlyApplicationTests`; `make integration-test` selects those classes. New infrastructure tests must follow that naming convention (or update both selectors). These are test selections within the test environment, not additional environments. `.env.test` supplies infrastructure settings when present; `.env.test.example` provides non-secret defaults for fresh checkouts and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file. Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
+Maven and IDE JUnit runs share the same harness. Integration groups are `*IntegrationTest` and `MoodlyApplicationTests`; `unit-test` excludes these classes. New infrastructure tests must follow the convention or update both selectors. Python guard tests run with `python3 -m unittest discover -s scripts/docker -p 'test_*.py'`. Automated tests never load hosted Auth0/Cloudinary credentials into the application; test-only beans/properties supply fixtures.
 
-The first integration context starts both Compose services and initializes the replica set. Tests use the fixed database from `MONGODB_DATABASE` (its name must contain `test`) and the fixed index from `MOODLY_SEARCH_INDEX_NAME` (default: `daily_entries_search`). All data in these two resources is disposable, including anything created during manual `make test-run` sessions.
+Infrastructure coordinates come from `.env.local`, falling back to `.env.local.example` on fresh checkouts and CI. `MOODLY_INFRA_ENV_FILE` selects a different infrastructure file explicitly; CI uses the committed non-secret local example. The resolver reads the Compose service configuration without printing expanded env values. Test namespace names are fixed, independent of old `.env.test` ports, database names, or index settings. Real env files are not rewritten.
 
-A group is one integration test class. Before each group, the database and index are dropped so stale data from an interrupted run cannot affect tests. Startup recreates MongoDB collection indexes and, for search/CDC groups, the configured Elasticsearch mapping. After each group, the CDC listener is stopped, the context is closed and evicted, and the database/index are dropped again. Replay and resume token scenarios keep their state within the group. Other databases/indexes are not reset. No generated `moodly_it_*` database or index is needed.
+Before an automated integration group, the harness closes the previous context and resets only the reserved database/index. The new context recreates database indexes and, for CDC/search groups, the search mapping. After each group it stops the listener, closes/evicts the context, and resets the same reserved resources. At session completion it cleans test data and releases the lease. It **does not stop shared containers**, remove containers, or delete volumes. Context cache size stays limited to one to bound memory.
 
-At session completion the reset is repeated and the test stack is stopped; both containers and their volumes remain available. JVM shutdown is a cleanup fallback; `make test-stop` can stop the stack after a forced process kill or IDE termination.
+Manual `make test-run` / `test-build-run` use the `compose-test` profile (which includes `local`) and hosted development Auth0/Cloudinary settings from the selected local env file. Optional `.env.test` values override manual application settings. The launcher always enforces test database/index and shared engine coordinates; old test infrastructure settings cannot redirect it. The manual backend defaults to port 8082 (`MOODLY_TEST_SERVER_PORT`), leaving port 8080 available for the local backend. Manual mode does not automatically erase test data. Its exclusive lease prevents a cooperating automated session from resetting data while the backend is running. Local backend data is separately namespaced and can remain in use.
 
-Run one test process at a time: a file lock rejects concurrent test processes. Do not run a manual backend on `moodly-test` during automated tests, since the test session owns the stack lifecycle. `moodly-local` remains separately managed. The test context cache remains limited to one context to bound JVM memory, while both Compose containers stay running across context changes.
+`test-cdc-run` remains an alias for env-controlled `test-run`. `test-search-run` enables CDC and search initialization for its process without editing env files. This can create/rebuild the derived test search index and adds background resource usage. With CDC intentionally disabled, the existing health indicator still reports DOWN; this health contract is unchanged. Reset endpoints remain opt-in outside production, guarded by a token and fixed synthetic identity.
 
-To run the backend against the manual test stack, use `make test-run` (or `make test-build-run` to build first). These commands load development Auth0, Cloudinary and CORS settings from `.env.local`, then override infrastructure settings from `.env.test`. The `compose-test` profile includes `local`; the JUnit-only `test` profile and its fake credentials are not used. Both environment files must exist. Any Auth0/Cloudinary calls use real development services. The backend runs in the terminal, and the complete test Compose stack is stopped when the command exits, fails to start, or is interrupted with Ctrl+C. `test-cdc-run` is an alias of this same flow; CDC follows `MOODLY_CDC_ENABLED`. For full CDC/search exercises, run `make test-search-run` in Git Bash or WSL. This enables CDC and search initialization only for that process, without editing either env file. It may create/rebuild the derived Elasticsearch index and uses additional resources; MongoDB remains authoritative. `make test-run` retains the existing env-controlled behavior.
-With CDC disabled, the existing CDC health indicator reports DOWN even when MongoDB and Elasticsearch are UP; the manual runner does not change this health contract.
+The lease file `.moodly-test.lock` is outside Maven `target/` so `clean` cannot unlink an active lock. OS locks are released when handles/processes close; do not delete the file to bypass a running session. Python manual mode and Java integration use overlapping OS file locks. Normal interruption terminates the launched backend process tree before releasing the manual lease. After forcibly killing only a launcher, verify no backend child process remains before starting automated tests. This is per checkout: do not run another checkout against the fixed test resources concurrently. Use separately allocated namespaces or a shared lease service if cross-checkout parallelism becomes necessary.
 
-`make test-up` intentionally leaves the manual stack running for inspection; finish that session with `make test-stop`. It is not a prerequisite for automated tests.
+Only the operator stops shared services with `local-stop`/`local-down`; backend exits leave them running. The old test infrastructure management targets (`test-up`, `test-stop`, `test-down`, `test-clean`, `config-test`, and `validate-test`) and `compose.test.yaml` have been removed. Existing old test containers/volumes are not deleted by this migration. If any are still running, stop them explicitly when no longer needed; review volume deletion separately. `clean-mongodb.sh .env.test` uses the same lease and exact test database, with interactive confirmation.
 
 ---
 
