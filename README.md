@@ -338,6 +338,8 @@ The local template supplies non-secret infrastructure defaults. Edit `.env.local
 
 ### Step 2: Start Infrastructure & Run the Application
 
+Infrastructure definitions are `compose.local.yaml` and `compose.test.yaml`. Commands select the stack explicitly with `-f`; these environment-specific filenames are not auto-discovered. Project names, container names, and volume names remain unchanged.
+
 #### Option A: Using Make (Recommended)
 
 1. **Start MongoDB Replica Set & Elasticsearch**:

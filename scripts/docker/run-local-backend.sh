@@ -5,7 +5,7 @@ cd "$(dirname "$0")/../.."
 for key in ${!MONGODB_@} ${!ELASTICSEARCH_@}; do
   unset "$key"
 done
-compose=(docker compose -p moodly-local --env-file .env.local -f docker-compose.local.yml)
+compose=(docker compose -p moodly-local --env-file .env.local -f compose.local.yaml)
 environment=$("${compose[@]}" config --environment)
 while IFS= read -r assignment; do
   if [[ "$assignment" =~ ^(APP_|AUTH0_|CLOUDINARY_|MONGODB_|ELASTICSEARCH_|MOODLY_)[a-zA-Z0-9_]*= ]]; then

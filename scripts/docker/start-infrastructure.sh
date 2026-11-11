@@ -15,7 +15,7 @@ if [ "$mode" = local ]; then
   done
 fi
 
-compose=(docker compose -p "moodly-$mode" --env-file ".env.$mode" -f "docker-compose.$mode.yml")
+compose=(docker compose -p "moodly-$mode" --env-file ".env.$mode" -f "compose.$mode.yaml")
 
 # PRIMARY health requires initialization first, so do not use --wait here.
 "${compose[@]}" up -d mongodb elasticsearch

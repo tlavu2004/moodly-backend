@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f docker-compose.$(1).yml
+compose = docker compose -p moodly-$(1) --env-file .env.$(1) -f compose.$(1).yaml
 
 .PHONY: help
 define help_text

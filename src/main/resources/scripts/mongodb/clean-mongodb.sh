@@ -77,11 +77,11 @@ if command -v mongosh >/dev/null 2>&1; then
 elif command -v docker >/dev/null 2>&1; then
   case "$ENV_FILENAME" in
     .env.local)
-      COMPOSE_FILE="docker-compose.local.yml"
+      COMPOSE_FILE="compose.local.yaml"
       COMPOSE_PROJECT="moodly-local"
       ;;
     .env.test)
-      COMPOSE_FILE="docker-compose.test.yml"
+      COMPOSE_FILE="compose.test.yaml"
       COMPOSE_PROJECT="moodly-test"
       ;;
     *)

@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-compose=(docker compose -p moodly-test --env-file .env.test -f docker-compose.test.yml)
+compose=(docker compose -p moodly-test --env-file .env.test -f compose.test.yaml)
 cleanup() {
   status=$?
   trap - EXIT
@@ -21,7 +21,7 @@ trap 'exit 143' TERM
 # Let Compose parse dotenv syntax rather than executing values as shell code
 # (for example, Auth0 subjects can contain a literal pipe).
 environment=$(docker compose -p moodly-test --env-file .env.local --env-file .env.test \
-  -f docker-compose.test.yml config --environment)
+  -f compose.test.yaml config --environment)
 while IFS= read -r assignment; do
   if [[ "$assignment" =~ ^(APP_|AUTH0_|CLOUDINARY_|MONGODB_|ELASTICSEARCH_|MOODLY_)[a-zA-Z0-9_]*= ]]; then
     export "$assignment"

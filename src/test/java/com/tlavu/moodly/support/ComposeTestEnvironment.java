@@ -57,7 +57,7 @@ final class ComposeTestEnvironment {
 	private ComposeTestEnvironment() {
 		String envFile = System.getenv().getOrDefault("MOODLY_TEST_ENV_FILE",
 				Files.exists(Path.of(".env.test")) ? ".env.test" : ".env.test.example");
-		compose = List.of("docker", "compose", "-p", "moodly-test", "--env-file", envFile, "-f", "docker-compose.test.yml");
+		compose = List.of("docker", "compose", "-p", "moodly-test", "--env-file", envFile, "-f", "compose.test.yaml");
 		try {
 			Files.createDirectories(Path.of("target"));
 			lockChannel = FileChannel.open(Path.of("target/compose-test.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
