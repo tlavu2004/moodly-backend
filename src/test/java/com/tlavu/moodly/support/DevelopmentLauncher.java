@@ -68,12 +68,15 @@ public final class DevelopmentLauncher {
 	}
 
 	private static int runBackend(SharedInfrastructure.Configuration configuration, boolean manual, boolean build) throws Exception {
+		SharedInfrastructure.progress("Preparing " + (manual ? "manual test" : "local") + " backend session...");
 		try (var run = new BackendRun(configuration, manual)) {
 			run.open();
 			if (build) {
+				SharedInfrastructure.progress("Building backend...");
 				int result = run.maven("package", "-DskipTests");
 				if (result != 0) { return result; }
 			}
+			SharedInfrastructure.progress("Launching " + (manual ? "manual test" : "local") + " backend on port " + run.environment.get("SERVER_PORT") + "...");
 			return run.maven("-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false", "spring-boot:run");
 		}
 	}
@@ -86,6 +89,7 @@ public final class DevelopmentLauncher {
 		private SharedInfrastructure.TestLease testLease;
 		private Process child;
 		private boolean ready;
+		private boolean backendStarted;
 		private boolean closed;
 
 		BackendRun(SharedInfrastructure.Configuration configuration, boolean manual) {
@@ -125,6 +129,7 @@ public final class DevelopmentLauncher {
 			synchronized (this) {
 				if (closed) { throw new IllegalStateException("Backend session has closed"); }
 				child = builder.start();
+				if (List.of(arguments).contains("spring-boot:run")) { backendStarted = true; }
 				running = child;
 			}
 			try { return running.waitFor(); }
@@ -134,7 +139,9 @@ public final class DevelopmentLauncher {
 		@Override public synchronized void close() {
 			if (closed) { return; }
 			closed = true;
+			if (backendStarted) { SharedInfrastructure.progress("Stopping backend..."); }
 			if (child != null) { stopTree(child); }
+			if (backendStarted) { SharedInfrastructure.progress("Backend stopped."); }
 			RuntimeException failure = null;
 			try { if (manual && ready) { SharedInfrastructure.resetTestData(configuration); } }
 			catch (RuntimeException cleanup) { failure = cleanup; }
@@ -142,8 +149,9 @@ public final class DevelopmentLauncher {
 			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
 			try { if (testLease != null) { testLease.close(); } }
 			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
-			if (failure != null) { interruptResult("failed"); throw failure; }
+			if (failure != null) { SharedInfrastructure.progress("Session cleanup failed."); interruptResult("failed"); throw failure; }
 			interruptResult("clean");
+			SharedInfrastructure.progress((manual ? "Manual test" : "Local backend") + " session closed.");
 		}
 	}
 

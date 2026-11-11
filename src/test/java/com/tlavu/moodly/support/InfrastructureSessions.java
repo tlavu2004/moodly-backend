@@ -85,10 +85,12 @@ public final class InfrastructureSessions {
 			missing.removeAll(services.running());
 			state.automatic.addAll(missing);
 			save(state); // Crash recovery must know ownership before starting services.
+			SharedInfrastructure.progress("Starting and pinning shared infrastructure...");
 			try { services.start(); }
 			catch (RuntimeException failure) { stopWhenIdle(state); throw failure; }
 			state.pinned = true;
 			state.automatic.clear();
+			SharedInfrastructure.progress("Infrastructure ready; pinned until explicitly stopped.");
 			return null;
 		});
 	}
@@ -97,7 +99,9 @@ public final class InfrastructureSessions {
 		if (!Set.of("stop", "down", "clean").contains(action)) { throw new IllegalArgumentException("Unknown infrastructure action"); }
 		change(state -> {
 			if (!state.participants.isEmpty()) { throw new IllegalStateException("Infrastructure is in use; finish active backend/test sessions first"); }
+			SharedInfrastructure.progress("Applying infrastructure action: " + action + "...");
 			services.operator(action);
+			SharedInfrastructure.progress("Infrastructure action completed: " + action + ".");
 			state.automatic.clear();
 			state.pinned = false;
 			return null;
@@ -113,7 +117,9 @@ public final class InfrastructureSessions {
 			missing.removeAll(running);
 			if (!state.pinned) { state.automatic.addAll(missing); }
 			save(state);
+			SharedInfrastructure.progress(missing.isEmpty() ? "Reusing shared infrastructure; checking readiness..." : "Starting shared infrastructure...");
 			services.start();
+			SharedInfrastructure.progress("Infrastructure ready.");
 			return null;
 		});
 	}
@@ -121,16 +127,26 @@ public final class InfrastructureSessions {
 	private void release(String token) {
 		change(state -> {
 			state.participants.remove(token);
+			if (!state.participants.isEmpty()) {
+				SharedInfrastructure.progress("Keeping infrastructure running: " + state.participants.size() + " session(s) still active.");
+			}
 			stopWhenIdle(state);
 			return null;
 		});
 	}
 
 	private void stopWhenIdle(State state) {
+		if (state.participants.isEmpty() && state.pinned) {
+			SharedInfrastructure.progress("Keeping infrastructure running: explicitly pinned.");
+		} else if (state.participants.isEmpty() && state.automatic.isEmpty()) {
+			SharedInfrastructure.progress("Leaving preexisting infrastructure unchanged.");
+		}
 		if (state.participants.isEmpty() && !state.pinned && !state.automatic.isEmpty()) {
 			// Validate persisted state before it can influence a Docker command.
 			if (!SERVICES.containsAll(state.automatic)) { throw new IllegalStateException("Invalid infrastructure ownership state"); }
+			SharedInfrastructure.progress("Stopping automatically owned services: " + String.join(", ", state.automatic.stream().sorted().toList()) + "...");
 			services.stop(Set.copyOf(state.automatic));
+			SharedInfrastructure.progress("Automatically owned infrastructure stopped.");
 			state.automatic.clear();
 		}
 	}

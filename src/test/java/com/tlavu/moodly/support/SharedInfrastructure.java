@@ -64,6 +64,10 @@ public final class SharedInfrastructure {
 		}
 	}
 
+	static void progress(String message) {
+		System.err.println("[tooling] " + message);
+	}
+
 	public static Path infrastructureFile() {
 		String selected = System.getenv("MOODLY_INFRA_ENV_FILE");
 		return Path.of(selected != null ? selected : Files.exists(Path.of(".env.local"))
@@ -231,6 +235,7 @@ public final class SharedInfrastructure {
 	public static void resetTestData(Configuration configuration) {
 		validateResources(configuration.localEnvironment().get("MONGODB_DATABASE"),
 				configuration.localEnvironment().get("MOODLY_SEARCH_INDEX_NAME"), TEST_DATABASE, TEST_INDEX);
+		progress("Resetting reserved test database and search index...");
 		String uri = "mongodb://" + configuration.mongoHost() + ":" + configuration.mongoPort() + "/" + TEST_DATABASE
 				+ "?replicaSet=" + configuration.replicaSet() + "&serverSelectionTimeoutMS=10000&connectTimeoutMS=5000";
 		try (var mongo = com.mongodb.client.MongoClients.create(uri);
@@ -242,7 +247,7 @@ public final class SharedInfrastructure {
 			if (response.statusCode() != 200 && response.statusCode() != 404) {
 				throw new IllegalStateException("Could not reset reserved test index: HTTP " + response.statusCode());
 			}
-			System.out.println("Reset reserved test database/index; local namespaces preserved");
+			progress("Reserved test data cleared; local data preserved.");
 		} catch (IOException failure) { throw new IllegalStateException("Could not reset reserved test resources", failure); }
 		catch (InterruptedException failure) {
 			Thread.currentThread().interrupt();
