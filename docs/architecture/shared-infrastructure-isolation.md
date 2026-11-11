@@ -255,11 +255,15 @@ convention, not an additional environment or a mandatory framework standard.
 Infrastructure lives in `compose.local.yaml`. `.env.local` supplies local
 infrastructure coordinates, with `.env.local.example` as a fresh-checkout/CI fallback.
 `MOODLY_INFRA_ENV_FILE` can select an explicit infrastructure file. Real env files
-are not modified by migration. `.env.test` supplies optional manual-test application
-settings, not authority to change infrastructure ports or cleanup targets. Existing
+are migrated only for explicitly authorized non-secret keys; credential assignments
+are preserved byte-for-byte. `.env.test` supplies manual-test application
+settings (falling back to its example), including SERVER_PORT and the validated
+test database/index names, not authority to change shared infrastructure ports
+or bypass the cleanup allowlist. Existing
 old test ports and unqualified index names are no longer used by the harness.
 
-Reserved test names are `moodly_test` and `daily_entries_search_test`. Local
+Reserved test names are `moodly_test` and `daily_entries_search_test`; env input
+selects them and a fixed code allowlist rejects any other cleanup target. Local
 configuration must not select either. Local/backend exit and integration cleanup
 leave `moodly-local` running. Explicit `make local-stop`/`local-down` affect every
 consumer, so stop them only when all sessions are finished. Volume deletion remains

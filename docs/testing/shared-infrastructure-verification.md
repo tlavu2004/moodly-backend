@@ -58,3 +58,34 @@ unauthenticated engines are not a security boundary against untrusted clients.
 
 - [Shared Development Infrastructure and Test Data Isolation](../architecture/shared-infrastructure-isolation.md)
 - [Release and Production Deployment](../deployment/release.md)
+
+## Environment Synchronization Follow-Up
+
+The later, explicitly authorized env synchronization updates only known non-secret
+assignments in ignored `.env.local` and `.env.test`. Credential assignments are
+preserved byte-for-byte and are not included in Git. The existing local database
+name is preserved. Obsolete separate-test infrastructure settings are removed.
+Local, manual test, and docs ports use SERVER_PORT values 8080, 8081, and 8082.
+
+Runtime dotenv forwarding now uses a Compose JSON environment mapping so standard
+SERVER_/SPRING_ variables and custom application variables are not silently filtered.
+Synthetic fixtures verify quotes, literal pipes, dollar signs, and multiline values
+survive the round trip. Config serialization's doubled dollar signs are decoded
+once before native process launch. Key scanning skips multiline value contents.
+
+Test namespace values come from `.env.test` or its example and are checked against
+the unchanged fixed cleanup allowlist. Automated Spring tests import non-secret
+TEST_ fixtures from `.env.test.example`; docs import `.env.docs.example` and optional
+ignored `.env.docs`. Bare Java/IDE launches still need the equivalent environment
+unless using those explicitly imported fixture profiles.
+
+Verification: 244 Java tests pass with zero failures/errors/skips; full Maven verify,
+coverage, and Spotless pass. Seven Python guards pass on Windows and Linux container.
+Native local/test stub processes confirm effective port/namespace settings without
+printing credentials. The OpenAPI generation script reads its docs env port and
+produces the same committed API contract. No volume is deleted, no image is
+published, and no hosting setting is changed by this follow-up.
+
+The test files and lease mechanism are retained because CI/integration still use
+them. A real `.env.test` is optional when committed defaults suffice; its example
+and `application-test.yaml` are not obsolete merely because infrastructure is shared.
