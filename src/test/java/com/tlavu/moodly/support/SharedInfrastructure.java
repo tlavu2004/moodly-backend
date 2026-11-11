@@ -182,8 +182,9 @@ public final class SharedInfrastructure {
 	private static String execute(List<String> invocation, String definition, Path input) {
 		try {
 			Path output = Files.createTempFile("moodly-tooling-", ".log");
+			Path errors = Files.createTempFile("moodly-tooling-errors-", ".log");
 			try {
-				ProcessBuilder builder = new ProcessBuilder(invocation).redirectError(ProcessBuilder.Redirect.DISCARD).redirectOutput(output.toFile());
+				ProcessBuilder builder = new ProcessBuilder(invocation).redirectError(errors.toFile()).redirectOutput(output.toFile());
 				builder.environment().keySet().removeIf(key -> key.startsWith("MONGODB_")
 						|| key.startsWith("ELASTICSEARCH_") || key.equals("MOODLY_SEARCH_INDEX_NAME"));
 				if (input != null) { builder.redirectInput(input.toFile()); }
@@ -197,10 +198,11 @@ public final class SharedInfrastructure {
 				}
 				if (process.exitValue() != 0) {
 					// Expanded config/credential values may occur in Compose diagnostics.
-					throw new IllegalStateException("Docker Compose failed; check configuration and Docker availability");
+					throw new IllegalStateException("Docker command failed: exit=" + process.exitValue()
+							+ ", category=" + diagnosticCategory(Files.readString(errors, StandardCharsets.UTF_8)));
 				}
 				return Files.readString(output, StandardCharsets.UTF_8);
-			} finally { Files.deleteIfExists(output); }
+			} finally { Files.deleteIfExists(output); Files.deleteIfExists(errors); }
 		} catch (IOException failure) {
 			throw new IllegalStateException("Docker with Compose is required for development infrastructure", failure);
 		} catch (InterruptedException failure) {
@@ -209,9 +211,43 @@ public final class SharedInfrastructure {
 		}
 	}
 
+	/** Return only fixed categories; never echo command output, arguments, or credentials. */
+	static String diagnosticCategory(String error) {
+		String text = error.toLowerCase(java.util.Locale.ROOT);
+		if (text.contains("executable file not found") || text.contains("command not found") || text.contains("mongosh: not found")) { return "executable-not-found"; }
+		if (text.contains("not running") || text.contains("restarting")) { return "container-not-running"; }
+		if (text.contains("connection refused") || text.contains("econnrefused")) { return "connection-refused"; }
+		if (text.contains("permission denied")) { return "permission-denied"; }
+		if (text.contains("cannot connect to the docker daemon")) { return "docker-unavailable"; }
+		if (text.contains("invalid port") || text.contains("invalid argument")) { return "invalid-argument"; }
+		return "unclassified";
+	}
+
+	private static void startupDiagnostics() {
+		for (String container : List.of("moodly-mongodb-local", "moodly-elasticsearch-local")) {
+			try {
+				String state = execute(List.of("docker", "inspect", "--format",
+						"{{.State.Status}} {{.State.ExitCode}} {{.State.OOMKilled}} {{.RestartCount}}", container), null, null).trim();
+				// Validate the entire response before logging even these selected fields.
+				if (state.matches("[a-z]+ -?[0-9]+ (true|false) [0-9]+")) {
+					progress(container + " state/exit/OOM/restarts: " + state);
+				} else { progress(container + " state unavailable."); }
+			} catch (RuntimeException failure) { progress(container + " inspection failed (details suppressed)."); }
+		}
+	}
+
 	public static void start(Configuration configuration) {
+		try { startAndAwait(configuration); }
+		catch (RuntimeException failure) {
+			startupDiagnostics();
+			throw failure;
+		}
+	}
+
+	private static void startAndAwait(Configuration configuration) {
 		command(configuration, null, "up", "-d", "mongodb", "elasticsearch");
 		boolean ready = false;
+		IllegalStateException lastFailure = null;
 		for (int attempt = 0; attempt < 60; attempt++) {
 			try {
 				command(configuration, null, "exec", "-T", "mongodb", "sh", "-c",
@@ -219,6 +255,10 @@ public final class SharedInfrastructure {
 				ready = true;
 				break;
 			} catch (IllegalStateException failure) {
+				lastFailure = failure;
+				if (attempt == 0 || attempt == 29 || attempt == 59) {
+					progress("MongoDB readiness attempt " + (attempt + 1) + "/60 failed; awaiting startup.");
+				}
 				try { Thread.sleep(2000); }
 				catch (InterruptedException interrupted) {
 					Thread.currentThread().interrupt();
@@ -226,7 +266,7 @@ public final class SharedInfrastructure {
 				}
 			}
 		}
-		if (!ready) { throw new IllegalStateException("Timed out waiting for MongoDB"); }
+		if (!ready) { throw new IllegalStateException("Timed out waiting for MongoDB after 60 readiness attempts", lastFailure); }
 		command(configuration, Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "mongodb", "sh", "-c",
 				"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
 		command(configuration, null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");

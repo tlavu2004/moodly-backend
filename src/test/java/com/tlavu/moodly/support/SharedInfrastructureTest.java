@@ -15,6 +15,18 @@ class SharedInfrastructureTest {
 	@TempDir Path temporary;
 
 	@Test
+	void diagnosticCategoriesNeverEchoSensitiveOrUnknownOutput() {
+		assertThat(SharedInfrastructure.diagnosticCategory("password=synthetic-secret Connection refused"))
+				.isEqualTo("connection-refused");
+		assertThat(SharedInfrastructure.diagnosticCategory("Container synthetic-secret is not running"))
+				.isEqualTo("container-not-running");
+		assertThat(SharedInfrastructure.diagnosticCategory("mongosh: not found; synthetic-secret"))
+				.isEqualTo("executable-not-found");
+		assertThat(SharedInfrastructure.diagnosticCategory("unexpected synthetic-secret"))
+				.isEqualTo("unclassified");
+	}
+
+	@Test
 	void acceptsDistinctLocalResources() {
 		SharedInfrastructure.validateResources("moodly", "daily_entries_search", "moodly_test", "daily_entries_search_test");
 	}
