@@ -269,11 +269,11 @@ it does not launch Python or recursively invoke Maven. Neither class is packaged
 into the production application.
 
 Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay.
-The tracked `.env.test.example` is removed. Preexisting ignored `.env.test` files
-are retained without reading/copying their credentials, but are no longer loaded.
-Move any desired manual-runtime override into the single local configuration or
-supply it explicitly for a command. Private retired files may be reviewed and
-removed separately; removing them is not necessary for resource savings.
+The tracked `.env.test.example` and the retired private `.env.test` are removed.
+The private file was checked by key name only and contained no credential keys;
+no credential values were read or printed. Manual-runtime overrides belong to the
+single local configuration or an explicit command. Ignore rules remain to protect
+stale private files in other checkouts.
 
 The shared Java lease remains in `.moodly-test.lock`, outside target/. Both manual
 and automated sessions use it. Local/backend exit and integration cleanup leave

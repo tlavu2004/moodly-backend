@@ -30,14 +30,15 @@ No new Maven library dependency or production runtime component is introduced.
 | Retained | `compose.local.yaml` | The only workstation Compose stack |
 | Retained | `.env.local.example` | Single local runtime/infrastructure template; adds manual backend port |
 | Retained | `.moodly-test.lock` mechanism | Shared Java FileLock outside target/; generated file remains ignored |
-| Retired, untouched | Existing private `.env.test` | No longer read; retained to avoid deleting private settings without review |
+| Removed locally | Private `.env.test` | Deleted after checking key names; contained only obsolete non-secret test settings |
 | Retained | `.env.docs.example` and optional `.env.docs` support | Documentation tooling fixtures, not another infrastructure stack |
 | Retained | `scripts/docker/smoke-test.py` | Image smoke orchestration is outside the shared-stack migration |
 
 The private `.env.local` receives only MOODLY_MANUAL_TEST_PORT=8081 if not already
 present; every existing assignment, including credentials, is preserved. Private
-env files are not committed. The old test file may be reviewed and removed later;
-it has no effect on launcher or JUnit configuration now.
+env files are not committed. The retired test file was subsequently removed after
+a key-name-only check confirmed it contained no credential keys. The launcher and
+JUnit configuration do not depend on it.
 
 ## Runtime Behavior
 
