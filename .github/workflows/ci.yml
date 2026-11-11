@@ -21,7 +21,7 @@ jobs:
     name: PR container build
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -37,6 +37,10 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: moodly:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test the built image
+        run: python3 scripts/docker/smoke-test.py moodly:ci

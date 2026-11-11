@@ -487,9 +487,13 @@ git diff -- docs/api/json/moodly-openapi.json
 
 ### CI/CD & Container Publishing
 
+The repository currently retains Render source-build configuration in `render.yaml`. Publishing to GHCR does not deploy Render. The proposed image-by-digest migration and rollback procedure is documented in [the release runbook](docs/deployment/release.md); it requires a deliberate Render service migration.
+
+Run `python3 scripts/docker/smoke-test.py IMAGE` after building/loading an image. The smoke test creates a unique test network and fresh MongoDB (tmpfs), Elasticsearch, and local OIDC fixture containers; it never loads env files or uses the manual local/test stacks. It checks the production profile, Docker healthcheck, public health privacy, unauthenticated API rejection, reset/docs unavailability, CDC-created search mapping, and non-root runtime. It removes only its own containers/network. This validates issuer discovery without hosted Auth0, but does not replace real-token E2E, Cloudinary uploads, or rate-limit behavior tests.
+
 Pull requests targeting `main` run application and OpenAPI verification, followed by a container build. Run `PR CI` manually to check a feature branch before opening a pull request. Feature-branch pushes rely on the pull request run once a PR is open, avoiding duplicate verification.
 
-Pushes to `main` and tags matching `v*` run `Release`. Verification must succeed before the image is built and published to GHCR. Both workflows call the shared verification workflow. Verification has a 15-minute timeout, and image jobs have a 20-minute timeout.
+Pushes to `main` and tags matching `v*` run `Release`. Verification must succeed before the image is built. Container smoke checks must pass before that same loaded image is pushed to GHCR. Full commit SHA tags and a `release-image.json` artifact record the published digest. Both workflows call the shared verification workflow. Verification has a 15-minute timeout, and image build/smoke/publish jobs have a 30-minute timeout.
 
 A new PR run cancels an older run for the same PR. Release runs for the same ref are serialized, with cancellation of a running release disabled. Token permissions are read-only except for the publishing job, which requires `packages: write`.
 
@@ -599,12 +603,14 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 Automated integration tests use the existing `moodly-test` Compose stack: exactly one MongoDB replica-set container and one Elasticsearch container. Docker Desktop (or Docker Engine with Compose v2 in CI) must be running. No Testcontainers or Ryuk containers are created. JUnit itself runs on the Maven/IDE JVM, outside Docker.
 
 ```bash
-make test       # run tests
+make unit-test  # unit/security tests without Compose integration groups
+make integration-test  # infrastructure groups; resets disposable test data
+make test       # run all tests
 make verify     # tests, packaging, coverage and formatting checks
 make cdc-test   # CDC/search integration tests only
 ```
 
-Direct `./mvnw test`, `./mvnw verify`, and IDE JUnit runs use the same Compose bootstrap and session cleanup. Only integration tests needing infrastructure start the stack; unit tests do not need Docker. `.env.test` supplies infrastructure settings when present; `.env.test.example` provides non-secret defaults for fresh checkouts and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file. Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
+Direct `./mvnw test`, `./mvnw verify`, and IDE JUnit runs use the same Compose bootstrap and session cleanup. Only integration tests needing infrastructure start the stack; unit tests do not need Docker. `make unit-test` excludes `*IntegrationTest` and `MoodlyApplicationTests`; `make integration-test` selects those classes. New infrastructure tests must follow that naming convention (or update both selectors). These are test selections within the test environment, not additional environments. `.env.test` supplies infrastructure settings when present; `.env.test.example` provides non-secret defaults for fresh checkouts and CI. Set `MOODLY_TEST_ENV_FILE` to select a different infrastructure env file. Automated tests never load `.env.local` or call real Auth0/Cloudinary services.
 
 The first integration context starts both Compose services and initializes the replica set. Tests use the fixed database from `MONGODB_DATABASE` (its name must contain `test`) and the fixed index from `MOODLY_SEARCH_INDEX_NAME` (default: `daily_entries_search`). All data in these two resources is disposable, including anything created during manual `make test-run` sessions.
 
@@ -614,7 +620,7 @@ At session completion the reset is repeated and the test stack is stopped; both 
 
 Run one test process at a time: a file lock rejects concurrent test processes. Do not run a manual backend on `moodly-test` during automated tests, since the test session owns the stack lifecycle. `moodly-local` remains separately managed. The test context cache remains limited to one context to bound JVM memory, while both Compose containers stay running across context changes.
 
-To run the backend against the manual test stack, use `make test-run` (or `make test-build-run` to build first). These commands load development Auth0, Cloudinary and CORS settings from `.env.local`, then override infrastructure settings from `.env.test`. The `compose-test` profile includes `local`; the JUnit-only `test` profile and its fake credentials are not used. Both environment files must exist. Any Auth0/Cloudinary calls use real development services. The backend runs in the terminal, and the complete test Compose stack is stopped when the command exits, fails to start, or is interrupted with Ctrl+C. `test-cdc-run` is an alias of this same flow; CDC follows `MOODLY_CDC_ENABLED`. For CDC/search exercises, set `MOODLY_CDC_ENABLED=true` in `.env.test` or run `MOODLY_CDC_ENABLED=true make test-run` in Git Bash.
+To run the backend against the manual test stack, use `make test-run` (or `make test-build-run` to build first). These commands load development Auth0, Cloudinary and CORS settings from `.env.local`, then override infrastructure settings from `.env.test`. The `compose-test` profile includes `local`; the JUnit-only `test` profile and its fake credentials are not used. Both environment files must exist. Any Auth0/Cloudinary calls use real development services. The backend runs in the terminal, and the complete test Compose stack is stopped when the command exits, fails to start, or is interrupted with Ctrl+C. `test-cdc-run` is an alias of this same flow; CDC follows `MOODLY_CDC_ENABLED`. For full CDC/search exercises, run `make test-search-run` in Git Bash or WSL. This enables CDC and search initialization only for that process, without editing either env file. It may create/rebuild the derived Elasticsearch index and uses additional resources; MongoDB remains authoritative. `make test-run` retains the existing env-controlled behavior.
 With CDC disabled, the existing CDC health indicator reports DOWN even when MongoDB and Elasticsearch are UP; the manual runner does not change this health contract.
 
 `make test-up` intentionally leaves the manual stack running for inspection; finish that session with `make test-stop`. It is not a prerequisite for automated tests.
