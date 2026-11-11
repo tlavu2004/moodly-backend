@@ -1,5 +1,8 @@
 # Shared Infrastructure Migration Verification
 
+This document records earlier migration stages. The current Java implementation
+and file inventory are documented in [Java Development Tooling Migration](java-tooling-migration.md).
+
 ## Scope
 
 Verification performed on 2026-11-11 on Windows 11 with Docker Desktop, Java 25,

@@ -312,7 +312,7 @@ docs/api/json/moodly-openapi.json
 ### Prerequisites
 - **Java 25** (Eclipse Temurin recommended)
 - **Maven Wrapper** (included; downloads the pinned Maven version on first use)
-- **Python 3** for shared-infrastructure guards, test leases, and container smoke
+- **Python 3** only for container smoke and OpenAPI JSON normalization; local/test infrastructure and backend tests use Java
 - **Docker Desktop** (with Compose v2)
 - **GNU Make and Bash** for Make targets (install Make separately on Windows; Git Bash provides Bash)
 
@@ -328,7 +328,6 @@ cd moodly-backend
 
 # Create your local development environment file
 cp .env.local.example .env.local
-cp .env.test.example .env.test
 ```
 
 The local template supplies non-secret infrastructure defaults. Edit `.env.local` with your development credentials:
@@ -520,7 +519,7 @@ Their environment equivalents are:
 
 No new secret is required. If all attempts fail, check network/proxy/firewall access to Auth0 rather than repeatedly restarting Docker or disabling JWT security.
 
-Before first use, copy `.env.local.example` to `.env.local` and `.env.test.example` to `.env.test` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
+Before first use, copy `.env.local.example` to `.env.local` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
 #### Auth0 and Cloudinary Local Services Configuration
 Before starting the backend, configure the hosted development services and fill the corresponding values in `.env.local`:
@@ -604,13 +603,17 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 ### Environment File Contract
 
 - `.env.local` supplies local runtime settings and shared infrastructure; its example is the fresh-checkout default. Local database names are preserved when they already contain development data.
-- `.env.test` supplies manual test settings; its example supplies defaults and the separately named non-secret `TEST_*` automated fixtures. Use `SERVER_PORT=8081`, `MONGODB_DATABASE=moodly_test`, and `MOODLY_SEARCH_INDEX_NAME=daily_entries_search_test`. Namespace values are inputs, but may not bypass the fixed cleanup allowlist.
+- There is no separate test dotenv template. Manual test uses the same local env file, with `MOODLY_MANUAL_TEST_PORT=8081` and fixed reserved database/index names. Automated test fixtures live in `src/test/resources/application-test.yaml`. Retired `.env.test` files are not loaded.
 - `.env.docs.example` supplies deterministic, non-secret documentation fixtures and `SERVER_PORT=8082`; optional ignored `.env.docs` overrides them. These files use unquoted `KEY=VALUE` syntax compatible with Java properties. The generation script reads the same port as the docs profile; it does not require credentials or a running Docker daemon.
 - `.env.production.example` documents production variables. A container receives them through `docker run --env-file .env.production` or hosting environment injection; real env files are never baked into images. No hosting configuration is changed by this workstation migration.
 
 Use the provided runners to load local/manual dotenv files. A bare Maven/Java/IDE launch must receive equivalent environment variables explicitly; Spring does not automatically treat arbitrary dotenv files as process environment. Startup-critical profile selection and destructive-operation guards remain code-controlled. Framework booleans that disable real side effects in docs mode are safety invariants, not arbitrary runtime tuning.
 
-Keep `application-test.yaml`, `.env.test.example`, test-support code, and the lease mechanism while automated tests exist. Removing a local `.env.test` is optional when no custom manual settings are needed: committed defaults still support testing. The zero-byte `.moodly-test.lock` is recreated automatically and uses no ongoing CPU/RAM; leave it ignored and do not unlink it while a session might hold its OS lock. Deleting configuration files does not reclaim a running container's memory.
+Keep `application-test.yaml`, Java test-support code, and the lease mechanism while automated tests exist. The tracked `.env.test.example` has been removed; a preexisting ignored `.env.test` is left untouched but retired. Review any desired non-secret overrides before removing that private file yourself. The zero-byte `.moodly-test.lock` is recreated automatically and uses no ongoing CPU/RAM; leave it ignored and do not unlink it while a session might hold its OS lock. Deleting configuration files does not reclaim a running container's memory.
+
+See [Java Development Tooling Migration](docs/testing/java-tooling-migration.md) for the kept/removed/converted file inventory and verification results.
+
+The shell entry points are thin adapters to `scripts/docker/run-tooling.sh`. It uses Maven Wrapper to compile test-side tooling and resolve the existing Jackson classpath, then starts `DevelopmentLauncher` with the project's Java runtime. `SharedInfrastructure` provides Compose parsing, namespace validation, idempotent startup, and the OS lease for both launcher and JUnit. These classes remain outside the production artifact. This adds a short Maven bootstrap on developer commands instead of requiring Python for infrastructure orchestration.
 
 ### Shared Infrastructure and Automated Test Isolation
 
@@ -629,19 +632,19 @@ make test-search-run    # manual backend with CDC/search enabled, exclusive test
 make local-stop         # operator action: affects every local/test infrastructure user
 ```
 
-Maven and IDE JUnit runs share the same harness. Integration groups are `*IntegrationTest` and `MoodlyApplicationTests`; `unit-test` excludes these classes. New infrastructure tests must follow the convention or update both selectors. Python guard tests run with `python3 -m unittest discover -s scripts/docker -p 'test_*.py'`. Automated tests never load hosted Auth0/Cloudinary credentials into the application. `application-test.yaml` imports non-secret `TEST_*` fixtures from `.env.test.example`; test-only beans supply external clients.
+Maven and IDE JUnit runs share the same harness. Integration groups are `*IntegrationTest` and `MoodlyApplicationTests`; `unit-test` excludes these classes. New infrastructure tests must follow the convention or update both selectors. The shared-infrastructure guards are ordinary JUnit tests under `src/test/java/com/tlavu/moodly/support`. Automated tests never load hosted Auth0/Cloudinary credentials into the application; `application-test.yaml` contains deterministic non-secret fixtures and test-only beans supply external clients.
 
-Infrastructure coordinates come from `.env.local`, falling back to `.env.local.example` on fresh checkouts and CI. `MOODLY_INFRA_ENV_FILE` selects a different infrastructure file explicitly; CI uses the committed non-secret local example. The resolver reads the Compose service configuration without printing expanded env values. Local/manual runners forward every valid dotenv key, including `SERVER_PORT`, `SPRING_*`, and custom application keys; credentials are not printed or executed as shell code. Test resource names are read from `.env.test` (or `.env.test.example` when absent), then checked against the exact reserved allowlist before startup/reset. Shared engine coordinates still come only from the local infrastructure file. Obsolete per-test infrastructure keys must not be reintroduced.
+Infrastructure coordinates come from `.env.local`, falling back to `.env.local.example` on fresh checkouts and CI. `MOODLY_INFRA_ENV_FILE` selects a different infrastructure file explicitly; CI uses the committed non-secret local example. The resolver reads the Compose service configuration without printing expanded env values. Local/manual runners forward every valid dotenv key, including `SERVER_PORT`, `SPRING_*`, and custom application keys; credentials are not printed or executed as shell code. Test resource names are fixed by the shared Java ownership contract; local configuration is checked for collisions before startup/reset. Shared engine coordinates still come only from the local infrastructure file. Obsolete per-test infrastructure keys must not be reintroduced.
 
 Before an automated integration group, the harness closes the previous context and resets only the reserved database/index. The new context recreates database indexes and, for CDC/search groups, the search mapping. After each group it stops the listener, closes/evicts the context, and resets the same reserved resources. At session completion it cleans test data and releases the lease. It **does not stop shared containers**, remove containers, or delete volumes. Context cache size stays limited to one to bound memory.
 
-Manual `make test-run` / `test-build-run` use the `compose-test` profile (which includes `local`) and hosted development Auth0/Cloudinary settings from the selected local env file. `.env.test` values override manual application settings; `.env.test.example` is the fallback when the real file is absent. The launcher always enforces test database/index and shared engine coordinates; old test infrastructure settings cannot redirect it. The manual backend uses `SERVER_PORT=8081` from the test env file, leaving port 8080 available for the local backend. Manual mode does not automatically erase test data. Its exclusive lease prevents a cooperating automated session from resetting data while the backend is running. Local backend data is separately namespaced and can remain in use.
+Manual `make test-run` / `test-build-run` use the `compose-test` profile (which includes `local`) and hosted development Auth0/Cloudinary settings from the selected local env file. There is no second env overlay: manual mode inherits CDC/search/rate-limit settings from the selected local file and explicit caller overrides. The launcher always enforces test database/index and shared engine coordinates; old test infrastructure settings cannot redirect it. The manual backend uses `MOODLY_MANUAL_TEST_PORT=8081` from the local env file (default 8081), leaving port 8080 available for the local backend. Manual mode does not automatically erase test data. Its exclusive lease prevents a cooperating automated session from resetting data while the backend is running. Local backend data is separately namespaced and can remain in use.
 
 `test-cdc-run` remains an alias for env-controlled `test-run`. `test-search-run` enables CDC and search initialization for its process without editing env files. This can create/rebuild the derived test search index and adds background resource usage. With CDC intentionally disabled, the existing health indicator still reports DOWN; this health contract is unchanged. Reset endpoints remain opt-in outside production, guarded by a token and fixed synthetic identity.
 
-The lease file `.moodly-test.lock` is outside Maven `target/` so `clean` cannot unlink an active lock. OS locks are released when handles/processes close; do not delete the file to bypass a running session. Python manual mode and Java integration use overlapping OS file locks. Normal interruption terminates the launched backend process tree before releasing the manual lease. After forcibly killing only a launcher, verify no backend child process remains before starting automated tests. This is per checkout: do not run another checkout against the fixed test resources concurrently. Use separately allocated namespaces or a shared lease service if cross-checkout parallelism becomes necessary.
+The lease file `.moodly-test.lock` is outside Maven `target/` so `clean` cannot unlink an active lock. OS locks are released when handles/processes close; do not delete the file to bypass a running session. Manual and automated sessions acquire the same Java `FileLock` implementation. Normal interruption terminates the launched backend process tree before releasing the manual lease. After forcibly killing only a launcher, verify no backend child process remains before starting automated tests. This is per checkout: do not run another checkout against the fixed test resources concurrently. Use separately allocated namespaces or a shared lease service if cross-checkout parallelism becomes necessary.
 
-Only the operator stops shared services with `local-stop`/`local-down`; backend exits leave them running. The old test infrastructure management targets (`test-up`, `test-stop`, `test-down`, `test-clean`, `config-test`, and `validate-test`) and `compose.test.yaml` have been removed. Existing old test containers/volumes are not deleted by this migration. If any are still running, stop them explicitly when no longer needed; review volume deletion separately. `clean-mongodb.sh .env.test` uses the same lease and exact test database, with interactive confirmation.
+Only the operator stops shared services with `local-stop`/`local-down`; backend exits leave them running. The old test infrastructure management targets (`test-up`, `test-stop`, `test-down`, `test-clean`, `config-test`, and `validate-test`) and `compose.test.yaml` have been removed. Existing old test containers/volumes are not deleted by this migration. If any are still running, stop them explicitly when no longer needed; review volume deletion separately. `clean-mongodb.sh test` uses the same Java lease and exact test database, with interactive confirmation; `.env.test` is accepted as a legacy argument but its file is not read.
 
 ---
 

@@ -250,29 +250,40 @@ Never run a fault-injection or server-reconfiguration test against shared local 
 
 HTTP ports are 8080 for the local backend, 8081 for the manual test backend,
 and 8082 for the temporary OpenAPI documentation profile. This is a repository
-convention, not an additional environment or a mandatory framework standard.
+convention, not another deployment environment or a framework requirement.
 
-Infrastructure lives in `compose.local.yaml`. `.env.local` supplies local
-infrastructure coordinates, with `.env.local.example` as a fresh-checkout/CI fallback.
-`MOODLY_INFRA_ENV_FILE` can select an explicit infrastructure file. Real env files
-are migrated only for explicitly authorized non-secret keys; credential assignments
-are preserved byte-for-byte. `.env.test` supplies manual-test application
-settings (falling back to its example), including SERVER_PORT and the validated
-test database/index names, not authority to change shared infrastructure ports
-or bypass the cleanup allowlist. Existing
-old test ports and unqualified index names are no longer used by the harness.
+Infrastructure lives in `compose.local.yaml`. `.env.local` is the single runtime
+and infrastructure env source, with `.env.local.example` as the fresh-checkout/CI
+fallback. `MOODLY_INFRA_ENV_FILE` selects an explicit source. Local SERVER_PORT
+remains separate from MOODLY_MANUAL_TEST_PORT so both backends can run together.
+Manual mode inherits the local CDC/search/rate-limit settings unless the caller
+overrides them. Test resource identities are fixed as `moodly_test` and
+`daily_entries_search_test`; local namespaces must not collide with either.
 
-Reserved test names are `moodly_test` and `daily_entries_search_test`; env input
-selects them and a fixed code allowlist rejects any other cleanup target. Local
-configuration must not select either. Local/backend exit and integration cleanup
-leave `moodly-local` running. Explicit `make local-stop`/`local-down` affect every
-consumer, so stop them only when all sessions are finished. Volume deletion remains
-an explicitly confirmed operator action and is never part of automated tests.
+The shell entry points call `run-tooling.sh`, which compiles test-side Java tooling
+and resolves the project's existing dependency classpath through Maven Wrapper.
+`DevelopmentLauncher` handles operator commands and backend process lifetime.
+`SharedInfrastructure` handles dotenv parsing via Compose, readiness, target guards,
+and Java FileLock. The JUnit harness calls the same Java implementation directly;
+it does not launch Python or recursively invoke Maven. Neither class is packaged
+into the production application.
 
-The test lease is per checkout; run one checkout against these fixed test names at
-a time. Other applications sharing these engine instances must reserve different
-names and apply equivalent ownership rules. Production and hosted settings are
-outside this workstation migration.
+Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay.
+The tracked `.env.test.example` is removed. Preexisting ignored `.env.test` files
+are retained without reading/copying their credentials, but are no longer loaded.
+Move any desired manual-runtime override into the single local configuration or
+supply it explicitly for a command. Private retired files may be reviewed and
+removed separately; removing them is not necessary for resource savings.
+
+The shared Java lease remains in `.moodly-test.lock`, outside target/. Both manual
+and automated sessions use it. Local/backend exit and integration cleanup leave
+`moodly-local` running. Explicit local-stop/local-down affect every consumer.
+Volume deletion is never part of automated cleanup. The lease is per checkout;
+multiple checkouts/hosts need namespace allocation or an external coordinator.
+
+Python remains used for image smoke tests, OpenAPI JSON normalization, and CI report
+formatting. It is no longer required by local/manual infrastructure commands or
+Java integration. Production/hosted settings are outside this workstation migration.
 
 ## References
 
