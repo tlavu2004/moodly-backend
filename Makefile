@@ -1,5 +1,9 @@
 .DEFAULT_GOAL := help
 
+# Recipes use Bash syntax; native Windows Make otherwise defaults to cmd.exe.
+SHELL := bash
+.SHELLFLAGS := -eu -o pipefail -c
+
 infra_env = $(if $(MOODLY_INFRA_ENV_FILE),$(MOODLY_INFRA_ENV_FILE),$(if $(wildcard .env.local),.env.local,.env.local.example))
 compose = docker compose -p moodly-local --env-file "$(infra_env)" -f compose.local.yaml
 

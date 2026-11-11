@@ -318,7 +318,7 @@ docs/api/json/moodly-openapi.json
 
 ---
 
-Make targets and shell scripts use `./mvnw`. In PowerShell, use `.\mvnw.cmd`, for example `.\mvnw.cmd --version` or `.\mvnw.cmd test`. Make targets require a Bash-capable environment such as Git Bash or WSL. Use a Windows JDK in Git Bash and a Linux JDK with Docker integration in WSL. Bare `make` displays help.
+Make targets and shell scripts use `./mvnw`. The Makefile explicitly selects Bash because native Windows GNU Make otherwise defaults to cmd.exe, which cannot execute `./mvnw`. Run Make from Git Bash or WSL with Bash on PATH. In PowerShell, use `.\mvnw.cmd`, for example `.\mvnw.cmd --version` or `.\mvnw.cmd test`. Make targets require a Bash-capable environment such as Git Bash or WSL. Use a Windows JDK in Git Bash and a Linux JDK with Docker integration in WSL. Bare `make` displays help.
 
 ### Step 1: Clone Repository and Configure Environment
 
