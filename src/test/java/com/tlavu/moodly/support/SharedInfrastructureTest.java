@@ -29,6 +29,14 @@ class SharedInfrastructureTest {
 	}
 
 	@Test
+	void rejectsStoppedRestartingOrUnexpectedMongoStatesBeforePolling() {
+		SharedInfrastructure.validateMongoState("running");
+		for (String state : new String[] {"exited", "dead", "restarting", "paused", "", "unexpected"}) {
+			assertThatIllegalStateException().isThrownBy(() -> SharedInfrastructure.validateMongoState(state));
+		}
+	}
+
+	@Test
 	void acceptsDistinctLocalResources() {
 		SharedInfrastructure.validateResources("moodly", "daily_entries_search", "moodly_test", "daily_entries_search_test");
 	}

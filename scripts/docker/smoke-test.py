@@ -22,9 +22,25 @@ def docker(*args, check=True):
     return result
 
 
-def wait_for(label, probe, seconds=180):
+def assert_running(container):
+    # Inspect only state: do not collect container environment/credentials.
+    state = json.loads(docker("inspect", "--format", "{{json .State}}", container).stdout)
+    if not state["Running"] or state.get("Restarting", False):
+        raise RuntimeError(f"Fixture container stopped/restarting before readiness; exit={state['ExitCode']}")
+
+
+def mongo_shell(container, *arguments, check=True):
+    # docker exec can race the image entrypoint's chown of /data/db.
+    # Keep transient shell files outside that tree, even before mongod is ready.
+    return docker("exec", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh",
+                  container, "mongosh", "--quiet", *arguments, check=check)
+
+
+def wait_for(label, probe, seconds=180, container=None):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
+        if container is not None:
+            assert_running(container)
         if probe():
             print(f"PASS: {label}", flush=True)
             return
@@ -57,16 +73,18 @@ def main():
         docker("network", "create", prefix)
         mongo = start("mongodb", mongo_image, "mongod", "--replSet", "rs0", "--bind_ip_all",
                       options=("--tmpfs", "/data/db", "--tmpfs", "/data/configdb", "-e", mongo_tunables))
-        wait_for("MongoDB ping", lambda: docker(
-            "exec", mongo, "mongosh", "--quiet", "--eval",
+        wait_for("MongoDB ping", lambda: mongo_shell(
+            mongo, "--eval",
             "quit(db.adminCommand({ping:1}).ok ? 0 : 1)", check=False
-        ).returncode == 0)
-        docker("exec", mongo, "mongosh", "--quiet", "--eval",
+        ).returncode == 0, container=mongo)
+        mongo_shell(mongo, "--eval",
                'rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]})')
-        wait_for("MongoDB writable PRIMARY", lambda: docker(
-            "exec", mongo, "mongosh", "--quiet", "--eval",
+        wait_for("MongoDB writable PRIMARY", lambda: mongo_shell(
+            mongo, "--eval",
             "quit(db.hello().isWritablePrimary ? 0 : 1)", check=False
-        ).returncode == 0)
+        ).returncode == 0, container=mongo)
+        docker("exec", mongo, "sh", "-c", "test ! -e /data/db/.mongodb")
+        print("PASS: mongosh state stays outside MongoDB data", flush=True)
 
         search = start("elasticsearch", "docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2",
                        options=("-e", "discovery.type=single-node", "-e",

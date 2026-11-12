@@ -249,13 +249,20 @@ public final class SharedInfrastructure {
 		}
 	}
 
+	static void validateMongoState(String state) {
+		if (!"running".equals(state)) {
+			throw new IllegalStateException("MongoDB container stopped or is restarting before readiness; inspect startup diagnostics");
+		}
+	}
+
 	private static void startAndAwait(Configuration configuration) {
 		command(configuration, null, "up", "-d", "mongodb", "elasticsearch");
 		boolean ready = false;
 		IllegalStateException lastFailure = null;
 		for (int attempt = 0; attempt < 60; attempt++) {
+			validateMongoState(execute(List.of("docker", "inspect", "--format", "{{.State.Status}}", "moodly-mongodb-local"), null, null).strip());
 			try {
-				command(configuration, null, "exec", "-T", "mongodb", "sh", "-c",
+				command(configuration, null, "exec", "-T", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh", "mongodb", "sh", "-c",
 						"mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'");
 				ready = true;
 				break;
@@ -272,7 +279,7 @@ public final class SharedInfrastructure {
 			}
 		}
 		if (!ready) { throw new IllegalStateException("Timed out waiting for MongoDB after 60 readiness attempts", lastFailure); }
-		command(configuration, Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "mongodb", "sh", "-c",
+		command(configuration, Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh", "mongodb", "sh", "-c",
 				"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
 		command(configuration, null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
 	}
