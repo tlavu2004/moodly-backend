@@ -26,6 +26,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_DIR="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 
 ENV_FILENAME=${1:-".env.local"}
+# Test cleanup uses the shared lease and fixed namespace, never old env test ports.
+if [ "$ENV_FILENAME" = test ] || [ "$ENV_FILENAME" = .env.test ]; then
+  cd "$SERVICE_DIR"
+  exec bash scripts/docker/run-tooling.sh clean-test
+fi
 ENV_FILE="$SERVICE_DIR/$ENV_FILENAME"
 
 # Check for the selected environment file in service directory
@@ -77,15 +82,11 @@ if command -v mongosh >/dev/null 2>&1; then
 elif command -v docker >/dev/null 2>&1; then
   case "$ENV_FILENAME" in
     .env.local)
-      COMPOSE_FILE="docker-compose.local.yml"
+      COMPOSE_FILE="compose.local.yaml"
       COMPOSE_PROJECT="moodly-local"
       ;;
-    .env.test)
-      COMPOSE_FILE="docker-compose.test.yml"
-      COMPOSE_PROJECT="moodly-test"
-      ;;
     *)
-      echo -e "${RED}ERROR: mongosh is not installed, and no Docker Compose configuration is known for $ENV_FILENAME. Install mongosh or use .env.local/.env.test.${NC}" >&2
+      echo -e "${RED}ERROR: mongosh is not installed, and no Docker Compose configuration is known for $ENV_FILENAME. Install mongosh or use .env.local.${NC}" >&2
       exit 1
       ;;
   esac

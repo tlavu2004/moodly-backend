@@ -9,7 +9,7 @@ permissions:
 jobs:
   verify:
     name: Verify application and OpenAPI contract
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -28,7 +28,12 @@ jobs:
       - name: Make Maven Wrapper executable
         run: chmod +x mvnw
 
+      - name: Record runner kernel
+        run: uname -sr
+
       - name: Run tests
+        env:
+          MOODLY_INFRA_ENV_FILE: .env.local.example
         run: ./mvnw --batch-mode -Dmaven.test.redirectTestOutputToFile=true verify
 
       - name: Upload test diagnostics on failure

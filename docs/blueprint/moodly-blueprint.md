@@ -745,7 +745,7 @@ Run this plan before considering Phase 3 complete. Automated tests must use the 
 
 #### Deployment Preparation After Local Verification
 
-- [ ] Add `application-production.yaml` with environment-variable placeholders only. Keep `.env.local.example` and `.env.test.example` as local/test templates; do not create or commit `.env.production`.
+- [ ] Add `application-production.yaml` with environment-variable placeholders only. Keep `.env.local.example` as the shared runtime template and `application-test.yaml` as automated test configuration; do not create or commit `.env.production`.
 - [ ] Configure Render environment variables for the Auth0 issuer, API audience, and Cloudinary cloud name, API key, API secret, upload preset, root folder, and production CORS origin. Configure Vercel later with only public Auth0 client settings.
 - [ ] Add a deployment checklist covering Vercel, Render, Atlas, Bonsai, Auth0, and Cloudinary; do not put provider secrets in Compose files or source control.
 - [ ] Document free-tier limitations: Render may sleep, so CDC indexing can pause until the backend wakes and resumes; Bonsai sandbox and provider quotas are demo-grade; no component has an HA or backup guarantee in this plan.
@@ -810,7 +810,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 
 - [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
 - [ ] Complete the Pre-Deployment API Documentation and CI/CD Gate after Phase 3 local verification passes.
-- [ ] Keep the existing `.env.local.example` and `.env.test.example` as the templates for their respective local environments. Add `src/main/resources/application-production.yaml` with environment-variable placeholders only; do **not** create or commit a `.env.production` file. Render Dashboard is the source of production variable values. The production profile needs at least:
+- [ ] Keep `.env.local.example` as the single shared runtime template and `application-test.yaml` for deterministic automated test fixtures. Add `src/main/resources/application-production.yaml` with environment-variable placeholders only; do **not** create or commit a `.env.production` file. Render Dashboard is the source of production variable values. The production profile needs at least:
 
    ```dotenv
    SPRING_PROFILES_ACTIVE=production

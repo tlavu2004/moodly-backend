@@ -1,0 +1,70 @@
+# Moodly Backend — Render Blueprint (IaC)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: moodly-backend
+    runtime: docker
+    repo: https://github.com/tlavu2004/moodly-backend
+    region: singapore
+    plan: free
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      # Spring Profile
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+      # Web Server Port
+      - key: PORT
+        value: "8080"
+
+      # Attach Environment Group containing sensitive credentials
+      - fromGroup: moodly-secrets
+
+      # CDC and Search Projection Defaults
+      - key: MOODLY_ENTRIES_COLLECTION_NAME
+        value: daily_entries
+      - key: MOODLY_CDC_STREAM_ID
+        value: daily_entries
+      - key: MOODLY_CDC_ENABLED
+        value: "true"
+      - key: MOODLY_CDC_RETRY_MAX_ATTEMPTS
+        value: "3"
+      - key: MOODLY_CDC_RETRY_INITIAL_BACKOFF_MS
+        value: "200"
+      - key: MOODLY_CDC_REINDEX_BATCH_SIZE
+        value: "250"
+      - key: MOODLY_SEARCH_INDEX_NAME
+        value: daily_entries_search
+      - key: MOODLY_SEARCH_INDEX_MAPPING_RESOURCE
+        value: classpath:elasticsearch/daily_entries_search.json
+      - key: MOODLY_SEARCH_INDEX_INITIALIZATION_ENABLED
+        value: "true"
+
+      # Rate Limiting (Token Bucket)
+      - key: MOODLY_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: MOODLY_RATE_LIMIT_REQUESTS
+        value: "120"
+      - key: MOODLY_RATE_LIMIT_WINDOW
+        value: 60s
+      - key: MOODLY_RATE_LIMIT_MAX_SUBJECTS
+        value: "10000"
+
+      # Cloudinary CDN Configuration
+      - key: CLOUDINARY_FOLDER
+        value: moodly/prod
+      - key: CLOUDINARY_CONNECT_TIMEOUT
+        value: 2s
+      - key: CLOUDINARY_REQUEST_TIMEOUT
+        value: 5s
+
+      # CDC Maintenance Authority
+      - key: MOODLY_CDC_ADMIN_AUTHORITY
+        value: SCOPE_moodly:admin
+
+      # E2E Reset Endpoint (Hard-disabled on prod profile)
+      - key: MOODLY_E2E_RESET_ENABLED
+        value: "false"

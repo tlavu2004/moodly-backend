@@ -1,7 +1,14 @@
 HELP.md
 target/
+
+### Environment files ###
+.env
 .env.local
 .env.test
+.env.prod
+.env.production
+.env.docs
+
 docs/testing/bruno/moodly-local-verification/environments/local.bru
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -34,3 +41,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# OS lease for shared test namespaces (never commit or unlink while in use)
+.moodly-test.lock
+
+# Python tooling bytecode
+__pycache__/
+
+# Local infrastructure ownership registry (no credentials)
+.moodly-infrastructure/

@@ -1,11 +1,14 @@
 services:
   mongodb:
-    image: mongo:${MONGODB_VERSION}
+    image: mongo:${MONGODB_VERSION:?Set MONGODB_VERSION}
     container_name: moodly-mongodb-local
     restart: unless-stopped
+    labels:
+      io.moodly.local-database: ${MONGODB_DATABASE:-moodly_local}
     ports:
-      - "${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
+      - "127.0.0.1:${MONGODB_PORT}:${MONGODB_CONTAINER_PORT}"
     environment:
+      GLIBC_TUNABLES: ${MONGODB_GLIBC_TUNABLES:?Set MONGODB_GLIBC_TUNABLES}
       MONGODB_CONTAINER_PORT: ${MONGODB_CONTAINER_PORT}
       MONGODB_REPLICA_SET: ${MONGODB_REPLICA_SET}
       MONGODB_REPLICA_ADVERTISED_HOST: ${MONGODB_REPLICA_ADVERTISED_HOST}
@@ -22,6 +25,8 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
     container_name: moodly-elasticsearch-local
+    labels:
+      io.moodly.local-index: ${MOODLY_SEARCH_INDEX_NAME:-daily_entries_search}
     restart: unless-stopped
     environment:
       - discovery.type=single-node

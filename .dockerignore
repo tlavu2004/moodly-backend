@@ -2,11 +2,17 @@
 .github
 .idea
 .vscode
-.env.local
-.env.test
+**/.env*
+!**/.env*.example
 target
 docs
 src/test
 *.iml
 *.ipr
 *.iws
+
+.moodly-test.lock
+**/__pycache__
+
+# Local infrastructure ownership registry (no credentials)
+.moodly-infrastructure/

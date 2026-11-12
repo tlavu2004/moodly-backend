@@ -24,8 +24,8 @@ jobs:
   publish-image:
     name: Publish container image
     needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -50,16 +50,54 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha
+            type=sha,format=long
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push image
+      - name: Build and load image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test the release image
+        env:
+          SMOKE_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: python3 scripts/docker/smoke-test.py "$SMOKE_IMAGE"
+
+      - name: Push the tested image and record its digest
+        env:
+          IMAGE_METADATA: ${{ steps.meta.outputs.json }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          tags = json.loads(os.environ["IMAGE_METADATA"])["tags"]
+          for tag in tags:
+              subprocess.run(["docker", "push", tag], check=True)
+          image = json.loads(subprocess.check_output(["docker", "image", "inspect", tags[0]], text=True))[0]
+          digests = image["RepoDigests"]
+          if not digests:
+              raise RuntimeError("Published image has no repository digest")
+          record = {"commit": os.environ["GITHUB_SHA"], "tags": tags, "images": digests}
+          Path("release-image.json").write_text(json.dumps(record, indent=2) + "\n")
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
+              summary.write("## Verified release image\n\n")
+              summary.write(f"Commit: `{record['commit']}`\n\n")
+              summary.write("\n".join(f"- `{digest}`" for digest in digests) + "\n")
+          PY
+
+      - name: Upload release image record
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-image-${{ github.sha }}
+          path: release-image.json
+          retention-days: 90

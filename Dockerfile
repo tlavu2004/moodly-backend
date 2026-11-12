@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM maven:3.9.16-eclipse-temurin-25-alpine AS builder
+FROM maven:3.9.16-eclipse-temurin-25-alpine@sha256:781f1da87cd3d142e66e47cc149c4582a652fb7f574648206d1e956170c0dc90 AS builder
 WORKDIR /workspace
 
 COPY .mvn .mvn
@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw --batch-mode dependency:go-offlin
 COPY src src
 RUN --mount=type=cache,target=/root/.m2 ./mvnw --batch-mode package -DskipTests
 
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:25-jre-alpine@sha256:e1898fd6a11fc965a994d8ace186fd3585aeb636cf8f05f47a723fcfee0b0918
 WORKDIR /app
 
 RUN addgroup -S moodly && adduser -S moodly -G moodly
