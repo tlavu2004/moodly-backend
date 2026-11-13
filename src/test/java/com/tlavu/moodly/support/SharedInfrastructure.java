@@ -25,6 +25,7 @@ public final class SharedInfrastructure {
 	public static final String TEST_DATABASE = "moodly_test";
 	public static final String TEST_INDEX = "daily_entries_search_test";
 	public static final Path LOCK_FILE = Path.of(".moodly-test.lock");
+	public static final String BACKEND_CONTAINER = "moodly-backend-local-app";
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 	private static final Pattern ENV_KEY = Pattern.compile("^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*[=:]");
 
@@ -37,7 +38,7 @@ public final class SharedInfrastructure {
 		public String toString() { return "SharedInfrastructure.Configuration[envFile=" + envFile + "]"; }
 
 		public List<String> compose() {
-			return List.of("docker", "compose", "-p", "moodly-backend", "--env-file", envFile.toString(), "-f", "compose.local.yaml");
+			return List.of("docker", "compose", "-p", "moodly-backend-local", "--env-file", envFile.toString(), "-f", "compose.local.yaml");
 		}
 
 		public Map<String, String> testSettings() {
@@ -46,6 +47,13 @@ public final class SharedInfrastructure {
 					"MONGODB_REPLICA_SET", replicaSet, "MONGODB_DATABASE", TEST_DATABASE,
 					"ELASTICSEARCH_HOST", searchHost, "ELASTICSEARCH_PORT", searchPort,
 					"MOODLY_SEARCH_INDEX_NAME", TEST_INDEX);
+		}
+
+		public Map<String, String> containerOverrides(boolean manual) {
+			return Map.of("MOODLY_CONTAINER_MODE", manual ? "manual" : "local",
+					"MOODLY_CONTAINER_PROFILE", manual ? "compose-test" : "local",
+					"MOODLY_CONTAINER_DATABASE", manual ? TEST_DATABASE : localEnvironment.get("MONGODB_DATABASE"),
+					"MOODLY_CONTAINER_INDEX", manual ? TEST_INDEX : localEnvironment.get("MOODLY_SEARCH_INDEX_NAME"));
 		}
 
 		public Map<String, String> applicationEnvironment(boolean manual) {
@@ -167,7 +175,7 @@ public final class SharedInfrastructure {
 	}
 
 	private static String compose(Path file, String definition, String... arguments) {
-		List<String> invocation = new ArrayList<>(List.of("docker", "compose", "-p", "moodly-backend", "--env-file",
+		List<String> invocation = new ArrayList<>(List.of("docker", "compose", "-p", "moodly-backend-local", "--env-file",
 				file.toString(), "-f", definition == null ? "compose.local.yaml" : "-"));
 		invocation.addAll(List.of(arguments));
 		return execute(invocation, definition, null);
@@ -179,7 +187,17 @@ public final class SharedInfrastructure {
 		return execute(invocation, null, input);
 	}
 
+	public static String containerCommand(Configuration configuration, boolean manual, String... arguments) {
+		List<String> invocation = new ArrayList<>(configuration.compose());
+		invocation.addAll(List.of(arguments));
+		return execute(invocation, null, null, configuration.containerOverrides(manual));
+	}
+
 	private static String execute(List<String> invocation, String definition, Path input) {
+		return execute(invocation, definition, input, Map.of());
+	}
+
+	private static String execute(List<String> invocation, String definition, Path input, Map<String, String> overrides) {
 		try {
 			Path output = Files.createTempFile("moodly-tooling-", ".log");
 			Path errors = Files.createTempFile("moodly-tooling-errors-", ".log");
@@ -187,12 +205,15 @@ public final class SharedInfrastructure {
 				ProcessBuilder builder = new ProcessBuilder(invocation).redirectError(errors.toFile()).redirectOutput(output.toFile());
 				builder.environment().keySet().removeIf(key -> key.startsWith("MONGODB_")
 						|| key.startsWith("ELASTICSEARCH_") || key.equals("MOODLY_SEARCH_INDEX_NAME"));
+				int envArgument = invocation.indexOf("--env-file");
+				if (envArgument >= 0) { builder.environment().put("MOODLY_INFRA_ENV_FILE", invocation.get(envArgument + 1)); }
+				builder.environment().putAll(overrides);
 				if (input != null) { builder.redirectInput(input.toFile()); }
 				Process process = builder.start();
 				if (definition != null) {
 					try (var stdin = process.getOutputStream()) { stdin.write(definition.getBytes(StandardCharsets.UTF_8)); }
 				} else if (input == null) { process.getOutputStream().close(); }
-				if (!process.waitFor(180, TimeUnit.SECONDS)) {
+				if (!process.waitFor(invocation.contains("build") ? 1800 : 180, TimeUnit.SECONDS)) {
 					process.destroyForcibly();
 					throw new IllegalStateException("Docker Compose command timed out");
 				}
@@ -239,6 +260,32 @@ public final class SharedInfrastructure {
 				} else { progress(container + " state unavailable."); }
 			} catch (RuntimeException failure) { progress(container + " inspection failed (details suppressed)."); }
 		}
+	}
+
+	static void requireFreeBackendPort(String value) {
+		validatePort(value);
+		try (var socket = new java.net.ServerSocket()) {
+			socket.setReuseAddress(false);
+			socket.bind(new java.net.InetSocketAddress("127.0.0.1", Integer.parseInt(value)));
+		} catch (IOException failure) { throw new IllegalStateException("Backend HTTP port is occupied; stop the existing host/container backend first"); }
+	}
+
+	static boolean backendHealthy() {
+		return "healthy".equals(execute(List.of("docker", "inspect", "--format", "{{if .State.Health}}{{.State.Health.Status}}{{end}}", BACKEND_CONTAINER), null, null).strip());
+	}
+
+	static int backendExitCode() {
+		return Integer.parseInt(execute(List.of("docker", "inspect", "--format", "{{.State.ExitCode}}", BACKEND_CONTAINER), null, null).strip());
+	}
+
+	static String containerBackendMode(Configuration configuration) {
+		if (command(configuration, null, "ps", "--all", "--quiet", "backend").isBlank()) { return ""; }
+		JsonNode state = JSON.readTree(execute(List.of("docker", "inspect", "--format", "{{json .State}}", BACKEND_CONTAINER), null, null));
+		if (!state.path("Running").asBoolean() && !state.path("Restarting").asBoolean()) { return ""; }
+		JsonNode labels = JSON.readTree(execute(List.of("docker", "inspect", "--format", "{{json .Config.Labels}}", BACKEND_CONTAINER), null, null));
+		String mode = labels.path("io.moodly.backend.mode").asText();
+		if (Set.of("local", "manual").contains(mode)) { return mode; }
+		throw new IllegalStateException("Unexpected backend container ownership label");
 	}
 
 	public static void start(Configuration configuration) {

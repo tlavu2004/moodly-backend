@@ -33,7 +33,10 @@ public final class DevelopmentLauncher {
 					if (!"yes".equals(System.getenv("CONFIRM"))) { throw new IllegalStateException("Volume deletion requires CONFIRM=yes"); }
 					InfrastructureSessions.forConfiguration(configuration).operator("clean");
 				}
-				case "local", "manual" -> System.exit(runBackend(configuration, args[0].equals("manual"), args.length > 1 && args[1].equals("build")));
+				case "local", "manual", "container", "container-test" -> System.exit(runBackend(configuration,
+						args[0].equals("manual") || args[0].equals("container-test"), args.length > 1 && args[1].equals("build"), args[0].startsWith("container")));
+				case "container-build" -> { SharedInfrastructure.progress("Building local backend container image..."); SharedInfrastructure.command(configuration, null, "build", "backend"); }
+				case "container-stop" -> InfrastructureSessions.forConfiguration(configuration).stopBackend();
 				case "clean-test" -> {
 					try (var lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE)) {
 						System.out.print("Drop reserved MongoDB database moodly_test? Type yes: ");
@@ -67,9 +70,9 @@ public final class DevelopmentLauncher {
 		return port;
 	}
 
-	private static int runBackend(SharedInfrastructure.Configuration configuration, boolean manual, boolean build) throws Exception {
+	private static int runBackend(SharedInfrastructure.Configuration configuration, boolean manual, boolean build, boolean container) throws Exception {
 		SharedInfrastructure.progress("Preparing " + (manual ? "manual test" : "local") + " backend session...");
-		try (var run = new BackendRun(configuration, manual)) {
+		try (var run = new BackendRun(configuration, manual, container)) {
 			run.open();
 			if (build) {
 				SharedInfrastructure.progress("Building backend...");
@@ -77,6 +80,7 @@ public final class DevelopmentLauncher {
 				if (result != 0) { return result; }
 			}
 			SharedInfrastructure.progress("Launching " + (manual ? "manual test" : "local") + " backend on port " + run.environment.get("SERVER_PORT") + "...");
+			if (container) { return run.container(); }
 			return run.maven("-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false", "spring-boot:run");
 		}
 	}
@@ -84,6 +88,8 @@ public final class DevelopmentLauncher {
 	private static final class BackendRun implements AutoCloseable {
 		private final SharedInfrastructure.Configuration configuration;
 		private final boolean manual;
+		private final boolean container;
+		private boolean containerAttempted;
 		private final Map<String, String> environment;
 		private InfrastructureSessions.Session infrastructure;
 		private SharedInfrastructure.TestLease testLease;
@@ -92,9 +98,10 @@ public final class DevelopmentLauncher {
 		private boolean backendStarted;
 		private boolean closed;
 
-		BackendRun(SharedInfrastructure.Configuration configuration, boolean manual) {
+		BackendRun(SharedInfrastructure.Configuration configuration, boolean manual, boolean container) {
 			this.configuration = configuration;
 			this.manual = manual;
+			this.container = container;
 			this.environment = configuration.applicationEnvironment(manual);
 			interruptResult("running");
 			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -103,6 +110,7 @@ public final class DevelopmentLauncher {
 		}
 
 		void open() {
+			SharedInfrastructure.requireFreeBackendPort(environment.get("SERVER_PORT"));
 			synchronized (this) {
 				if (closed) { throw new IllegalStateException("Backend session has closed"); }
 				if (manual) { testLease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE); }
@@ -115,6 +123,26 @@ public final class DevelopmentLauncher {
 				ready = true;
 				if (manual) { SharedInfrastructure.resetTestData(configuration); }
 			}
+		}
+
+		int container() throws Exception {
+			synchronized (this) {
+				if (closed) { throw new IllegalStateException("Backend session has closed"); }
+				containerAttempted = true;
+				SharedInfrastructure.progress("Starting backend container; waiting for health...");
+				SharedInfrastructure.containerCommand(configuration, manual, "up", "--no-build", "--no-deps", "-d", "backend");
+				backendStarted = true;
+			}
+			boolean healthy = false;
+			for (int attempt = 0; attempt < 120; attempt++) {
+				if (SharedInfrastructure.containerBackendMode(configuration).isEmpty()) { throw new IllegalStateException("Backend container exited before health readiness; inspect local-container-logs"); }
+				if (SharedInfrastructure.backendHealthy()) { healthy = true; break; }
+				Thread.sleep(1000);
+			}
+			if (!healthy) { throw new IllegalStateException("Backend container health timed out; inspect local-container-logs"); }
+			SharedInfrastructure.progress("Backend container healthy; Ctrl+C stops this session. Use make local-container-logs for application logs.");
+			while (!SharedInfrastructure.containerBackendMode(configuration).isEmpty()) { Thread.sleep(1000); }
+			return SharedInfrastructure.backendExitCode();
 		}
 
 		int maven(String... arguments) throws Exception {
@@ -140,11 +168,14 @@ public final class DevelopmentLauncher {
 			if (closed) { return; }
 			closed = true;
 			if (backendStarted) { SharedInfrastructure.progress("Stopping backend..."); }
-			if (child != null) { stopTree(child); }
-			if (backendStarted) { SharedInfrastructure.progress("Backend stopped."); }
 			RuntimeException failure = null;
-			try { if (manual && ready) { SharedInfrastructure.resetTestData(configuration); } }
-			catch (RuntimeException cleanup) { failure = cleanup; }
+			if (child != null) { stopTree(child); }
+			try {
+				if (container && containerAttempted) { SharedInfrastructure.command(configuration, null, "stop", "-t", "30", "backend"); }
+				if (backendStarted) { SharedInfrastructure.progress("Backend stopped."); }
+			} catch (RuntimeException stopFailure) { failure = stopFailure; }
+			try { if (manual && ready && failure == null) { SharedInfrastructure.resetTestData(configuration); } }
+			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
 			try { if (infrastructure != null) { infrastructure.close(); } }
 			catch (RuntimeException cleanup) { if (failure == null) { failure = cleanup; } else { failure.addSuppressed(cleanup); } }
 			try { if (testLease != null) { testLease.close(); } }

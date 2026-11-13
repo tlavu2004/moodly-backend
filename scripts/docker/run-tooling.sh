@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 backend_mode=false
-case "${1:-}" in local|manual) backend_mode=true ;; esac
+case "${1:-}" in local|manual|container|container-test) backend_mode=true ;; esac
 interrupted=false
 if [ "$backend_mode" = true ]; then
   mkdir -p target

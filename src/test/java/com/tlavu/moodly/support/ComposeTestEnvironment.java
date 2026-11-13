@@ -63,7 +63,7 @@ final class ComposeTestEnvironment {
 				if (closed) { throw new IllegalStateException("Test session has closed"); }
 				initialized = true;
 			}
-			System.out.println("Integration tests use reserved test namespaces on shared stack moodly-backend.");
+			System.out.println("Integration tests use reserved test namespaces on shared stack moodly-backend-local.");
 		} catch (RuntimeException failure) {
 			try { close(); } catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
 			throw failure;

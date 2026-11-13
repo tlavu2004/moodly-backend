@@ -5,12 +5,16 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 infra_env = $(if $(MOODLY_INFRA_ENV_FILE),$(MOODLY_INFRA_ENV_FILE),$(if $(wildcard .env.local),.env.local,.env.local.example))
-compose = docker compose -p moodly-backend --env-file "$(infra_env)" -f compose.local.yaml
+compose = MOODLY_INFRA_ENV_FILE="$(infra_env)" docker compose -p moodly-backend-local --env-file "$(infra_env)" -f compose.local.yaml
 
 .PHONY: help
 define help_text
 Backend
   make local-run / test-run               Run the local or isolated test backend on shared infrastructure
+  make local-container-build              Build the local backend Docker image
+  make local-container-run / test-container-run  Run the backend container (foreground owner)
+  make local-container-stop               Recover/stop an orphaned backend container
+  make local-container-logs               Follow backend container logs
   make local-build-run / test-build-run   Build before running the backend
   make test-cdc-run                       Alias for test-run
   make test-search-run                    Manual test backend with CDC and search enabled
@@ -108,3 +112,16 @@ config-local:
 
 validate-local:
 	$(compose) config --quiet
+
+.PHONY: local-container-build local-container-run test-container-run local-container-build-run local-container-stop local-container-logs
+local-container-build:
+	bash scripts/docker/run-tooling.sh container-build
+local-container-run:
+	bash scripts/docker/run-tooling.sh container
+test-container-run:
+	bash scripts/docker/run-tooling.sh container-test
+local-container-build-run: local-container-build local-container-run
+local-container-stop:
+	bash scripts/docker/run-tooling.sh container-stop
+local-container-logs:
+	$(compose) logs -f backend

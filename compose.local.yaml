@@ -1,4 +1,4 @@
-name: moodly-backend
+name: moodly-backend-local
 
 services:
   mongodb:
@@ -43,6 +43,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 18
+
+  backend:
+    profiles: [backend]
+    image: moodly-backend:local
+    build:
+      context: .
+    container_name: moodly-backend-local-app
+    init: true
+    restart: "no"
+    stop_grace_period: 30s
+    labels:
+      io.moodly.backend.mode: ${MOODLY_CONTAINER_MODE:-local}
+    env_file:
+      - ${MOODLY_INFRA_ENV_FILE:-.env.local.example}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${MOODLY_CONTAINER_PROFILE:-local}
+      SERVER_PORT: "8080"
+      MONGODB_DATABASE: ${MOODLY_CONTAINER_DATABASE:-${MONGODB_DATABASE}}
+      MOODLY_SEARCH_INDEX_NAME: ${MOODLY_CONTAINER_INDEX:-${MOODLY_SEARCH_INDEX_NAME}}
+      SPRING_MONGODB_URI: mongodb://mongodb:${MONGODB_CONTAINER_PORT}/${MOODLY_CONTAINER_DATABASE:-${MONGODB_DATABASE}}?replicaSet=${MONGODB_REPLICA_SET}&directConnection=true
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:${ELASTICSEARCH_CONTAINER_PORT}
+    ports:
+      - "127.0.0.1:${SERVER_PORT}:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
 
 # Keep existing physical volume identities when changing the Compose project.
 volumes:
