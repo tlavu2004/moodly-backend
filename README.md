@@ -338,7 +338,7 @@ The local template supplies non-secret infrastructure defaults. Edit `.env.local
 
 ### Step 2: Start Infrastructure & Run the Application
 
-One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The Compose project is `moodly-backend`; established local container and volume names are preserved. Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
+One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The Compose project is `moodly-backend-local`; established local container and volume names are preserved. The optional backend container and host/container lifecycle are documented in [Backend Execution Modes](docs/testing/backend-execution-modes.md). Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
 
 #### Option A: Using Make (Recommended)
 
@@ -603,7 +603,7 @@ The shell entry points are thin adapters to `scripts/docker/run-tooling.sh`. It 
 
 See [the reusable architecture and migration guide](docs/architecture/shared-infrastructure-isolation.md) for engine/framework alternatives, resource ownership, concurrency, safety limits, and operation details.
 
-There is one workstation infrastructure project: `moodly-backend`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
+There is one workstation infrastructure project: `moodly-backend-local`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
 
 ```bash
 make local-up           # explicit keep-alive pin; not needed before tests

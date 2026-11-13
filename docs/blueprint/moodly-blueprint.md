@@ -563,7 +563,7 @@ Run this test plan before considering Phase 2 complete. Automated tests must not
 
 1. Run fast unit and web-slice tests on every change.
 2. Run the MongoDB + Elasticsearch Testcontainers suite for CDC/search changes and in CI.
-3. Run the manual outage/restart/reindex scenarios against `moodly-backend` before the Phase 2 squash merge.
+3. Run the manual outage/restart/reindex scenarios against `moodly-backend-local` before the Phase 2 squash merge.
 4. Mark the existing Phase 2 verification checkbox complete only after the automated and manual sections above pass.
 
 #### CDC Trade-offs
@@ -740,7 +740,7 @@ Run this plan before considering Phase 3 complete. Automated tests must use the 
 
 1. Run the fast Auth0/Cloudinary unit and web integration tests on every related code change.
 2. Run the complete Maven suite, including MongoDB/Elasticsearch Testcontainers, before merging the Phase 3 branch.
-3. Resolve Auth0 JWKS connectivity, then execute the two-user manual hosted-service scenarios against `moodly-backend` in the order above.
+3. Resolve Auth0 JWKS connectivity, then execute the two-user manual hosted-service scenarios against `moodly-backend-local` in the order above.
 4. Mark the existing local-backend verification checkboxes and the `test(auth)` checkpoint complete only after the automated suite and all applicable manual checks pass.
 
 #### Deployment Preparation After Local Verification

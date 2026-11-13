@@ -12,7 +12,7 @@ This is a design and operational guide, not a universal framework or a claim tha
 
 On a developer workstation, prefer one infrastructure stack when applications need the same compatible engine versions and tests run sequentially. Allocate explicit resources to each application and purpose. Preserve production on separate hosted infrastructure and credentials. Use fresh infrastructure on CI runners.
 
-For Moodly, use project `moodly-backend` and `compose.local.yaml` for MongoDB and Elasticsearch. Local keeps its existing configured database/index. Automated and manual test sessions own database `moodly_test` and index `daily_entries_search_test`. These names are reserved and disposable. Data cleanup deletes only those exact resources. Infrastructure cleanup separately stops automatically owned services after the final consumer exits, while preserving preexisting or explicitly pinned services. Manual test and automated test sessions acquire the same exclusive lease.
+For Moodly, use project `moodly-backend-local` and `compose.local.yaml` for MongoDB and Elasticsearch. Local keeps its existing configured database/index. Automated and manual test sessions own database `moodly_test` and index `daily_entries_search_test`. These names are reserved and disposable. Data cleanup deletes only those exact resources. Infrastructure cleanup separately stops automatically owned services after the final consumer exits, while preserving preexisting or explicitly pinned services. Manual test and automated test sessions acquire the same exclusive lease.
 
 ```mermaid
 flowchart LR

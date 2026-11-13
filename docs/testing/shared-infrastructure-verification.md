@@ -8,7 +8,7 @@ The later automatic shutdown contract is verified in [Session Ownership Verifica
 
 Verification performed on 2026-11-11 on Windows 11 with Docker Desktop, Java 25,
 Maven Wrapper 3.9.16, Python 3, and Git Bash. This change retains one workstation
-Compose project, `moodly-backend`, and reserves `moodly_test` /
+Compose project, `moodly-backend-local`, and reserves `moodly_test` /
 `daily_entries_search_test` for disposable test data. No real env file was edited.
 No retained local volume or old test volume was deleted. No image was published
 and no Render/GitHub service setting was changed.
@@ -96,13 +96,16 @@ and `application-test.yaml` are not obsolete merely because infrastructure is sh
 
 ## Compose Project Rename
 
-The workstation project is `moodly-backend`. Container names stay unchanged. The physical MongoDB and Elasticsearch volume names retain their `moodly-local_` prefix explicitly in Compose so this rename does not select empty databases. This legacy storage prefix does not create a second running stack.
+The workstation project is `moodly-backend-local`. Container names stay unchanged. The physical MongoDB and Elasticsearch volume names retain their `moodly-local_` prefix explicitly in Compose so this rename does not select empty databases. This legacy storage prefix does not create a second running stack.
 
 Before migrating an existing checkout, close backend/test sessions and confirm the ownership registry has no active consumers. Remove the old containers and network without `-v`, then use the normal launcher:
 
 ```bash
-docker compose -p moodly-local --env-file .env.local -f compose.local.yaml down
+# For the earlier project; use -p moodly-local if migrating that older name.
+docker compose -p moodly-backend --env-file .env.local -f compose.local.yaml down
 make local-run
 ```
 
-Do not use `down -v` or volume prune for this migration. Check Docker Desktop shows `moodly-backend` and that the service mounts still reference the original named volumes. Fresh checkouts use the same stable volume names. Timezone, CORS, documentation language cleanup, and Render/release changes are separate work.
+Do not use `down -v` or volume prune for this migration. Check Docker Desktop shows `moodly-backend-local` and that the service mounts still reference the original named volumes. Fresh checkouts use the same stable volume names. Timezone, CORS, documentation language cleanup, and Render/release changes are separate work.
+
+See [Backend Execution Modes](backend-execution-modes.md) for the optional backend profile, host/container exclusivity, and orphan recovery.
