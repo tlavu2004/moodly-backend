@@ -37,7 +37,7 @@ public final class SharedInfrastructure {
 		public String toString() { return "SharedInfrastructure.Configuration[envFile=" + envFile + "]"; }
 
 		public List<String> compose() {
-			return List.of("docker", "compose", "-p", "moodly-local", "--env-file", envFile.toString(), "-f", "compose.local.yaml");
+			return List.of("docker", "compose", "-p", "moodly-backend", "--env-file", envFile.toString(), "-f", "compose.local.yaml");
 		}
 
 		public Map<String, String> testSettings() {
@@ -167,7 +167,7 @@ public final class SharedInfrastructure {
 	}
 
 	private static String compose(Path file, String definition, String... arguments) {
-		List<String> invocation = new ArrayList<>(List.of("docker", "compose", "-p", "moodly-local", "--env-file",
+		List<String> invocation = new ArrayList<>(List.of("docker", "compose", "-p", "moodly-backend", "--env-file",
 				file.toString(), "-f", definition == null ? "compose.local.yaml" : "-"));
 		invocation.addAll(List.of(arguments));
 		return execute(invocation, definition, null);

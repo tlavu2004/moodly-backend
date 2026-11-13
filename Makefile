@@ -5,7 +5,7 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 infra_env = $(if $(MOODLY_INFRA_ENV_FILE),$(MOODLY_INFRA_ENV_FILE),$(if $(wildcard .env.local),.env.local,.env.local.example))
-compose = docker compose -p moodly-local --env-file "$(infra_env)" -f compose.local.yaml
+compose = docker compose -p moodly-backend --env-file "$(infra_env)" -f compose.local.yaml
 
 .PHONY: help
 define help_text
