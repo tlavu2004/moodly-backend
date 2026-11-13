@@ -31,6 +31,9 @@ jobs:
       - name: Record runner kernel
         run: uname -sr
 
+      - name: Test smoke readiness failure paths
+        run: python3 -m unittest discover -s scripts/docker -p test_smoke_test.py
+
       - name: Run tests
         env:
           MOODLY_INFRA_ENV_FILE: .env.local.example

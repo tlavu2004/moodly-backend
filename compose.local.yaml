@@ -17,7 +17,7 @@ services:
     volumes:
       - moodly-mongodb-local-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --host ${MONGODB_CONTAINER_HOST}:${MONGODB_CONTAINER_PORT} --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'"]
+      test: ["CMD-SHELL", "HOME=/tmp XDG_CONFIG_HOME=/tmp/moodly-mongosh mongosh --quiet --host ${MONGODB_CONTAINER_HOST}:${MONGODB_CONTAINER_PORT} --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'"]
       interval: 5s
       timeout: 5s
       retries: 12

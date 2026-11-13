@@ -39,7 +39,7 @@ public final class DevelopmentLauncher {
 						System.out.print("Drop reserved MongoDB database moodly_test? Type yes: ");
 						String response = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
 						if ("yes".equals(response)) {
-							SharedInfrastructure.command(configuration, null, "exec", "-T", "mongodb", "mongosh", "--quiet",
+							SharedInfrastructure.command(configuration, null, "exec", "-T", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh", "mongodb", "mongosh", "--quiet",
 									"--port", configuration.mongoContainerPort(), "--eval",
 									"if (!db.getSiblingDB('moodly_test').dropDatabase().ok) { quit(1); }");
 							System.out.println("Reserved test database cleared; search may need reindexing");
