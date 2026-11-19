@@ -120,7 +120,8 @@ local-container-run:
 	bash scripts/docker/run-tooling.sh container
 test-container-run:
 	bash scripts/docker/run-tooling.sh container-test
-local-container-build-run: local-container-build local-container-run
+local-container-build-run: local-container-build
+	$(MAKE) local-container-run
 local-container-stop:
 	bash scripts/docker/run-tooling.sh container-stop
 local-container-logs:
