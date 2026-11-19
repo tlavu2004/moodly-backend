@@ -101,6 +101,26 @@ class SharedInfrastructureTest {
 	}
 
 	@Test
+	void containerOverridesPreserveLocalAndReserveManualTestTargets() {
+		var configuration = new SharedInfrastructure.Configuration(Path.of("synthetic.env"), Map.of(
+				"MONGODB_DATABASE", "moodly", "MOODLY_SEARCH_INDEX_NAME", "daily_entries_search"),
+				"localhost", "27017", "27017", "rs0", "localhost", "9200");
+		assertThat(configuration.containerOverrides(false)).containsEntry("MOODLY_CONTAINER_DATABASE", "moodly")
+				.containsEntry("MOODLY_CONTAINER_MODE", "local");
+		assertThat(configuration.containerOverrides(true)).containsEntry("MOODLY_CONTAINER_DATABASE", "moodly_test")
+				.containsEntry("MOODLY_CONTAINER_INDEX", "daily_entries_search_test")
+				.containsEntry("MOODLY_CONTAINER_PROFILE", "compose-test")
+				.containsEntry("MOODLY_CONTAINER_MODE", "manual");
+	}
+
+	@Test
+	void occupiedHttpPortIsRejectedBeforeStartingDependencies() throws Exception {
+		try (var occupied = new java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))) {
+			assertThatIllegalStateException().isThrownBy(() -> SharedInfrastructure.requireFreeBackendPort(Integer.toString(occupied.getLocalPort())));
+		}
+	}
+
+	@Test
 	void leaseRejectsContentionAndCanBeReacquiredAfterRelease() {
 		Path file = temporary.resolve("lease.lock");
 		try (var lease = SharedInfrastructure.lease(file)) {

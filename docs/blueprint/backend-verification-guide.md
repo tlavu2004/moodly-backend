@@ -24,7 +24,7 @@ make local-run
 
 If the collection was updated, close and reopen it in Bruno to load the new requests.
 
-## 2. Authentication conventions
+## 2. Authentication Conventions
 
 | Request group                                                              | Configuration                                                        |
 |----------------------------------------------------------------------------|----------------------------------------------------------------------|
@@ -40,7 +40,7 @@ Auth0 is the only system that signs up users, logs them in, and issues tokens. O
 
 Deleting MongoDB alone does not delete an Auth0 account or Auth0 browser session. `PUT /auth/profile` recreates an empty application profile after a MongoDB reset. To test as a completely new person, use or delete the corresponding Auth0 test account as well.
 
-### Select the correct user before sending requests
+### Select the Correct User Before Sending Requests
 
 - **User A**: use the collection OAuth token for sections 5, 6, 8, 9, 11, and 12, and when writing the daily entry in section 13.2.
 - **User B**: use the request-level OAuth flow for the ownership checks in sections 7 and 10. The B requests use `prompt=login`; sign in with the B account when Auth0 asks. Do not overwrite the collection token for user A.
@@ -58,7 +58,7 @@ Successful responses use this envelope:
 }
 ```
 
-## 3. Health check
+## 3. Health Check
 
 Run `01 - Health/Health`.
 
@@ -70,7 +70,7 @@ Required result:
 
 If health is not ready, stop business-flow testing and fix the local infrastructure first.
 
-## 4. Negative authentication checks
+## 4. Negative Authentication Checks
 
 Run, in order:
 
@@ -83,7 +83,7 @@ Testing wrong issuer, wrong audience, and expired JWTs requires deliberately inv
 
 The collection also provides `Expired token is unauthorized`, `Invalid signature token is unauthorized`, `Wrong issuer token is unauthorized`, and `Wrong audience token is unauthorized`. Add the corresponding disposable values only to the ignored local Bruno environment as `expiredAccessToken`, `invalidSignatureAccessToken`, `wrongIssuerAccessToken`, and `wrongAudienceAccessToken`. Each request must return `401`. Do not paste these values into this guide, a committed `.bru` file, or chat.
 
-### 4.1 Local Bruno variable convention
+### 4.1 Local Bruno Variable Convention
 
 The ignored `environments/local.bru` now contains empty placeholders for all four test-token variables and a numeric `incorrectAvatarVersion` default of `999999999`. Leave the token placeholders empty until immediately before their corresponding test; clear them again after the run. `incorrectAvatarVersion` must be a positive integer different from the actual `avatarVersion` returned by Cloudinary; replace the default only if it happens to match.
 
@@ -97,21 +97,21 @@ The ignored `environments/local.bru` now contains empty placeholders for all fou
 
 To obtain the different-audience token without changing the user-A or user-B credential, first create a disposable Auth0 API with identifier `https://api.moodly-wrong-audience.local` and RS256 signing. Then run `Acquire wrong-audience token`; it uses the separate `moodly-wrong-audience-local` OAuth credential and must itself receive `401` from Moodly. Copy its acquired access token into the local Bruno Secret `wrongAudienceAccessToken` only when you also want to run the separate raw-Bearer request.
 
-## 5. User A habits and daily entries
+## 5. User a Habits and Daily Entries
 
-### 5.1 Bootstrap the application profile
+### 5.1 Bootstrap the Application Profile
 
 Sign in as **user A**, then run `02 - Habits and Entries/Bootstrap authenticated profile`.
 
 Expect HTTP `200`, `success: true`, `data.userId` equal to the Auth0 JWT `sub`, and a normalized email when the token contains an `email` claim. Running the request a second time must return the same profile without creating a duplicate `users` document.
 
-### 5.2 Create a habit
+### 5.2 Create a Habit
 
 Continue as user A and run `02 - Habits and Entries/Create habit`.
 
 Expect HTTP `201 Created`, a habit named `Exercise`, and `active: true`. Bruno automatically stores `data.id` in `habitId` in the `local` environment; check that variable before running requests that use `{{habitId}}`.
 
-### 5.3 Read and update today's data
+### 5.3 Read and Update Today's Data
 
 Run in order:
 
@@ -123,7 +123,7 @@ Run in order:
 
 Date-range requests must use a `to` date no later than today and include the date that was written. Update the Bruno request when testing on a different date.
 
-## 6. Statistics and Elasticsearch search
+## 6. Statistics and Elasticsearch Search
 
 Continue as **user A**.
 
@@ -137,7 +137,7 @@ Verify that the mood trend contains the submitted data, most-missed returns a va
 
 Search uses CDC and is eventually consistent. If data is not visible, wait a few seconds and retry. If it is still absent, check health, run `Rebuild CDC index`, and search again. Reindexing must not create duplicate documents.
 
-## 7. User A and user B isolation
+## 7. User a and User B Isolation
 
 Keep the data created by user A, then run these requests as **user B**:
 
@@ -146,7 +146,7 @@ Keep the data created by user A, then run these requests as **user B**:
 
 Both may return HTTP `200`, but their payloads must not contain the `Exercise` habit, the `tired` note/tag, or any other user A data. An empty list is correct when user B has no data of its own.
 
-### 7.1 Complete the reciprocal check
+### 7.1 Complete the Reciprocal Check
 
 Run the added user-B requests in this order: `User B bootstrap authenticated profile`, `User B creates isolated habit`, `User B writes isolated entry`, `User B entries are isolated`, and `User B statistics are isolated`. They create data whose unique note is `userbzephyrneedle`.
 
@@ -154,7 +154,7 @@ Switch back to the collection user-A credential and run `User A cannot see User 
 
 For final storage evidence, inspect only the local development databases: the `users` collection must have distinct `auth0Subject` values for A and B and no credential/session/password fields; the corresponding Elasticsearch documents must carry the same owner user ID. The API must not expose a query parameter that changes the caller's user ID.
 
-## 8. Negative avatar validation
+## 8. Negative Avatar Validation
 
 Switch back to **user A**.
 
@@ -165,29 +165,29 @@ Run:
 
 The backend accepts only `image/jpeg`, `image/png`, and `image/webp`, from 1 byte through `5242880` bytes.
 
-## 9. Valid avatar upload
+## 9. Valid Avatar Upload
 
-### 9.1 Request a signed upload payload
+### 9.1 Request a Signed Upload Payload
 
 Run `04 - Avatar/Request avatar upload signature`. Bruno saves `uploadUrl`, `apiKey`, `timestamp`, `signature`, `publicId`, and `uploadPreset` as temporary environment variables; it also persists `publicId` for the confirm request.
 
-### 9.2 Upload directly to Cloudinary
+### 9.2 Upload Directly to Cloudinary
 
 Run `04 - Avatar/Upload avatar to Cloudinary`. Before the first run, open **Body → Multipart Form**, add a `file` field of type **File**, and select a JPG, PNG, or WebP no larger than 5 MiB. The Cloudinary text fields already use variables from section 9.1. The request saves Cloudinary's returned `public_id` and `version` to `publicId` and `avatarVersion` in the `local` environment.
 
 Never put `CLOUDINARY_API_SECRET` in Bruno. Cloudinary must return HTTP `200` with `public_id`, `version`, `format`, `bytes`, and `secure_url`.
 
-### 9.3 Confirm and read the avatar
+### 9.3 Confirm and Read the Avatar
 
 After a successful upload, `publicId` and `avatarVersion` are already updated. Run `Confirm uploaded avatar`, then `Get current avatar`. Metadata must match Cloudinary and `deliveryUrl` must open successfully.
 
-### 9.4 Confirmation negative cases
+### 9.4 Confirmation Negative Cases
 
 Run `Reject fabricated avatar public ID` against any current avatar public ID; it must return `400`. To exercise the separate version-mismatch path, request a fresh signature and upload the asset directly to Cloudinary, but **do not confirm it**. Its pending upload must still exist. Set the ignored local `incorrectAvatarVersion` variable to a positive number different from that fresh upload response's `version`, then run `Reject altered avatar version`. It must return `400` for the version mismatch, and `Get current avatar` must still show the prior confirmed metadata. Do not confirm the test asset afterward; leave it for the abandoned-upload cleanup test.
 
 The remaining hosted confirmation cases need controlled Cloudinary fixtures: an expired pending upload, a public ID outside the caller namespace, a disallowed Cloudinary format, and an asset whose confirmed metadata exceeds 5 MiB. Run each only with disposable local media and verify the avatar remains unchanged. The automated suite already covers these cases with mocked Cloudinary metadata; do not manufacture an oversized or unsupported production asset merely for this local verification.
 
-## 10. Avatar ownership between users
+## 10. Avatar Ownership Between Users
 
 Create a new signed upload and upload an image as user A, but do not confirm it yet. Keep its `publicId` in the environment, then run `05 - Security and CDC/User B cannot confirm User A avatar` as **user B**.
 
@@ -195,7 +195,7 @@ The request must return HTTP `400` with an ownership error. User B must not conf
 
 A Cloudinary signed upload payload is intentionally a short-lived bearer capability for its fixed `public_id`; Cloudinary cannot infer which browser user sends it. Therefore, do not treat a leaked user-A signature as an Auth0 authorization test. The application-level invariant is that user B cannot ask Moodly to issue a user-A public ID, cannot confirm that public ID, and cannot replace or delete user A's persisted avatar. Keep upload signatures private and short-lived; after the ownership test, confirm or allow cleanup to remove the pending asset.
 
-## 11. Replace an avatar and delete the previous asset
+## 11. Replace an Avatar and Delete the Previous Asset
 
 Switch back to **user A**.
 
@@ -207,7 +207,7 @@ Switch back to **user A**.
 
 The profile must return the new avatar, the backend must delete the previous asset, and the new asset must remain available.
 
-## 12. Clean up an abandoned upload
+## 12. Clean Up an Abandoned Upload
 
 1. Request a new signed upload payload.
 2. Upload a file but do not call confirm.
@@ -218,9 +218,9 @@ The profile must return the new avatar, the backend must delete the previous ass
 
 This is a long-running test and can run while other steps are performed.
 
-## 13. CDC maintenance and recovery
+## 13. CDC Maintenance and Recovery
 
-### 13.1 Full reindex
+### 13.1 Full Reindex
 
 Run `05 - Security and CDC/Rebuild CDC index`. The request uses `No Auth` and this header:
 
@@ -230,7 +230,7 @@ X-Maintenance-Key: {{maintenanceKey}}
 
 Expect HTTP `200`. Search again and verify complete data, correct ownership, and no duplicates.
 
-### 13.2 Dead-letter replay
+### 13.2 Dead-letter Replay
 
 This test requires a real dead letter:
 
@@ -243,7 +243,7 @@ This test requires a real dead letter:
 
 A valid ID returns HTTP `204`; a placeholder or missing ID returns `404`. After a successful replay, the dead-letter document must disappear and search must find the updated entry.
 
-## 14. Completion checklist
+## 14. Completion Checklist
 
 - [x] Local health infrastructure is `UP`.
 - [x] Missing and invalid tokens return `401`.
@@ -261,7 +261,7 @@ A valid ID returns HTTP `204`; a placeholder or missing ID returns `404`. After 
 - [x] Full reindex neither loses nor duplicates data.
 - [x] Dead-letter replay works with a real dead letter.
 
-## 15. Remaining Phase 3 verification
+## 15. Remaining Phase 3 Verification
 
 The completed items above prove the core local flow, but Phase 3 is not complete until every item below passes. Keep using the ignored `local` Bruno environment; never commit tokens, Cloudinary secrets, uploaded test-media URLs with sensitive query data, or test-account passwords.
 
@@ -271,12 +271,12 @@ The completed items above prove the core local flow, but Phase 3 is not complete
 - [x] **Finish cross-user avatar protection.** Completed 2026-09-12. User B confirmation of a fresh user-A pending public ID returned `400` at the namespace ownership check; user A's avatar metadata remained unchanged. Moodly has no caller-supplied public-ID signature input and no avatar overwrite/delete API. Cloudinary signatures remain short-lived fixed-public-ID bearer capabilities and must not be exposed.
 - [x] **Verify cleanup retry.** `PendingAvatarUploadCleanupTest` simulates a Cloudinary deletion failure and verifies that the pending record is saved with `cleanupAttempts` incremented; its success-path test verifies remote and pending-record deletion. Local abandoned-upload cleanup was also verified previously.
 
-## 16. Completion and next order
+## 16. Completion and Next Order
 
 Only after section 15 passes:
 
 1. Tick the matching `[~]` items in `moodly-blueprint.md` as complete and mark the local Phase 3 checkpoint complete.
-2. Run `mvn test` with Docker available; the full suite must pass before committing.
+2. Run `./mvnw verify` with Docker available; the full suite must pass before committing.
 3. Inspect `git diff` and Git status. Remove any token, secret, test media, or local environment file from the change set.
 4. Commit the Phase 3 verification with `test(auth): verify local Auth0, CDC, and Cloudinary flows`.
 5. Start the next gate: OpenAPI/Swagger documentation and GitHub Actions CI. Do not begin frontend deployment until that gate is complete.

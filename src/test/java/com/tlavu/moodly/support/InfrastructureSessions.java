@@ -20,6 +20,8 @@ public final class InfrastructureSessions {
 
 	interface Services {
 		Set<String> running();
+		default String backendMode() { return ""; }
+		default void stopBackend() { throw new UnsupportedOperationException(); }
 		void start();
 		void stop(Set<String> services);
 		void operator(String action);
@@ -52,6 +54,8 @@ public final class InfrastructureSessions {
 						.lines().map(String::strip).filter(SERVICES::contains).forEach(result::add);
 				return result;
 			}
+			@Override public String backendMode() { return SharedInfrastructure.containerBackendMode(configuration); }
+			@Override public void stopBackend() { SharedInfrastructure.command(configuration, null, "stop", "backend"); }
 			@Override public void start() { SharedInfrastructure.start(configuration); }
 			@Override public void stop(Set<String> targets) {
 				var arguments = new java.util.ArrayList<String>();
@@ -61,8 +65,8 @@ public final class InfrastructureSessions {
 			}
 			@Override public void operator(String action) {
 				if (action.equals("clean")) {
-					SharedInfrastructure.command(configuration, null, "down", "-v", "--remove-orphans");
-				} else { SharedInfrastructure.command(configuration, null, action); }
+					SharedInfrastructure.command(configuration, null, "--profile", "backend", "down", "-v", "--remove-orphans");
+				} else { SharedInfrastructure.command(configuration, null, "--profile", "backend", action); }
 			}
 		});
 	}
@@ -70,6 +74,10 @@ public final class InfrastructureSessions {
 	public Session join(Kind kind) {
 		String token = UUID.randomUUID().toString();
 		change(state -> {
+			String containerMode = services.backendMode();
+			if (!containerMode.isEmpty() && (kind != Kind.AUTOMATED || containerMode.equals("manual"))) {
+				throw new IllegalStateException("A backend container is active; stop its session before starting this mode");
+			}
 			if (kind != Kind.AUTOMATED && state.participants.values().stream().anyMatch(p -> p.kind() != Kind.AUTOMATED)) {
 				throw new IllegalStateException("A backend session is already active; local and manual share one HTTP port");
 			}
@@ -95,10 +103,21 @@ public final class InfrastructureSessions {
 		});
 	}
 
+	public void stopBackend() {
+		change(state -> {
+			if (state.participants.values().stream().anyMatch(p -> p.kind() != Kind.AUTOMATED)) {
+				throw new IllegalStateException("A backend launcher is active; stop it with Ctrl+C first");
+			}
+			services.stopBackend();
+			stopWhenIdle(state);
+			return null;
+		});
+	}
+
 	public void operator(String action) {
 		if (!Set.of("stop", "down", "clean").contains(action)) { throw new IllegalArgumentException("Unknown infrastructure action"); }
 		change(state -> {
-			if (!state.participants.isEmpty()) { throw new IllegalStateException("Infrastructure is in use; finish active backend/test sessions first"); }
+			if (!services.backendMode().isEmpty() || !state.participants.isEmpty()) { throw new IllegalStateException("Infrastructure is in use; finish active backend/test sessions first"); }
 			SharedInfrastructure.progress("Applying infrastructure action: " + action + "...");
 			services.operator(action);
 			SharedInfrastructure.progress("Infrastructure action completed: " + action + ".");
@@ -136,6 +155,10 @@ public final class InfrastructureSessions {
 	}
 
 	private void stopWhenIdle(State state) {
+		if (!services.backendMode().isEmpty()) {
+			SharedInfrastructure.progress("Keeping infrastructure running: backend container is active.");
+			return;
+		}
 		if (state.participants.isEmpty() && state.pinned) {
 			SharedInfrastructure.progress("Keeping infrastructure running: explicitly pinned.");
 		} else if (state.participants.isEmpty() && state.automatic.isEmpty()) {

@@ -1,23 +1,27 @@
 # Moodly Backend — Render Blueprint (IaC)
 # https://render.com/docs/blueprint-spec
+# Image source commit: f15dca0742b0c136670ae4956c7b6df4a30cd000
+# Reviewed bootstrap release. Promote a new release using its generated candidate.
 
 services:
   - type: web
     name: moodly-backend
-    runtime: docker
-    repo: https://github.com/tlavu2004/moodly-backend
+    runtime: image
+    image:
+      url: ghcr.io/tlavu2004/moodly-backend@sha256:79d68aae3ec011ae8af47edd8411a42fefb0a79b34896c6f5c34deaecd32fd63
     region: singapore
     plan: free
-    branch: main
-    dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
+    maxShutdownDelaySeconds: 60
     envVars:
       # Spring Profile
       - key: SPRING_PROFILES_ACTIVE
-        value: prod
+        value: production
 
-      # Web Server Port
-      - key: PORT
+      # Backend timezone and HTTP port
+      - key: TZ
+        value: Asia/Ho_Chi_Minh
+      - key: SERVER_PORT
         value: "8080"
 
       # Attach Environment Group containing sensitive credentials

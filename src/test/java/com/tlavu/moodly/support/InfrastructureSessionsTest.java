@@ -21,6 +21,9 @@ class InfrastructureSessionsTest {
 	private static final class FakeServices implements InfrastructureSessions.Services {
 		final Set<String> running = new LinkedHashSet<>();
 		final List<Set<String>> stops = new ArrayList<>();
+		String backendMode = "";
+		@Override public String backendMode() { return backendMode; }
+		@Override public void stopBackend() { backendMode = ""; }
 		boolean failStart;
 		boolean failStop;
 		@Override public Set<String> running() { return Set.copyOf(running); }
@@ -37,6 +40,43 @@ class InfrastructureSessionsTest {
 	}
 
 	private InfrastructureSessions registry(FakeServices services) { return new InfrastructureSessions(temporary, services); }
+
+	@Test
+	void orphanedLocalContainerPreservesDependenciesAndBlocksAnotherBackend() {
+		var services = new FakeServices();
+		var registry = registry(services);
+		var launcher = registry.join(InfrastructureSessions.Kind.LOCAL);
+		launcher.start();
+		services.backendMode = "local";
+		launcher.close();
+		assertThat(services.running).isEqualTo(BOTH);
+		assertThatIllegalStateException().isThrownBy(() -> registry.join(InfrastructureSessions.Kind.LOCAL));
+		assertThatIllegalStateException().isThrownBy(() -> registry.operator("stop"));
+		try (var tests = registry.join(InfrastructureSessions.Kind.AUTOMATED)) { tests.start(); }
+		assertThat(services.running).isEqualTo(BOTH);
+		registry.stopBackend();
+		assertThat(services.running).isEmpty();
+	}
+
+	@Test
+	void orphanedManualContainerBlocksAutomatedResetUntilExplicitRecovery() {
+		var services = new FakeServices();
+		services.backendMode = "manual";
+		var registry = registry(services);
+		assertThatIllegalStateException().isThrownBy(() -> registry.join(InfrastructureSessions.Kind.AUTOMATED));
+		assertThatIllegalStateException().isThrownBy(() -> registry.operator("down"));
+		registry.stopBackend();
+		try (var tests = registry.join(InfrastructureSessions.Kind.AUTOMATED)) { tests.start(); }
+	}
+
+	@Test
+	void containerRecoveryCannotStopAnActiveLauncher() {
+		var services = new FakeServices();
+		var registry = registry(services);
+		try (var launcher = registry.join(InfrastructureSessions.Kind.LOCAL)) {
+			assertThatIllegalStateException().isThrownBy(registry::stopBackend);
+		}
+	}
 
 	@Test
 	void preexistingInfrastructureIsNotStopped() {

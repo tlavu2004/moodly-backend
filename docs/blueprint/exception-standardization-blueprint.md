@@ -2,7 +2,7 @@
 
 **Status:** Official guidance for Moodly backend. This is the only exception blueprint. The module-code migration changes public `error.code` values; review client handling before merge. Existing HTTP statuses and safe messages remain stable unless a specific change is documented.
 
-## 1. Boundaries and response contract
+## 1. Boundaries and Response Contract
 
 Normal API failures use `ApiResponse.error(ApiError)` with a stable `status`, `code`, safe `message`, `path`, validation `errors`, and `requestId`; the envelope also includes `timestamp`. Spring Security writes the same shape before MVC. Actuator health has a separate operational contract.
 
@@ -17,7 +17,7 @@ Normal API failures use `ApiResponse.error(ApiError)` with a stable `status`, `c
 
 Controllers may validate transport input. Services decide ownership, state, and persistence outcomes. Repositories return data or native persistence exceptions; they do not construct HTTP errors. `GlobalExceptionHandler` handles known MVC failures, all `ApplicationException` instances, and a generic fallback. Do not add a blanket 4xx mapping for `IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`, Mongo exceptions, or third-party exceptions.
 
-## 2. Public code ownership
+## 2. Public Code Ownership
 
 Each module owns codes for its **expected application failures**. Shared framework and authentication-filter responses keep global codes. A code belongs to the domain that rejects the operation, even when another module exposes the endpoint; an entry log for an unknown habit therefore returns `HABIT_NOT_FOUND`. A module without an expected failure needs no empty enum or exception class.
 
@@ -34,7 +34,7 @@ Each module owns codes for its **expected application failures**. Shared framewo
 
 This code migration is intentional and requires consumer review before merge. Preserve each code's meaning, HTTP status, and safe message after publication. A future code replacement requires an explicit compatibility decision, HTTP tests, and an OpenAPI update.
 
-## 3. Throwing and translating
+## 3. Throwing and Translating
 
 1. Use Bean Validation for DTO constraints. Use a module exception factory for known business input, ownership, and state failures. The factory selects the module code and a bounded safe message. Do not copy raw user input, provider text, credentials, index names, or stack traces into public messages.
 2. Return the same 404 and message for a missing resource and a resource owned by another user. Ownership checks should be shared by callers within the domain; do not reveal another user's identifier or existence.
@@ -46,7 +46,7 @@ This code migration is intentional and requires consumer review before merge. Pr
 
 Operational error logs should occupy one line. Include the HTTP status and public error code for requests, a bounded exception class chain, the first application and external stack locations, and the request ID where available. Include numeric provider HTTP status or MongoDB error code only when supplied by a typed exception. Background failures should include a safe job or event identifier when available. Do not log raw exception messages or attach `Throwable` to routine request, cleanup, or CDC failure logs: provider messages can contain secrets and full stack traces obscure the event. Preserve the original cause in the exception object for programmatic recovery and debugging. CDC health details also use the safe summary rather than raw exception messages.
 
-## 4. Checked and unchecked exceptions
+## 4. Checked and Unchecked Exceptions
 
 Moodly application and domain exceptions are **unchecked**. `ApplicationException extends RuntimeException` is the sole base for expected API failures. Do not add a parallel checked application hierarchy. This matches service signatures and Spring's default transaction rollback behavior for unchecked exceptions.
 
@@ -71,7 +71,7 @@ RuntimeException
     CDC retry property validation
 ```
 
-## 5. API and operational decisions
+## 5. API and Operational Decisions
 
 - A new habit log after archive returns 409 `HABIT_ARCHIVED`; correction of an existing log remains allowed. A request overlapping archive observes the state at validation time. Requests begun after archive finishes see the archived state.
 - Known stale habit versions and optimistic-lock failures at habit writes use `HABIT_CONFLICT`. The service retains the previous 409 message for a repository race. Spring's shared optimistic-lock handler remains a fallback for failures outside a service-specific translation.
@@ -79,6 +79,6 @@ RuntimeException
 - Search hit missing `_source` is a 500 defect or index inconsistency. The adapter logs the hit ID for an operator to inspect or rebuild the index; it never logs the user's query or returns the ID to the client. Classified temporary search transport failures remain 503. An unreadable local index mapping is an internal unchecked failure (500 at an API boundary); the mapping is read before an existing index is deleted. CDC invalid retry settings fail startup before any delivery attempt, and an impossible retry fallthrough is an internal invariant failure rather than an I/O failure.
 - CDC listeners, cleanup jobs, and security filters are outside MVC advice. Their local retry, durable record, health, and envelope rules remain explicit.
 
-## 6. Verification and change procedure
+## 6. Verification and Change Procedure
 
 Inventory every throw and catch in the affected module before changing a handler. Test status, code, safe message, and envelope for representative framework and module failures; test that unexpected `IllegalArgumentException` and unclassified persistence errors remain 500. Include ownership, concurrency, retry/dead-letter, and success paths where relevant. Regenerate `docs/api/json/moodly-openapi.json` whenever a public response changes and review its diff. Run the full Maven verification with Docker before push.

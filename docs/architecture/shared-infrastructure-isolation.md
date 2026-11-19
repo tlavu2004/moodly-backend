@@ -12,7 +12,7 @@ This is a design and operational guide, not a universal framework or a claim tha
 
 On a developer workstation, prefer one infrastructure stack when applications need the same compatible engine versions and tests run sequentially. Allocate explicit resources to each application and purpose. Preserve production on separate hosted infrastructure and credentials. Use fresh infrastructure on CI runners.
 
-For Moodly, use project `moodly-local` and `compose.local.yaml` for MongoDB and Elasticsearch. Local keeps its existing configured database/index. Automated and manual test sessions own database `moodly_test` and index `daily_entries_search_test`. These names are reserved and disposable. Data cleanup deletes only those exact resources. Infrastructure cleanup separately stops automatically owned services after the final consumer exits, while preserving preexisting or explicitly pinned services. Manual test and automated test sessions acquire the same exclusive lease.
+For Moodly, use project `moodly-backend-local` and `compose.local.yaml` for MongoDB and Elasticsearch. Local keeps its existing configured database/index. Automated and manual test sessions own database `moodly_test` and index `daily_entries_search_test`. These names are reserved and disposable. Data cleanup deletes only those exact resources. Infrastructure cleanup separately stops automatically owned services after the final consumer exits, while preserving preexisting or explicitly pinned services. Manual test and automated test sessions acquire the same exclusive lease.
 
 ```mermaid
 flowchart LR
@@ -296,7 +296,7 @@ Infrastructure lives in `compose.local.yaml`. `.env.local` is the single runtime
 
 The shell entry points call `run-tooling.sh`, which compiles test-side Java tooling and resolves the project's existing dependency classpath through Maven Wrapper. `DevelopmentLauncher` handles operator commands and backend process lifetime. `SharedInfrastructure` handles dotenv parsing via Compose, readiness, target guards, and Java FileLock. The JUnit harness calls the same Java implementation directly; it does not launch Python or recursively invoke Maven. Neither class is packaged into the production application.
 
-Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay. The tracked `.env.test.example` and the retired private `.env.test` are removed. The private file was checked by key name only and contained no credential keys; no credential values were read or printed. Manual-runtime overrides belong to the single local configuration or an explicit command. Ignore rules remain to protect stale private files in other checkouts.
+Automated fixtures belong to `application-test.yaml`, not a runtime dotenv overlay. The tracked `.env.test.example` and the retired private `.env.test` are removed. Manual-runtime overrides belong to the single local configuration or an explicit command. Ignore rules remain to protect stale private files in other checkouts.
 
 The shared Java test lease remains in `.moodly-test.lock`, outside target/. Both manual and automated sessions use it. The ignored `.moodly-infrastructure/` registry coordinates infrastructure ownership with short OS file locks and PID/start-time identities. Local and automated tests may share dependencies concurrently; local and manual backend sessions are mutually exclusive because they share HTTP port.
 

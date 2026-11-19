@@ -1,5 +1,7 @@
 # Moodly - Habit & Mood Tracker Backend
 
+See the [documentation index](docs/README.md) for current operational guides and historical records.
+
 Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform** built with **Java 25** and **Spring Boot 4.1.0**. It is engineered as a **Headless Backend Architecture** — providing high-throughput REST APIs, asynchronous **Change Data Capture (CDC)** event streaming from **MongoDB Replica Set** to **Elasticsearch OSS 7.10.2**, **Auth0** OAuth2/JWT security, and **Cloudinary** media management.
 
 > [!NOTE]
@@ -22,14 +24,7 @@ Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform*
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Deployment (Render)](#deployment-render)
-- [Deep-Dive Operations & Runbook](#deep-dive-operations--runbook)
-  - [OpenAPI Contract Synchronization](#openapi-contract-synchronization)
-  - [CI/CD & Container Publishing](#cicd--container-publishing)
-  - [Auth0 Resilience & Startup Network Handling](#auth0-resilience--startup-network-handling)
-  - [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing)
-  - [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict)
-  - [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard)
-  - [Automated Integration Test Harness](#automated-integration-test-harness)
+- [Deep-Dive Operations & Runbook](#deep-dive-operations--runbook) - [OpenAPI Contract Synchronization](#openapi-contract-synchronization) - [CI/CD & Container Publishing](#cicd--container-publishing) - [Auth0 Resilience & Startup Network Handling](#auth0-resilience--startup-network-handling) - [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing) - [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict) - [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard) - [Automated Integration Test Harness](#automated-integration-test-harness)
 - [Authors](#authors)
 - [License](#license)
 
@@ -281,7 +276,7 @@ erDiagram
 | **Code Quality** | JaCoCo 0.8.14 | Line & branch coverage enforcement (Instruction ≥ 80%, Branch ≥ 70%) |
 | **CI / CD** | GitHub Actions | Automated PR testing, container building, and Dependabot auto-updates |
 | **Containerization** | Docker & Docker Compose | Multi-stage JRE Alpine container with non-root security |
-| **Hosting** | Render | Deployed as a managed container web service |
+| **Hosting** | Render | Target image-backed deployment; provisioning is a separate operator step |
 
 ---
 
@@ -312,7 +307,7 @@ docs/api/json/moodly-openapi.json
 ### Prerequisites
 - **Java 25** (Eclipse Temurin recommended)
 - **Maven Wrapper** (included; downloads the pinned Maven version on first use)
-- **Python 3** only for container smoke and OpenAPI JSON normalization; local/test infrastructure and backend tests use Java
+- **Python 3** for container smoke, OpenAPI normalization, CI summaries, and release-artifact helpers; local/test infrastructure and backend tests use Java
 - **Docker Desktop** (with Compose v2)
 - **GNU Make and Bash** for Make targets (install Make separately on Windows; Git Bash provides Bash)
 
@@ -338,18 +333,13 @@ The local template supplies non-secret infrastructure defaults. Edit `.env.local
 
 ### Step 2: Start Infrastructure & Run the Application
 
-One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The `moodly-local` project, local container names, and local volumes are preserved. Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
+One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The Compose project is `moodly-backend-local`; established local container and volume names are preserved. The optional backend container and host/container lifecycle are documented in [Backend Execution Modes](docs/testing/backend-execution-modes.md). Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
 
 #### Option A: Using Make (Recommended)
 
-Run `make local-run` to start dependencies as needed and launch the backend at
-`http://localhost:8080`. In another terminal, `make local-status` shows the shared
-services. Ctrl+C stops the backend; when the last session ends, tooling stops only
-the dependency containers it started automatically. Data volumes remain intact.
+Run `make local-run` to start dependencies as needed and launch the backend at `http://localhost:8080`. In another terminal, `make local-status` shows the shared services. Ctrl+C stops the backend; when the last session ends, tooling stops only the dependency containers it started automatically. Data volumes remain intact.
 
-For a deliberately persistent stack, run `make local-up` first. This pins the
-infrastructure so backend/test exit leaves it running. Finish all sessions before
-`make local-stop` or `make local-down`; these commands reject active consumers.
+For a deliberately persistent stack, run `make local-up` first. This pins the infrastructure so backend/test exit leaves it running. Finish all sessions before `make local-stop` or `make local-down`; these commands reject active consumers.
 
 #### Option B: Direct Shell Execution
 
@@ -357,8 +347,7 @@ infrastructure so backend/test exit leaves it running. Finish all sessions befor
 bash scripts/docker/run-local-backend.sh
 ```
 
-This uses the same Java session ownership and env loading as Make. No separate
-infrastructure command is needed unless you want to pin it deliberately.
+This uses the same Java session ownership and env loading as Make. No separate infrastructure command is needed unless you want to pin it deliberately.
 
 ---
 
@@ -387,7 +376,7 @@ make cdc-test
 | :--- | :--- | :---: | :---: |
 | `SPRING_PROFILES_ACTIVE` | Active profile (`local`, `test`, `prod`) | No | `local` |
 | `PORT` | Web server port | No | `8080` |
-| `APP_CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | **Yes** (Prod) | `http://localhost:5173,http://localhost:3000` |
+| `APP_CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins | **Yes** (Prod) | Local origins from `.env.local.example`; exact deployed FE origins in production |
 
 ### Database & Elasticsearch
 
@@ -430,29 +419,11 @@ make cdc-test
 
 ## Deployment (Render)
 
-Moodly is fully production-configured for deployment on [Render](https://render.com) using its multi-stage `Dockerfile`.
+The primary flow is a verified GHCR image deployed to Render by immutable digest. `render.yaml` defines the reviewed image-backed service, while each successful Release artifact includes a candidate with the newly published digest. See [Release and Production Deployment](docs/deployment/release.md) for promotion, first setup, credentials, and rollback.
 
-Both Dockerfile stages use a readable tag plus an immutable multi-platform image digest. Dependabot checks Docker dependencies weekly; review tag/digest updates together and require image build and smoke checks before merging. A digest pin does not receive base-image security fixes until its update PR is merged.
+The multi-stage Dockerfile builds with Maven/Java 25 and runs a non-root Java 25 JRE. Both base images are pinned by tag and digest. Dependabot reviews Dockerfile dependencies; updates still require build and smoke verification. The JVM heap cap is 75% of container memory, not a guarantee that total process RSS fits a hosting plan. Check memory limits and representative load before deployment.
 
-### Multi-Stage Container Design
-1. **Builder Stage (`maven:3.9.16-eclipse-temurin-25-alpine`)**: Leverages Docker BuildKit cache mounts (`--mount=type=cache,target=/root/.m2`) to download dependencies and compile without caching build artifacts in the final layer.
-2. **Runtime Stage (`eclipse-temurin:25-jre-alpine`)**: Minimal Alpine JRE footprint running under a dedicated non-root user (`USER moodly`).
-3. **Container Resource Optimization**:
-   ```dockerfile
-   ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
-   ```
-   *Dynamically scales heap limits to 75% of available container memory, perfectly tuned for Render instances (512MB / 1GB RAM).*
-4. **Built-in Healthcheck**:
-   ```dockerfile
-   HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-       CMD wget --quiet --spider http://localhost:8080/actuator/health || exit 1
-   ```
-
-### Deploying on Render:
-1. Create a new **Web Service** on Render connected to this repository.
-2. Select **Docker** environment.
-3. Configure the **Health Check Path** to `/actuator/health`.
-4. In **Environment Variables**, define `SPRING_PROFILES_ACTIVE=prod` alongside your production MongoDB Atlas URI, Elasticsearch URL, Auth0 domain/audience, and Cloudinary secrets.
+Production requires the `production` profile, configured Atlas/search/Auth0/Cloudinary access, exact FE CORS origins, disabled reset/docs, and `/actuator/health`. Hosted secrets belong in Render's secret store. Review and approve service provisioning and Blueprint sync separately; merging or publishing an image does not prove deployment.
 
 ---
 
@@ -473,17 +444,17 @@ git diff -- docs/api/json/moodly-openapi.json
 
 ### CI/CD & Container Publishing
 
-The repository currently retains Render source-build configuration in `render.yaml`. Publishing to GHCR does not deploy Render. The proposed image-by-digest migration and rollback procedure is documented in [the release runbook](docs/deployment/release.md); it requires a deliberate Render service migration.
+The reviewed `render.yaml` uses an image-backed Render service pinned by GHCR digest. Release artifacts include a matching Blueprint candidate for a manual promotion PR and approved Blueprint sync. Publishing an image does not deploy Render; see [the release runbook](docs/deployment/release.md).
 
 Run `python3 scripts/docker/smoke-test.py IMAGE` after building/loading an image. The smoke test creates a unique test network and fresh MongoDB (tmpfs), Elasticsearch, and local OIDC fixture containers; it reads only the tracked MongoDB fixture keys from `.env.local.example`, never private env files or the manual local/test stacks. MongoDB shell probes keep HOME/config state outside `/data/db` to avoid racing entrypoint ownership initialization, and fail early if the fixture stops. It checks the production profile, Docker healthcheck, public health privacy, unauthenticated API rejection, reset/docs unavailability, CDC-created search mapping, and non-root runtime. It removes only its own containers/network. This validates issuer discovery without hosted Auth0, but does not replace real-token E2E, Cloudinary uploads, or rate-limit behavior tests.
 
 Pull requests targeting `main` run application and OpenAPI verification, followed by a container build. Run `PR CI` manually to check a feature branch before opening a pull request. Feature-branch pushes rely on the pull request run once a PR is open, avoiding duplicate verification.
 
-Pushes to `main` and tags matching `v*` run `Release`. Verification must succeed before the image is built. Container smoke checks must pass before that same loaded image is pushed to GHCR. Full commit SHA tags and a `release-image.json` artifact record the published digest. Both workflows call the shared verification workflow. Verification has a 15-minute timeout, and image build/smoke/publish jobs have a 30-minute timeout.
+Application pushes to `main` and tags matching `v*` run `Release`; a push changing only `render.yaml` skips image rebuilding. Verification must succeed before the image is built. Container smoke checks must pass before that same loaded image is pushed to GHCR. Full commit SHA tags and `release-image.json` plus `render-release.yaml` record the source and deployment candidate. Both workflows call the shared verification workflow. Verification has a 15-minute timeout, and image build/smoke/publish jobs have a 30-minute timeout.
 
 A new PR run cancels an older run for the same PR. Release runs for the same ref are serialized, with cancellation of a running release disabled. Token permissions are read-only except for the publishing job, which requires `packages: write`.
 
-External actions are pinned to full commit SHAs, with their major versions recorded in comments. Verify the upstream release commit when updating a pin. The main branch ruleset requires the PR verification and PR container build checks before merging.
+External actions are pinned to full commit SHAs, with their major versions recorded in comments. Verify the upstream release commit when updating a pin. Require PR verification and PR container build checks in the main branch ruleset before merging.
 
 ### Auth0 Resilience & Startup Network Handling
 
@@ -507,7 +478,7 @@ Before first use, copy `.env.local.example` to `.env.local` if the environment f
 
 #### Auth0 and Cloudinary Local Services Configuration
 Before starting the backend, configure the hosted development services and fill the corresponding values in `.env.local`:
-- In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:3000`) to its allowed callback, logout, and web-origin URLs.
+- In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:5173` for Vite and `http://127.0.0.1:4173` for Playwright) to its allowed callback, logout, and web-origin URLs.
 - In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
 - Set `CLOUDINARY_FOLDER` to `moodly/local`. The backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.
 
@@ -529,33 +500,25 @@ Before starting the backend, configure the hosted development services and fill 
    ```
    Elasticsearch is available at `http://localhost:9200`. Its data is kept in the `moodly-elasticsearch-local-data-oss7` Docker volume.
 
-3. **Reindex Triggers & Change Stream Operations**:
-   The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB.
-   To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
+3. **Reindex Triggers & Change Stream Operations**: The Change Stream listener rebuilds the derived index from MongoDB when the checkpoint or index is missing. With both present, it resumes from the checkpoint stored in MongoDB. To rebuild the derived index deliberately, set `MOODLY_CDC_MAINTENANCE_KEY` in `.env.local`, then call:
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/reindex \
        -H "X-Maintenance-Key: your-local-secret"
    ```
    Outside production, the maintenance header is the guard. Production also requires the operator JWT with `MOODLY_CDC_ADMIN_AUTHORITY` (default `SCOPE_moodly:admin`).
 
-4. **Dead-Letter Handling & Exponential Backoff**:
-   Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with:
+4. **Dead-Letter Handling & Exponential Backoff**: Failed Elasticsearch deliveries are retried three times with exponential backoff. Exhausted events are retained in MongoDB's `cdc_dead_letters` collection and can be replayed with:
    ```bash
    curl -X POST http://localhost:8080/internal/cdc/dead-letters/{id}/replay \
        -H "X-Maintenance-Key: your-local-secret"
    ```
    CDC health reports `DEGRADED` while dead letters remain; alert on this status and replay or rebuild the projection. A stopped listener or unavailable dead-letter count reports `DOWN`. In production, health details are hidden from public callers.
 
-5. **Search Query Eventual Consistency**:
-   `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
+5. **Search Query Eventual Consistency**: `GET /entries/search?q=...` queries the derived Elasticsearch index. It is eventually consistent: a newly saved MongoDB entry can take a short time to appear in search results.
 
-6. **Pending Avatar Cleanup**:
-   Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
+6. **Pending Avatar Cleanup**: Pending avatar deletions are retried when the asset is no longer referenced. A task for an avatar that remains active is checked again every five minutes and discarded after 24 hours without deleting the asset; a later replacement creates a new task.
 
-7. **Elasticsearch OSS 7.10.2 & Managed Deployment (Searchly / Self-Hosted)**:
-   The shared Compose stack uses the official Elasticsearch OSS 7.10.2 image. The backend uses JSON REST endpoints for index management, document CRUD, search, refresh, and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep older Elasticsearch volumes available for rollback and mount only with their original engine version.
-   For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Shared Compose binds MongoDB and unauthenticated Elasticsearch ports to loopback. MongoDB remains authoritative.
-   When deployed on Render or cloud instances, if the application stops, CDC pauses. On restart, it resumes from MongoDB's checkpoint if the index exists and the token is still valid. A missing index or expired change-stream history triggers a rebuild from MongoDB. For index loss during uptime, monitor search errors and CDC dead letters, rebuild via the maintenance endpoint, and replay pending failures.
+7. **Elasticsearch OSS 7.10.2 & Managed Deployment (Searchly / Self-Hosted)**: The shared Compose stack uses the official Elasticsearch OSS 7.10.2 image. The backend uses JSON REST endpoints for index management, document CRUD, search, refresh, and the development E2E reset. The dedicated `-oss7` volumes allow Elasticsearch to build fresh indexes from MongoDB. Keep older Elasticsearch volumes available for rollback and mount only with their original engine version. For a managed endpoint, set `ELASTICSEARCH_URIS` to one HTTPS URL without user information. Set `ELASTICSEARCH_USERNAME` and `ELASTICSEARCH_PASSWORD` separately in the hosting environment for Basic authentication. Shared Compose binds MongoDB and unauthenticated Elasticsearch ports to loopback. MongoDB remains authoritative. When deployed on Render or cloud instances, if the application stops, CDC pauses. On restart, it resumes from MongoDB's checkpoint if the index exists and the token is still valid. A missing index or expired change-stream history triggers a rebuild from MongoDB. For index loss during uptime, monitor search errors and CDC dead letters, rebuild via the maintenance endpoint, and replay pending failures.
 
 ### Mutation Replay & Concurrency Contracts (409 Conflict)
 
@@ -589,7 +552,7 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 - `.env.local` supplies local runtime settings and shared infrastructure; its example is the fresh-checkout default. Local database names are preserved when they already contain development data.
 - There is no separate test dotenv template. Manual test uses the same local env file, with the same `SERVER_PORT` (normally 8080) and fixed reserved database/index names. Automated test fixtures live in `src/test/resources/application-test.yaml`. Retired `.env.test` files are not loaded.
 - `.env.docs.example` supplies deterministic, non-secret documentation fixtures and `SERVER_PORT=8081`; optional ignored `.env.docs` overrides them. These files use unquoted `KEY=VALUE` syntax compatible with Java properties. The generation script reads the same port as the docs profile; it does not require credentials or a running Docker daemon.
-- `.env.production.example` documents production variables. A container receives them through `docker run --env-file .env.production` or hosting environment injection; real env files are never baked into images. No hosting configuration is changed by this workstation migration.
+- `.env.production.example` documents production variables. A container receives them through `docker run --env-file .env.production` or hosting environment injection; real env files are never baked into images. Hosted credentials and live services are configured separately; see the [release runbook](docs/deployment/release.md).
 
 Use the provided runners to load local/manual dotenv files. A bare Maven/Java/IDE launch must receive equivalent environment variables explicitly; Spring does not automatically treat arbitrary dotenv files as process environment. Startup-critical profile selection and destructive-operation guards remain code-controlled. Framework booleans that disable real side effects in docs mode are safety invariants, not arbitrary runtime tuning.
 
@@ -603,7 +566,7 @@ The shell entry points are thin adapters to `scripts/docker/run-tooling.sh`. It 
 
 See [the reusable architecture and migration guide](docs/architecture/shared-infrastructure-isolation.md) for engine/framework alternatives, resource ownership, concurrency, safety limits, and operation details.
 
-There is one workstation infrastructure project: `moodly-local`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
+There is one workstation infrastructure project: `moodly-backend-local`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
 
 ```bash
 make local-up           # explicit keep-alive pin; not needed before tests
@@ -632,7 +595,7 @@ Infrastructure ownership is recorded under ignored `.moodly-infrastructure/` usi
 
 Normal Ctrl+C after successful cleanup no longer produces a Make recipe Error 130. GNU Make may itself still return SIGINT status 130 when the terminal interrupts it. Real startup/cleanup failures remain errors; see [Backend Ctrl+C Exit Handling](docs/testing/interrupt-exit-status.md).
 
-### Verify Once From a Cold Stack
+### Verify Once from a Cold Stack
 
 See [Session Ownership Verification](docs/testing/session-ownership-verification.md) for lifecycle scenarios and measured results.
 
@@ -644,14 +607,7 @@ make local-stop                 # finish/stop backend sessions first; volumes st
 make local-status
 ```
 
-Expect BUILD SUCCESS, coverage/format gates passing, and dependency containers
-stopped after the final test session. For a warm stack intentionally started with
-`make local-up`, verify leaves it running instead. Verify does not generate OpenAPI;
-run `make openapi` separately when validating documentation changes. Docs tooling
-uses port 8081; automated MockMvc integration tests need no dedicated HTTP port.
-Manual tests use `make test-run` or `make test-search-run` on port 8080 and discard
-their database/index state on exit. Hosted Auth0 accounts and Cloudinary assets are
-not removed by this local cleanup.
+Expect BUILD SUCCESS, coverage/format gates passing, and dependency containers stopped after the final test session. For a warm stack intentionally started with `make local-up`, verify leaves it running instead. Verify does not generate OpenAPI; run `make openapi` separately when validating documentation changes. Docs tooling uses port 8081; automated MockMvc integration tests need no dedicated HTTP port. Manual tests use `make test-run` or `make test-search-run` on port 8080 and discard their database/index state on exit. Hosted Auth0 accounts and Cloudinary assets are not removed by this local cleanup.
 
 
 ---
