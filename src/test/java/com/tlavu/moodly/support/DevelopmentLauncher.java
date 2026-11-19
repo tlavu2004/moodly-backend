@@ -81,7 +81,7 @@ public final class DevelopmentLauncher {
 			}
 			SharedInfrastructure.progress("Launching " + (manual ? "manual test" : "local") + " backend on port " + run.environment.get("SERVER_PORT") + "...");
 			if (container) { return run.container(); }
-			return run.maven("-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false", "spring-boot:run");
+			return run.maven("-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false -Duser.timezone=" + com.tlavu.moodly.shared.time.MoodlyTime.ZONE.getId(), "spring-boot:run");
 		}
 	}
 

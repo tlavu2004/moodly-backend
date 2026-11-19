@@ -20,6 +20,31 @@ class MoodlyTimeTest {
 	}
 
 	@Test
+	void businessDateAndLogTimestampDoNotDependOnTheHostTimezone() throws Exception {
+		Instant instant = Instant.parse("2026-09-21T17:00:00Z");
+		assertThat(MoodlyTime.today(Clock.fixed(instant, java.time.ZoneId.of("America/Los_Angeles"))))
+				.isEqualTo(LocalDate.of(2026, 9, 22));
+		var context = new ch.qos.logback.classic.LoggerContext();
+		try {
+			var pattern = new ch.qos.logback.classic.PatternLayout();
+			pattern.setContext(context);
+			var xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
+					.parse(new java.io.File("src/main/resources/logback-spring.xml"));
+			var properties = xml.getElementsByTagName("property");
+			String configured = ((org.w3c.dom.Element) properties.item(0)).getAttribute("value");
+			pattern.setPattern(configured);
+			pattern.start();
+			var event = new ch.qos.logback.classic.spi.LoggingEvent();
+			event.setTimeStamp(instant.toEpochMilli());
+			event.setLevel(ch.qos.logback.classic.Level.INFO);
+			event.setLoggerName("timezone-test");
+			event.setMessage("timezone probe");
+			event.setMDCPropertyMap(java.util.Map.of());
+			assertThat(pattern.doLayout(event)).startsWith("2026-09-22T00:00:00.000+07:00");
+		} finally { context.stop(); }
+	}
+
+	@Test
 	void usesAZoneWithoutDaylightSavingTransitions() {
 		assertThat(MoodlyTime.ZONE.getRules().nextTransition(Instant.parse("2026-01-01T00:00:00Z"))).isNull();
 	}

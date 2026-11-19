@@ -58,6 +58,7 @@ services:
     env_file:
       - ${MOODLY_INFRA_ENV_FILE:-.env.local.example}
     environment:
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
       SPRING_PROFILES_ACTIVE: ${MOODLY_CONTAINER_PROFILE:-local}
       SERVER_PORT: "8080"
       MONGODB_DATABASE: ${MOODLY_CONTAINER_DATABASE:-${MONGODB_DATABASE}}
