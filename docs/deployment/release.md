@@ -1,85 +1,71 @@
-# Release and production deployment
+# Release and Production Deployment
 
-## Current state
+## Primary Deployment Flow
 
-`release.yml` verifies code/OpenAPI, builds and loads one image, smoke-tests that
-image, then pushes its tags without rebuilding. The full commit SHA tag, OCI
-revision label, workflow summary, and `release-image.json` artifact identify it.
-PR container checks also run smoke tests. No workflow in this repository currently
-deploys Render. The existing `render.yaml` describes a Git-backed source build;
-its presence does not prove the live service uses that configuration.
+Moodly builds and smoke-tests a single backend image in GitHub Actions, publishes that same image to GHCR, and deploys an immutable digest to an image-backed Render service. Render does not rebuild the application from Git source. No workflow in this repository calls Render, creates a service, changes hosted secrets, or deploys automatically.
 
-There are only local, test, and production environments. The smoke stack is a
-short-lived test fixture, not another deployment environment.
+The checked-in `render.yaml` is the reviewed deployment configuration. Its bootstrap digest identifies the already published application commit recorded in the file. It does not claim to contain unmerged branch changes. For the first deployment after this branch merges, use the new successful release's candidate and promote its digest before provisioning Render.
 
-## Recommended primary flow
+There are only local, test, and production environments. Workstation Compose and CI fixture networks are infrastructure, not additional deployment environments.
 
-Use GHCR image-by-digest as the production artifact:
+## Build and Release Identity
 
-1. Merge a reviewed change; the release workflow must pass verification and smoke.
-2. Read `images` and `commit` from that run's `release-image.json`. Use the
-   `ghcr.io/...@sha256:...` reference, never `latest`, as the deployment identity.
-3. Deploy that reference to an image-backed Render service.
-4. Wait for Render to report success and `/actuator/health` to return HTTP 200
-   with `status: UP`. Record the Render deployment ID alongside commit and digest.
-5. If verification fails, deploy the previous known-good digest and verify health.
+PR CI verifies application/OpenAPI, builds an image, and runs production container smoke. Release runs on application changes to `main` and version tags. It targets `linux/amd64`, loads the image, smoke-tests it, and only then pushes its tags. It checks the loaded image's OCI revision against the workflow source SHA and records exactly one digest for the expected GHCR repository.
 
-Image rollback does not roll back MongoDB data, Elasticsearch mappings, or hosted
-configuration. Release changes must remain compatible with the preceding image,
-or include a separately reviewed data migration and rollback plan.
+The release artifact `release-image-<commit>` contains:
 
-## One-time migration (not performed by this change)
+- `release-image.json`: source commit, expected repository, tags, and immutable image reference.
+- `render-release.yaml`: an offline deployment candidate using the same service configuration as `render.yaml`, with only the image URL and source-commit comment replaced.
 
-Before changing any hosting settings, inspect the live Render service's source,
-auto-deploy mode, current commit/deploy ID, secret environment group, hostname,
-and registry access. Do not copy credentials into the repository or workflow logs.
+Tags such as `latest` are discovery conveniences, not deployment identities. The Blueprint always uses `ghcr.io/tlavu2004/moodly-backend@sha256:...`. Retain the release artifact and the preceding known-good digest for rollback. A successful push is not evidence of a successful Render deployment.
 
-Prepare an image-backed Render web service with the same production environment
-group and non-secret settings from `render.yaml`, including the production profile,
-port 8080, CDC/search, rate limit, and `/actuator/health` health check. For a private
-GHCR package, configure a Render registry credential with read-only package access.
-Use a verified release digest for the initial image. Review the service migration,
-URL/custom-domain cutover, and removal of the old source auto-deploy path before
-executing them. Keep the old production service available until cutover is verified;
-this is a service migration within production, not a staging environment.
+## Offline Candidate Review
 
-After migration, replace the source-build Blueprint with the image-backed
-configuration actually in use. Do not blindly sync the current `render.yaml`
-against an image-backed service. Keep one production deployment owner.
+Download the artifact from a successful Release run for the intended application commit. To regenerate its candidate locally:
 
-Initially, deploy the reviewed digest manually in Render. Automation can later
-trigger a deploy with an explicit image reference and await its final status;
-provisioning service IDs, API credentials, and any approval environment is a
-separate, reviewed hosting change. Publishing an image alone is not a deployment.
+```bash
+python3 scripts/deployment/render_blueprint.py release-image.json render.yaml target/render-release.yaml
+```
 
-## Base image updates
+Use `python` on Windows if needed. The helper reads only the provided record and public Blueprint, validates the complete commit and repository-specific digest, and writes a candidate. It never contacts Render or GHCR, edits its inputs, or deploys. Do not treat an arbitrary JSON file as verified release provenance; obtain the record from the successful repository workflow.
 
-Both Dockerfile stages pin the registry's multi-platform index digest while keeping
-the tag readable. Existing weekly Dependabot Docker updates should be reviewed for
-both tag and digest changes; verify the first real update PR rather than assuming
-the bot has run successfully. Require application verification, image build, and
-smoke checks before merge. A digest pin freezes security fixes until updated.
-The Maven Wrapper separately pins the Maven distribution version. MongoDB versions
-in env templates require explicit review; do not assume Dockerfile dependency
-updates cover variable-expanded Compose images.
+Review the diff between `render.yaml` and the candidate. For a normal promotion, only the source-commit comment and image URL change. Copy the reviewed candidate to `render.yaml` in a small promotion PR. A push that changes only `render.yaml` skips the Release image build; PR verification still validates configuration. A version tag can explicitly trigger a new image release.
 
-## Smoke scope and limitations
+## First Render Setup
 
-Run `docker build -t moodly:review .`, then
-`python3 scripts/docker/smoke-test.py moodly:review` (use `python` on Windows).
-The smoke test never reads env files. It uses unique container/network names,
-MongoDB tmpfs storage, fresh Elasticsearch storage, and a local OIDC discovery
-fixture. JWT security, CDC, search initialization, and rate limiting stay enabled.
-It checks startup, Docker health, health privacy, protected API rejection,
-reset/docs unavailability, search mapping creation, and non-root execution.
+These are operator steps, not actions performed by the branch:
 
-This does not exercise valid hosted Auth0 tokens, browser login, Cloudinary uploads,
-429 quotas, or CDC event delivery. Those remain integration/security/E2E concerns.
-The E2E reset helper must remain disabled in production. A dead-letter CDC health
-status can be DEGRADED; smoke deliberately requires UP on its fresh fixture.
+1. Confirm the intended release completed verification, image build, smoke, push, and candidate generation. Promote that candidate's digest; do not deploy the older bootstrap image by accident.
+2. Use the Blueprint's image-backed web service configuration: `moodly-backend`, Singapore, free plan, HTTP port 8080, `/actuator/health`, production profile, and 60-second shutdown allowance. Confirm the chosen Render plan and its resource limits before provisioning; local smoke is not a production load test.
+3. Create or review the `moodly-secrets` environment group using `.env.production.example` as a key checklist. Configure Atlas, remote Elasticsearch, Auth0, Cloudinary, exact FE CORS origins, and the CDC maintenance key. Fill hosted secrets only in the provider's secret store; never commit their values or print resolved environment configuration.
+4. Confirm Atlas Free's server major and driver compatibility, database/network permissions, replica-set change-stream access, and remote Elasticsearch compatibility. No Atlas or search server is created by this Blueprint.
+5. Confirm GHCR pull access. The bootstrap image was verified anonymously accessible. If package visibility changes, provision a Render registry credential with read-only package access and reference it through `image.creds.fromRegistryCreds.name`; do not paste a token into YAML.
+6. Before linking/syncing a Blueprint, review its branch/path and disable Blueprint Auto Sync for manual promotion. The Git service `autoDeployTrigger` field does not control image-backed services or replace Blueprint sync policy. Do not manage this service from another Blueprint or an independent source-build service.
+7. Review the Render change preview, then obtain approval for the actual service creation/sync and deploy. Applying an image URL change through Blueprint sync can deploy the service.
+
+Render's initial service creation and environment-group setup require access to the user's workspace. YAML/schema validation does not verify that those resources exist or that hosted credentials work.
+
+## Post-Deploy Verification
+
+Wait for the Render deployment to finish and check the public health response contains `status: UP`. Production health must omit components/details. Confirm unauthenticated protected API requests return 401 and reset/docs endpoints remain unavailable. Review CDC/search health, Auth0 token validation, CORS and uploaded asset behavior with authorized synthetic accounts before FE cutover.
+
+Record the deployment ID, application commit, image digest, and preceding known-good image. Keep hosted API tokens, deploy-hook URLs, and user tokens out of logs and PR descriptions. Review the FE Auth0 callback/logout configuration separately; changing backend CORS does not change Auth0 settings.
+
+## Promotion and Rollback Ownership
+
+Blueprint manual sync is the production configuration owner. After a reviewed promotion PR merges, inspect the Blueprint diff and manually sync it with approval. Do not independently edit the service's image URL in the dashboard and then let a conflicting Blueprint overwrite it. No deploy hook or Render API credential is configured in the release workflow.
+
+For rollback, prepare a small configuration change restoring the previous known-good digest and source-commit marker, review it, then manually sync and verify health. An emergency provider rollback must be reconciled with the checked-in Blueprint before the next sync. Image rollback does not reverse MongoDB data, Elasticsearch mappings, uploads, or hosted configuration; review compatibility and migrations separately.
+
+## Image and Runtime Maintenance
+
+Dockerfile base images use readable tags plus digests. Review dependency updates with image build and smoke verification. MongoDB fixture pins live in `.env.local.example` and are shared with smoke; the existing Dockerfile updater is not proof those dotenv pins update automatically. Remove the temporary rseq workaround only after validating a published patched image against the actual runner kernel.
+
+Backend business dates, JVM defaults, and application log timestamps use `Asia/Ho_Chi_Minh`; persisted `Instant` values remain UTC. Native MongoDB/Elasticsearch logs can use different timestamp conventions. See [Backend Execution Modes](../testing/backend-execution-modes.md) for local commands and data ownership.
 
 ## References
 
-- [Render prebuilt images and registry access](https://render.com/docs/deploying-an-image)
-- [Render rollback semantics](https://render.com/docs/rollbacks)
-- [Docker image pinning](https://docs.docker.com/build/building/best-practices/)
+- [Render Blueprint Reference](https://render.com/docs/blueprint-spec)
+- [Deploy a Prebuilt Docker Image](https://render.com/docs/deploying-an-image)
+- [Render Blueprint Sync](https://render.com/docs/infrastructure-as-code)
+- [Render Rollbacks](https://render.com/docs/rollbacks)

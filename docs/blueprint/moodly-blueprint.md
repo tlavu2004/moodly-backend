@@ -1,5 +1,7 @@
 # Moodly — Habit & Mood Tracker
 
+> Historical implementation record. Test totals and intermediate designs below describe their recorded milestone. For current commands, ports, container modes, and cleanup behavior, use [the documentation index](../README.md).
+
 > A small application for learning through a practical problem: tracking daily habits and moods.
 
 ---
@@ -15,8 +17,7 @@
 
 - **Branch strategy:** One short-lived branch per phase, created directly from the latest `main`.
 - **Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): concise imperative summary`. Keep each commit buildable and focused; do not mix infrastructure, feature behavior, and broad refactors in one commit.
-- **When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`.
-**Merge strategy:** Squash Merge each completed phase branch directly into `main`. Include the phase's automated/manual tests in the same branch and squash them with the implementation; do not create separate test branches or standalone test commits on `main`.
+- **When to create a branch:** Create the phase branch immediately before starting that phase, after its prerequisite phase has been Squash Merged into `main`. **Merge strategy:** Squash Merge each completed phase branch directly into `main`. Include the phase's automated/manual tests in the same branch and squash them with the implementation; do not create separate test branches or standalone test commits on `main`.
 
 Before creating the first phase branch, make two small commits on `main`:
 
@@ -33,7 +34,7 @@ git switch -c feature/mongodb-core
 
 The first commit should be the Phase 1 bootstrap checkpoint. Commit the later checkpoints within the same phase branch, then squash them into one completed-phase commit on `main`.
 
-#### Phase branches
+#### Phase Branches
 
 Create each branch from the updated `main` after the previous phase has been completed:
 
@@ -67,7 +68,7 @@ com/tlavu/moodly
 
 Modules communicate through in-process Java interfaces or explicit application services—not HTTP, message brokers, or independent deployments. Keep MongoDB as the source of truth; the Change Stream indexing flow inside `search` is an internal asynchronous adapter that maintains the Elasticsearch index.
 
-### What can a user do?
+### What Can a User Do?
 
 1. Mark habits as completed for a given day (potentially multiple times a day).
 2. Record an end-of-day mood once per day—a score from 1 to 5 plus an optional note.
@@ -199,7 +200,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 ### Phase 1 — MongoDB Core (Evening 1)
 
-#### Setup (30 minutes)
+#### Setup (30 Minutes)
 
 - [x] Create one Spring Boot application.
 - [x] Add the MongoDB starter dependency to `pom.xml`.
@@ -214,7 +215,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Commit checkpoint:** `chore(application): initialize Moodly application with MongoDB setup and modular structure`
 
-#### Model and Repository (30–45 minutes)
+#### Model and Repository (30–45 Minutes)
 
 - [x] Create a `Habit` class for the `habits` document.
 - [x] Create a `DailyEntry` class with nested `Mood` and `HabitLog` classes for the `daily_entries` document.
@@ -225,7 +226,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Commit checkpoint:** `feat(mongodb): implement DailyEntry and Habit entities with repositories`
 
-#### Core API (45–60 minutes)
+#### Core API (45–60 Minutes)
 
 - [x] Implement `POST /habits` to create a habit.
 - [x] Implement `GET /habits` to return active habits.
@@ -236,7 +237,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 
 **Commit checkpoint:** `feat(entries): add DailyEntry service and controller with habit and mood management`
 
-#### Aggregation Pipeline (60–90 minutes; core learning section)
+#### Aggregation Pipeline (60–90 Minutes; Core Learning Section)
 
 - [x] Implement `GET /stats/mood-trend?period=week` using `$dateTrunc`, `$group`, and `$avg`.
 - [x] Implement `GET /stats/most-missed-habits` using `$unwind`, `$match`, `$group`, and `$sort`.
@@ -435,7 +436,7 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint:** `feat(stats): add mood trend, missed habit, and streak statistics`
 
-#### Polish (optional, if time remains)
+#### Polish (optional, If Time Remains)
 
 - [x] Add basic validation: mood score must be 1–5; date ranges must not be reversed or in the future.
 - [x] Add a minimal `GlobalExceptionHandler`.
@@ -457,7 +458,7 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint:** `test(mongo-core): enhance integration tests for MongoDB core services and API validation`
 
-### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
+### Phase 2 — Elasticsearch Via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
 Elasticsearch is a derived search index only. MongoDB remains the source of truth; the request/response flow must not write directly to Elasticsearch.
 
@@ -587,7 +588,7 @@ Implement and verify the complete backend locally before building the frontend o
 - [x] Extend `.env.local.example` with placeholders for the Auth0 issuer, API audience, Cloudinary cloud name, API key, API secret, upload preset, Cloudinary root folder, and local CORS origin. Add the corresponding values only to ignored `.env.local`.
 - [x] Add `application-local.yaml` bindings for Auth0, Cloudinary, and CORS so `make local-run` uses local MongoDB/Elasticsearch/CDC plus Auth0 and Cloudinary development credentials. Keep production bindings for a later `application-production.yaml`; do not add Render or Vercel configuration yet.
 
-##### Dashboard setup guide and local configuration values
+##### Dashboard Setup Guide and Local Configuration Values
 
 Complete this guide before running the Phase 3 backend. Use the ignored `.env.local` file, never `.env.local.example`, for real values. Do not place any of the values below in a React/Vite `VITE_*` variable except the future SPA-safe Auth0 domain, client ID, and audience. In particular, Cloudinary's API secret must remain on the backend.
 
@@ -623,11 +624,7 @@ Complete this guide before running the Phase 3 backend. Use the ignored `.env.lo
    http://localhost:5174
    ```
 
-   | Auth0 setting         | Local values                                     |
-   |-----------------------|--------------------------------------------------|
-   | Allowed Callback URLs | `http://localhost:5173`, `http://localhost:5174` |
-   | Allowed Logout URLs   | `http://localhost:5173`, `http://localhost:5174` |
-   | Allowed Web Origins   | `http://localhost:5173`, `http://localhost:5174` |
+   | Auth0 setting         | Local values                                     | |-----------------------|--------------------------------------------------| | Allowed Callback URLs | `http://localhost:5173`, `http://localhost:5174` | | Allowed Logout URLs   | `http://localhost:5173`, `http://localhost:5174` | | Allowed Web Origins   | `http://localhost:5173`, `http://localhost:5174` |
 
 3. Click **Save Changes**. Later, when the React SPA is implemented, its Auth0 SDK configuration will use this application's Domain, Client ID, and the API audience. Those are browser-safe; do not copy an application client secret into the SPA or this backend configuration.
 
@@ -766,15 +763,15 @@ Complete this gate only after all Phase 3 local backend checks pass and before c
 
 ---
 
-## 5. Possible Extensions (for deeper exploration)
+## 5. Possible Extensions (for Deeper Exploration)
 
-### Data extensions
+### Data Extensions
 
 - **Track by time rather than by day:** Replace `daily_entries` with `mood_logs` containing detailed timestamps. Learn time-series schema design and consider MongoDB Time Series Collections.
 - **Flexible habit targets:** Track quantities instead of only done/not done—for example, “drink water: 6/8 glasses.” This explores semi-structured data modeling.
 - **Roles and authorization:** Add roles such as `USER` and `ADMIN` only after the single-user ownership model is complete.
 
-### MongoDB feature extensions
+### MongoDB Feature Extensions
 
 - **Change Streams for notifications:** Reuse the CDC foundation to send a notification after a new entry is indexed.
 - **TTL Index:** Automatically remove unfinished draft entries after a defined number of days.
@@ -782,7 +779,7 @@ Complete this gate only after all Phase 3 local backend checks pass and before c
 - **`$lookup`:** If `habits` and `daily_entries` are separated completely, use `$lookup` to join them and compare that experience with embedding.
 - **Schema Validation:** Use MongoDB `$jsonSchema` to enforce document structure and compare it with application-level Spring `@Valid` validation.
 
-### Architecture extensions
+### Architecture Extensions
 
 - Apply Clean Architecture layers (`domain` / `application` / `infrastructure`) to observe how a document database changes the persistence layer compared with a relational database.
 - Implement a filterable entry-list feature twice—once with a repository query and once with a MongoDB aggregation—to compare the modeling trade-offs.
@@ -806,7 +803,7 @@ These are the key differences to take away after completing the project:
 
 Follow this order exactly. It avoids circular configuration: the backend needs database, search, auth, and media credentials before it can deploy; Auth0 and backend CORS need the final frontend URL after Vercel deploys it.
 
-### 7.1 Prepare the repository and configuration
+### 7.1 Prepare the Repository and Configuration
 
 - [ ] Finish Phase 1–3 locally and run the automated tests. Confirm a local full reindex succeeds and the API can resume a MongoDB Change Stream from a saved resume token.
 - [ ] Complete the Pre-Deployment API Documentation and CI/CD Gate after Phase 3 local verification passes.
@@ -829,32 +826,32 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 
 - [ ] Ensure `.env.local`, `.env.test`, any untracked local production export, provider exports, Auth0 client secrets, Cloudinary API secrets, Atlas connection strings, and Bonsai credentials are ignored by Git. Commit `application-production.yaml` with placeholders and deployment documentation before creating cloud resources.
 
-### 7.2 Create persistent data services first
+### 7.2 Create Persistent Data Services First
 
 - [ ] **Step 4 —** In MongoDB Atlas, create one Free cluster in a region close to Render. Create a least-privilege database user for Moodly and copy its application connection string into a password manager. Add Render's outbound access to the Atlas IP access list. If Render Free has no stable outbound IP, temporarily use `0.0.0.0/0` only for the demo and keep the database user's password strong; remove this rule when a stable IP is available.
 - [ ] **Step 5 —** In Bonsai, create one Free Sandbox cluster compatible with the Elasticsearch/OpenSearch client version used by the backend. Create a restricted credential, record the HTTPS endpoint and credentials, then configure the backend's `production` profile locally and run a one-time index mapping/reindex verification.
 - [ ] **Step 6 —** In Cloudinary, create a Free account and a **signed** production upload preset. Configure it to accept only `jpg`, `jpeg`, `png`, and `webp`, set its root folder to `moodly/production`, disable overwrite, and keep the API secret private to Render. The backend must enforce the maximum upload size.
 
-### 7.3 Configure authentication before deploying the backend
+### 7.3 Configure Authentication Before Deploying the Backend
 
 - [ ] **Step 7 —** In Auth0, create an API with a stable identifier such as `https://api.moodly.demo`; use this exact value as `AUTH0_AUDIENCE`. Do not use a temporary Render URL as the audience.
 - [ ] **Step 8 —** Create an Auth0 application for the frontend (SPA for a browser-only frontend, or Regular Web Application when the frontend owns a server-side session). Enable the database connection needed for demo users. Leave callback/logout/origin URLs to update after Vercel has supplied its final URL.
 - [ ] **Step 9 —** Record Auth0's issuer URL in the form `https://<tenant>.auth0.com/`. Configure the backend to validate this issuer and the API audience, not merely that a JWT has a valid signature.
 
-### 7.4 Deploy the backend and initialize search
+### 7.4 Deploy the Backend and Initialize Search
 
 - [ ] **Step 10 —** Create a Render Web Service from the backend repository. Use the Maven build command required by the project and the production start command; do not run Keycloak, Garage, or a local Elasticsearch container on Render.
 - [ ] **Step 11 —** Add the production variables referenced by `application-production.yaml` in section 7.1 to Render, using the values from Atlas, Bonsai, Auth0, and Cloudinary. Set `APP_CORS_ALLOWED_ORIGINS` temporarily to an empty or placeholder value until the Vercel URL exists; do not use `*` for an authenticated API.
 - [ ] **Step 12 —** Deploy Render and record the public backend URL, for example `https://moodly-api.onrender.com`. Verify its health endpoint and a protected endpoint returns `401` without a token. Verify the application connects to Atlas and Bonsai from Render logs without printing credentials.
 - [ ] **Step 13 —** Invoke the protected reindex/admin workflow through a controlled local operation, or start the approved reindex command once, so Bonsai has the current MongoDB documents. Confirm the index mapping, one search result, and the saved CDC resume token. Do not expose a public unauthenticated reindex endpoint.
 
-### 7.5 Deploy the frontend, then close the configuration loop
+### 7.5 Deploy the Frontend, Then Close the Configuration Loop
 
 - [ ] **Step 14 —** If the demo has a frontend, create a Vercel project from its repository. Add only browser-safe configuration: Auth0 domain, Auth0 client ID, Auth0 audience, and the Render API base URL. Never put Cloudinary API secret, Auth0 client secret, Atlas URI, or Bonsai credentials in Vercel.
 - [ ] **Step 15 —** Deploy Vercel and record its production URL. In Auth0, add the exact HTTPS Vercel URL to **Allowed Callback URLs**, **Allowed Logout URLs**, and **Allowed Web Origins**. Add `http://localhost:<frontend-port>` separately for local development only.
 - [ ] **Step 16 —** Update Render's `APP_CORS_ALLOWED_ORIGINS` to the exact Vercel production URL (and optionally the local frontend URL), then redeploy Render. Redeploy Vercel if its environment variables changed. If there is no frontend, skip this subsection and obtain a demo access token through Auth0's supported test/login flow before using the `.http` file.
 
-### 7.6 Verify the complete public flow
+### 7.6 Verify the Complete Public Flow
 
 - [ ] **Step 17 —** Register two separate demo users through Auth0 Universal Login. For each user, call one protected API endpoint and confirm that a profile is created with its `auth0Subject`.
 - [ ] **Step 18 —** As user A, create a habit and entry, wait for or trigger the CDC catch-up, and verify the Bonsai-backed search returns only user A's document. Repeat as user B and verify neither MongoDB-backed endpoints nor search reveal user A's data.
@@ -862,7 +859,7 @@ Follow this order exactly. It avoids circular configuration: the backend needs d
 - [ ] **Step 20 —** Test missing token, expired token, invalid signature, wrong issuer, and wrong audience: each must return `401`. Confirm an authenticated but unauthorized operation returns `403` only where an authorization rule exists.
 - [ ] **Step 21 —** Restart the Render service or wait for a free-tier sleep/wake cycle, then make a writing operation and confirm the CDC listener resumes and Bonsai catches up. If it does not, run the restricted reindex workflow and investigate the stored resume token and dead-letter collection before declaring the demo ready.
 
-### 7.7 Final safety checklist
+### 7.7 Final Safety Checklist
 
 - [ ] No secrets are committed, printed in logs, or sent to Vercel browser code.
 - [ ] Atlas access is restricted as far as the Render plan permits.
