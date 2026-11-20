@@ -1,5 +1,6 @@
 package com.tlavu.moodly.modules.habits.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
@@ -33,9 +35,12 @@ class HabitApiIntegrationTest {
 	private MockMvc mockMvc;
 	@Autowired
 	private HabitRepository habitRepository;
+	@Autowired
+	private DailyEntryRepository dailyEntryRepository;
 
 	@AfterEach
 	void cleanUp() {
+		dailyEntryRepository.deleteByUserId(USER_ID);
 		habitRepository.deleteAll();
 	}
 
@@ -82,6 +87,29 @@ class HabitApiIntegrationTest {
 					.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"))
 					.andExpect(jsonPath("$.error.message").value("Habit was not found."));
 		}
+	}
+
+	@Test
+	void rejectsMutationsOfAnotherUsersHabitWithoutWritingData() throws Exception {
+		Habit otherHabit = habitRepository.save(
+				new Habit("other-habit", "another-user", "Walk", "walk", TargetFrequency.DAILY, true));
+
+		mockMvc.perform(patch("/habits/{habitId}", otherHabit.getId())
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Changed\",\"icon\":\"run\",\"version\":" + otherHabit.getVersion() + "}"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"));
+		mockMvc.perform(patch("/entries/today")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"habitId\":\"other-habit\",\"done\":true}"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error.code").value("HABIT_NOT_FOUND"));
+
+		assertThat(habitRepository.findById(otherHabit.getId()).orElseThrow())
+				.usingRecursiveComparison().isEqualTo(otherHabit);
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
 	}
 
 	@Test

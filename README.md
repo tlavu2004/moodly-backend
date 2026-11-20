@@ -273,7 +273,7 @@ erDiagram
 | **API Documentation** | Springdoc OpenAPI 3.1.1 | Automated contract generation with zero-drift schema checks |
 | **Build & Tooling** | Maven Wrapper 3.9.16 / Make | Strict reproducible builds, multi-stage caching |
 | **Testing** | JUnit 5, AssertJ, Mockito, Test MockMvc | Unit, Security, and Docker-backed Integration Test Suites |
-| **Code Quality** | JaCoCo 0.8.14 | Line & branch coverage enforcement (Instruction ≥ 80%, Branch ≥ 70%) |
+| **Code Quality** | JaCoCo 0.8.14 | Repository-wide coverage gate (Line ≥ 85%, Branch ≥ 75%, Method ≥ 85%, Instruction ≥ 85%) |
 | **CI / CD** | GitHub Actions | Automated PR testing, container building, and Dependabot auto-updates |
 | **Containerization** | Docker & Docker Compose | Multi-stage JRE Alpine container with non-root security |
 | **Hosting** | Render | Target image-backed deployment; provisioning is a separate operator step |

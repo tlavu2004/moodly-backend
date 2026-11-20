@@ -1,8 +1,17 @@
 package com.tlavu.moodly.modules.entries.service.implementation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
+import com.mongodb.client.result.UpdateResult;
 import com.tlavu.moodly.modules.entries.model.DailyEntry;
+import com.tlavu.moodly.modules.entries.model.HabitLog;
 import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.domain.TargetFrequency;
 import com.tlavu.moodly.modules.habits.model.Habit;
@@ -16,9 +25,11 @@ import com.tlavu.moodly.support.MongoTestConfiguration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +37,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -43,6 +58,8 @@ class DailyEntryConcurrencyIntegrationTest {
 	private HabitRepository habitRepository;
 	@Autowired
 	private HabitService habitService;
+	@MockitoSpyBean
+	private MongoTemplate mongoTemplate;
 
 	@BeforeEach
 	void seedHabits() {
@@ -81,6 +98,41 @@ class DailyEntryConcurrencyIntegrationTest {
 				() -> service.updateHabitLog(USER, date, new UpdateHabitLogInput("read", true, "Done")));
 		assertThat(repository.findByUserIdAndDate(USER, date).orElseThrow().getHabits())
 				.extracting("habitId").containsExactlyInAnyOrder("walk", "read");
+	}
+
+	@Test
+	void concurrentWritesToTheSameMissingHabitLogAppendOnceThenReplace() throws Exception {
+		LocalDate date = LocalDate.of(2026, 9, 2);
+		service.setMood(USER, date, new SetMoodInput(3, List.of(), "Start"));
+		service.updateHabitLog(USER, date, new UpdateHabitLogInput("read", true, "Read"));
+		CyclicBarrier bothReplacementsMissed = new CyclicBarrier(2);
+		doAnswer(invocation -> {
+			UpdateResult result = (UpdateResult) invocation.callRealMethod();
+			if (result.getMatchedCount() == 0) {
+				bothReplacementsMissed.await(10, TimeUnit.SECONDS);
+			}
+			return result;
+		}).when(mongoTemplate).updateFirst(
+				argThat((Query query) -> "walk".equals(query.getQueryObject().get("habits.habitId"))),
+				any(Update.class), eq(DailyEntry.class));
+
+		runTogether(
+				() -> service.updateHabitLog(USER, date, new UpdateHabitLogInput("walk", true, "Done")),
+				() -> service.updateHabitLog(USER, date, new UpdateHabitLogInput("walk", false, "Skipped")));
+
+		verify(mongoTemplate, times(3)).updateFirst(
+				argThat((Query query) -> "walk".equals(query.getQueryObject().get("habits.habitId"))),
+				any(Update.class), eq(DailyEntry.class));
+		DailyEntry entry = repository.findByUserIdAndDate(USER, date).orElseThrow();
+		assertThat(entry.getMood().getScore()).isEqualTo(3);
+		assertThat(entry.getMood().getNote()).isEqualTo("Start");
+		assertThat(entry.getHabits()).hasSize(2)
+				.filteredOn(log -> log.getHabitId().equals("read"))
+				.extracting(HabitLog::isDone, HabitLog::getNote)
+				.containsExactly(tuple(true, "Read"));
+		assertThat(entry.getHabits()).filteredOn(log -> log.getHabitId().equals("walk"))
+				.extracting(HabitLog::isDone, HabitLog::getNote)
+				.singleElement().isIn(tuple(true, "Done"), tuple(false, "Skipped"));
 	}
 
 	@Test
