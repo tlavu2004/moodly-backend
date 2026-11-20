@@ -52,37 +52,56 @@ jobs:
           retention-days: 3
 
       - name: Summarize coverage
-        if: success()
+        if: always()
         run: |
           python3 - <<'PY'
           import os
           import xml.etree.ElementTree as ET
+          from decimal import Decimal
           from pathlib import Path
 
           report_path = Path("target/site/jacoco/jacoco.xml")
+          if not report_path.is_file():
+              raise SystemExit(0)
+
+          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+          pom = ET.parse("pom.xml").getroot()
+          limits = pom.findall(
+              "./m:build/m:plugins/m:plugin[m:artifactId='jacoco-maven-plugin']"
+              "/m:executions/m:execution[m:id='enforce-coverage-baseline']"
+              "/m:configuration/m:rules/m:rule[m:element='BUNDLE']"
+              "/m:limits/m:limit[m:value='COVEREDRATIO']",
+              namespace,
+          )
+          thresholds = {
+              limit.findtext("m:counter", namespaces=namespace):
+              Decimal(limit.findtext("m:minimum", namespaces=namespace))
+              for limit in limits
+          }
           root = ET.parse(report_path).getroot()
           counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
 
           rows = []
-          for metric in ("INSTRUCTION", "BRANCH", "LINE", "METHOD", "CLASS"):
-              counter = counters[metric]
-              missed = int(counter["missed"])
-              covered = int(counter["covered"])
+          for metric in ("LINE", "BRANCH", "METHOD", "INSTRUCTION", "CLASS"):
+              counter = counters.get(metric)
+              missed = int(counter["missed"]) if counter is not None else 0
+              covered = int(counter["covered"]) if counter is not None else 0
               total = missed + covered
-              percentage = covered / total * 100 if total else 100
-              rows.append((metric.title(), covered, total, percentage))
+              coverage = f"{covered / total:.2%}" if total else "—"
+              minimum = thresholds[metric] if metric != "CLASS" else None
+              minimum_label = f"{minimum:.0%}" if minimum is not None else "—"
+              result = "—"
+              if minimum is not None and total:
+                  result = "Pass" if covered >= minimum * total else "Fail"
+              rows.append(f"| {metric.title()} | {covered} | {total} | {coverage} | {minimum_label} | {result} |")
 
           summary = [
               "## JaCoCo coverage",
               "",
-              "| Metric | Covered | Total | Coverage |",
-              "| --- | ---: | ---: | ---: |",
+              "| Metric | Covered | Total | Coverage | Minimum | Result |",
+              "| --- | ---: | ---: | ---: | ---: | --- |",
           ]
-          summary.extend(
-              f"| {metric} | {covered} | {total} | {percentage:.1f}% |"
-              for metric, covered, total, percentage in rows
-          )
-          summary.extend(("", "Quality gate: Instruction coverage ≥80%; Branch coverage ≥70%."))
+          summary.extend(rows)
           output = "\n".join(summary) + "\n"
 
           print(output)
