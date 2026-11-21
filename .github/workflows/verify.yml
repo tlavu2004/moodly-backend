@@ -116,7 +116,7 @@ jobs:
         continue-on-error: true
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: python3 scripts/coverage/summarize_patch.py
+        run: java scripts/coverage/SummarizePatch.java
 
       - name: Upload coverage report
         if: always()
