@@ -635,6 +635,12 @@ The PR job summary uses the diff from the PR merge base to the tested checkout. 
 
 The summary displays `N/A` when a metric has no measurable units. PR targets are advisory. The Maven thresholds control the required coverage gate.
 
+### SonarQube Cloud
+
+Import the backend repository into SonarQube Cloud and select CI-based analysis. Disable Automatic Analysis for that project. Set the GitHub Actions repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY`, and store the analysis token as the `SONAR_TOKEN` repository secret.
+
+After Maven verify succeeds, the scanner imports the JaCoCo XML report on pushes to `main` and pull requests from this repository. The scanner runs in advisory mode. GitHub branch protection can enforce a SonarQube check separately after the rollout is validated.
+
 ## Contribution
 
 1. Fork the repository.
