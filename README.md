@@ -641,6 +641,12 @@ Import the backend repository into SonarQube Cloud and select CI-based analysis.
 
 After Maven verify succeeds, the scanner imports the JaCoCo XML report on pushes to `main` and pull requests from this repository. The scanner runs in advisory mode. GitHub branch protection can enforce a SonarQube check separately after the rollout is validated.
 
+### Codecov
+
+Enable the backend repository in Codecov and add the `CODECOV_TOKEN` GitHub Actions repository secret. CI uploads JaCoCo XML on pushes to `main` and pull requests from this repository after Maven verify succeeds. Run a build on `main` first to establish a baseline.
+
+Codecov's project status and 85% patch target are informational. The PR job summary reports the four Moodly metrics separately, and Maven enforces the project coverage thresholds.
+
 ## Contribution
 
 1. Fork the repository.

@@ -24,6 +24,7 @@ jobs:
     uses: ./.github/workflows/verify.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   publish-image:
     name: Publish container image
