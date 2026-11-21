@@ -620,6 +620,21 @@ Expect BUILD SUCCESS, coverage/format gates passing, and dependency containers s
 
 ---
 
+## Test Coverage
+
+Run `make verify` locally. GitHub Actions runs Maven `verify` in the shared backend verification workflow for PR CI and releases. JaCoCo enforces the following thresholds across the application bundle.
+
+| Metric | Required project coverage | Advisory PR target |
+| --- | ---: | ---: |
+| Line | 85% | 85% |
+| Branch | 75% | 75% |
+| Method | 85% | 85% |
+| Instruction | 85% | 85% |
+
+The PR job summary uses the diff from the PR merge base to the tested checkout. Line, branch, and instruction counts come from JaCoCo XML entries on added or modified executable lines. Method counts use Java source declarations whose signatures or bodies overlap the diff, matched to JaCoCo methods by name and entry line. Each matched method counts once and is covered if JaCoCo marks it as executed. Generated methods without a matching source declaration are outside this PR metric.
+
+The summary displays `N/A` when a metric has no measurable units. PR targets are advisory. The Maven thresholds control the required coverage gate.
+
 ## Contribution
 
 1. Fork the repository.
