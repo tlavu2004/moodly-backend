@@ -52,8 +52,7 @@ class ElasticsearchClientTest {
 	@Test
 	void retainsHttpStatusFailuresForCallerClassification() throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(429);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
 
@@ -71,8 +70,7 @@ class ElasticsearchClientTest {
 	})
 	void rejectsIncompleteDeleteByUserEvenWhenHttpSucceeds(String body) throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(200);
 		when(response.body()).thenReturn(body);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
@@ -87,8 +85,7 @@ class ElasticsearchClientTest {
 	@Test
 	void propagatesForbiddenDeleteByUserWithoutRefreshingOrRetrying() throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(403);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
 
