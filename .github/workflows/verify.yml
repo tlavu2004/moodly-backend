@@ -95,7 +95,7 @@ jobs:
               covered = int(counter["covered"]) if counter is not None else 0
               total = missed + covered
               coverage = f"{covered / total:.2%}" if total else "—"
-              minimum = thresholds[metric] if metric != "CLASS" else None
+              minimum = thresholds[metric]
               minimum_label = f"{minimum:.0%}" if minimum is not None else "—"
               result = "—"
               if minimum is not None and total:
@@ -121,7 +121,19 @@ jobs:
         continue-on-error: true
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: java scripts/coverage/SummarizePatch.java
+        run: |
+          if [[ -f target/site/jacoco/jacoco.xml ]]; then
+            base_dir=$(mktemp -d)
+            if merge_base=$(git merge-base "$PR_BASE_SHA" HEAD) &&
+               git archive "$merge_base" | tar -x -C "$base_dir" &&
+               (cd "$base_dir" && bash ./mvnw --batch-mode compile) &&
+               [[ -d "$base_dir/target/classes" ]]; then
+              export PR_BASE_CLASSES="$base_dir/target/classes"
+            else
+              echo "::warning::Could not compile the PR merge base for new class coverage."
+            fi
+          fi
+          java scripts/coverage/SummarizePatch.java
 
       - name: Upload coverage report
         if: always()
