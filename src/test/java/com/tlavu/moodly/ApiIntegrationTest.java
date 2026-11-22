@@ -14,6 +14,7 @@ import com.tlavu.moodly.modules.entries.repository.DailyEntryRepository;
 import com.tlavu.moodly.modules.habits.repository.HabitRepository;
 import com.tlavu.moodly.support.MongoTestConfiguration;
 import com.tlavu.moodly.shared.time.MoodlyTime;
+import jakarta.servlet.http.Cookie;
 import java.time.LocalDate;
 import java.time.Clock;
 import java.time.Instant;
@@ -266,6 +267,16 @@ class ApiIntegrationTest {
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(put("/auth/profile"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void rejectsHabitMutationWhenCredentialsAreOnlyInCookies() throws Exception {
+		mockMvc.perform(post("/habits")
+						.cookie(new Cookie("access_token", "cookie-token"), new Cookie("JSESSIONID", "session-id"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"Read\",\"icon\":\"book\",\"targetFrequency\":\"DAILY\"}"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
 	}
 
 	@Test

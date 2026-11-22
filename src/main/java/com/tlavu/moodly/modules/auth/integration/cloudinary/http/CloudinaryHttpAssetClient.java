@@ -1,10 +1,9 @@
 package com.tlavu.moodly.modules.auth.integration.cloudinary.http;
 
-import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
-
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinarySignature;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import java.io.IOException;
@@ -14,12 +13,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HexFormat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -129,11 +125,7 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 	public void deleteImage(String publicId) {
 		// Deletion is intentionally performed only after the replacement has been persisted.
 		long timestamp = Instant.now().getEpochSecond();
-		String signature = sha1(
-					"public_id=" + publicId +
-					"&timestamp=" + timestamp +
-					apiSecret
-		);
+		String signature = CloudinarySignature.sign("public_id=" + publicId + "&timestamp=" + timestamp, apiSecret);
 		String body = "public_id=" + encode(publicId) +
 				"&timestamp=" + timestamp +
 				"&api_key=" + encode(apiKey) +
@@ -167,20 +159,6 @@ public class CloudinaryHttpAssetClient implements CloudinaryAssetClient {
 		} catch (IOException exception) {
 			throw new AvatarAssetDeletionException(
 					"Cloudinary deletion failed.",
-					exception
-			);
-		}
-	}
-
-	private static String sha1(String value) {
-		try {
-			return HexFormat.of().formatHex(
-				MessageDigest.getInstance("SHA-1")
-						.digest(value.getBytes(StandardCharsets.UTF_8))
-			);
-		} catch (NoSuchAlgorithmException exception) {
-			throw new AssetSignatureException(
-					"SHA-1 is unavailable for asset signing",
 					exception
 			);
 		}
