@@ -44,7 +44,7 @@ The earlier manual-port setting was removed by the later session migration. Loca
 - Manual and automated test namespaces remain fixed as moodly_test and daily_entries_search_test. Local collisions and unsafe targets are rejected.
 - Manual mode inherits local CDC/search/rate-limit settings and explicit caller overrides. There is no second dotenv file overriding these settings.
 - The last infrastructure consumer stops only automatically owned services. Preexisting or explicitly pinned services remain running. Manual test data is disposable and resets before launch and after exit.
-- A legacy clean-mongodb.sh .env.test argument still selects guarded test cleanup; it does not read the retired env file. Prefer clean-mongodb.sh test.
+- Use `clean-mongodb.sh test` for guarded test cleanup. The script rejects the retired `.env.test` argument before loading any environment file.
 
 The bootstrap compiles test-side tooling and resolves the existing dependency classpath through Maven Wrapper before starting Java. Repeated calls use Maven's incremental compilation/cache. The JUnit harness calls shared Java code directly, so it does not invoke the bootstrap or recursively run Maven.
 
