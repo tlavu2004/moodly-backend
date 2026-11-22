@@ -16,6 +16,9 @@ jobs:
   verify:
     name: PR verification
     uses: ./.github/workflows/verify.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build-image:
     name: PR container build
