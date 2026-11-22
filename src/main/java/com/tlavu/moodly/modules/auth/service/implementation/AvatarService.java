@@ -98,6 +98,10 @@ public class AvatarService {
 		long timestamp = Instant.now().getEpochSecond();
 		String publicId = folder + "/users/" + subjectPath(currentUser.id()) + "/avatar/" + UUID.randomUUID();
 		Instant expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
+		String toSign = "public_id=" + publicId +
+				"&timestamp=" + timestamp +
+				"&upload_preset=" + uploadPreset;
+		String signature = sha1(toSign + apiSecret);
 
 		pendingUploads.save(
 				new PendingAvatarUpload(
@@ -107,10 +111,6 @@ public class AvatarService {
 				)
 		);
 
-		String toSign = "public_id=" + publicId +
-				"&timestamp=" + timestamp +
-				"&upload_preset=" + uploadPreset;
-
 		return new UploadSignatureView(
 				cloudName,
 				apiKey,
@@ -118,7 +118,7 @@ public class AvatarService {
 				publicId,
 				timestamp,
 				expiresAt,
-				sha1(toSign + apiSecret),
+				signature,
 				"https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload"
 		);
 	}

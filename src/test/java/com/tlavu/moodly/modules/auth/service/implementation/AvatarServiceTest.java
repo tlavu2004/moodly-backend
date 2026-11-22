@@ -6,12 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
@@ -29,6 +31,7 @@ import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -78,6 +81,20 @@ class AvatarServiceTest {
 				+ "&timestamp=" + payload.timestamp() + "&upload_preset=test-presettest-secret"));
 		verify(userProfileService).synchronizeCurrent();
 		verify(pendingUploads).save(any(PendingAvatarUpload.class));
+	}
+
+	@Test
+	void signingFailureKeepsItsCauseAndDoesNotSaveAnUpload() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		var failure = new NoSuchAlgorithmException("SHA-1 unavailable");
+		try (var digest = mockStatic(MessageDigest.class)) {
+			digest.when(() -> MessageDigest.getInstance("SHA-1")).thenThrow(failure);
+
+			assertThatThrownBy(() -> service.createSignature(new CreateUploadSignatureInput("image/png", 1024)))
+					.isInstanceOf(AssetSignatureException.class)
+					.hasCause(failure);
+		}
+		verify(pendingUploads, never()).save(any());
 	}
 
 	@Test

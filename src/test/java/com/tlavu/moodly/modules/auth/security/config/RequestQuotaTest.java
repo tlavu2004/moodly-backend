@@ -1,7 +1,9 @@
 package com.tlavu.moodly.modules.auth.security.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.tlavu.moodly.modules.auth.exception.RateLimitConfigurationException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -14,6 +16,19 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class RequestQuotaTest {
+	@Test
+	void rejectsNonPositiveQuotaConfiguration() {
+		Duration window = Duration.ofSeconds(60);
+		assertThatThrownBy(() -> new RequestQuota(0, 1, window, () -> 0))
+				.isInstanceOf(RateLimitConfigurationException.class);
+		assertThatThrownBy(() -> new RequestQuota(1, 0, window, () -> 0))
+				.isInstanceOf(RateLimitConfigurationException.class);
+		assertThatThrownBy(() -> new RequestQuota(1, 1, Duration.ZERO, () -> 0))
+				.isInstanceOf(RateLimitConfigurationException.class);
+		assertThatThrownBy(() -> new RequestQuota(1, 1, window.negated(), () -> 0))
+				.isInstanceOf(RateLimitConfigurationException.class);
+	}
+
 	@Test
 	void isolatesSubjectsAndRestoresQuotaAtTheWindowBoundary() {
 		AtomicLong clock = new AtomicLong();
