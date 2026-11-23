@@ -2,13 +2,12 @@ package com.tlavu.moodly.modules.auth.service.implementation;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarCleanupTaskException;
 
-import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
-
 import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
 import com.tlavu.moodly.modules.auth.exception.AvatarAssetDeletionException;
 import com.tlavu.moodly.modules.auth.exception.AvatarProfileMissingException;
+import com.tlavu.moodly.modules.auth.integration.cloudinary.CloudinarySignature;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import com.tlavu.moodly.modules.auth.integration.cloudinary.port.CloudinaryAssetClient;
 import com.tlavu.moodly.modules.auth.model.PendingAssetDeletion;
@@ -22,11 +21,7 @@ import com.tlavu.moodly.modules.auth.service.input.ConfirmAvatarInput;
 import com.tlavu.moodly.modules.auth.service.input.CreateUploadSignatureInput;
 import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -98,6 +93,10 @@ public class AvatarService {
 		long timestamp = Instant.now().getEpochSecond();
 		String publicId = folder + "/users/" + subjectPath(currentUser.id()) + "/avatar/" + UUID.randomUUID();
 		Instant expiresAt = Instant.now().plusSeconds(SIGNATURE_TTL_SECONDS);
+		String toSign = "public_id=" + publicId +
+				"&timestamp=" + timestamp +
+				"&upload_preset=" + uploadPreset;
+		String signature = CloudinarySignature.sign(toSign, apiSecret);
 
 		pendingUploads.save(
 				new PendingAvatarUpload(
@@ -107,10 +106,6 @@ public class AvatarService {
 				)
 		);
 
-		String toSign = "public_id=" + publicId +
-				"&timestamp=" + timestamp +
-				"&upload_preset=" + uploadPreset;
-
 		return new UploadSignatureView(
 				cloudName,
 				apiKey,
@@ -118,7 +113,7 @@ public class AvatarService {
 				publicId,
 				timestamp,
 				expiresAt,
-				sha1(toSign + apiSecret),
+				signature,
 				"https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload"
 		);
 	}
@@ -293,19 +288,14 @@ public class AvatarService {
 	}
 
 	private static String trimSlash(String value) {
-		return value.replaceAll("^/+|/+$", "");
-	}
-
-	private static String sha1(String value) {
-		try {
-			return HexFormat.of()
-					.formatHex(MessageDigest.getInstance("SHA-1")
-					.digest(value.getBytes(StandardCharsets.UTF_8)));
-		} catch (NoSuchAlgorithmException e) {
-			throw new AssetSignatureException(
-					"SHA-1 is unavailable for asset signing",
-					e
-			);
+		int start = 0;
+		int end = value.length();
+		while (start < end && value.charAt(start) == '/') {
+			start++;
 		}
+		while (end > start && value.charAt(end - 1) == '/') {
+			end--;
+		}
+		return value.substring(start, end);
 	}
 }

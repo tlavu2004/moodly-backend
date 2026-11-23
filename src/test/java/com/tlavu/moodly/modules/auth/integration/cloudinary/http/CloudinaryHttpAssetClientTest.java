@@ -15,11 +15,21 @@ import com.tlavu.moodly.modules.auth.exception.AvatarServiceUnavailableException
 import com.tlavu.moodly.modules.auth.integration.cloudinary.model.ConfirmedAsset;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.ObjectMapper;
@@ -119,6 +129,24 @@ class CloudinaryHttpAssetClientTest {
 		assertThat(request.getValue().method()).isEqualTo("POST");
 		assertThat(request.getValue().headers().firstValue("Content-Type"))
 				.contains("application/x-www-form-urlencoded");
+		var body = HttpResponse.BodySubscribers.ofString(StandardCharsets.UTF_8);
+		request.getValue().bodyPublisher().orElseThrow().subscribe(
+				new Flow.Subscriber<ByteBuffer>() {
+					@Override public void onSubscribe(Flow.Subscription subscription) {
+						body.onSubscribe(subscription);
+					}
+					@Override public void onNext(ByteBuffer item) { body.onNext(List.of(item)); }
+					@Override public void onError(Throwable failure) { body.onError(failure); }
+					@Override public void onComplete() { body.onComplete(); }
+				});
+		String form = body.getBody().toCompletableFuture().get(5, TimeUnit.SECONDS);
+		var fields = Arrays.stream(form.split("&")).map(field -> field.split("=", 2))
+				.collect(Collectors.toMap(field -> field[0],
+						field -> URLDecoder.decode(field[1], StandardCharsets.UTF_8)));
+		String parameters = "public_id=" + PUBLIC_ID + "&timestamp=" + fields.get("timestamp");
+		String expectedSignature = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+				.digest((parameters + "test-secret").getBytes(StandardCharsets.UTF_8)));
+		assertThat(fields).containsEntry("public_id", PUBLIC_ID).containsEntry("signature", expectedSignature);
 		assertThatThrownBy(() -> client.deleteImage(PUBLIC_ID))
 				.isInstanceOf(AvatarAssetDeletionException.class)
 				.hasMessage("Cloudinary deletion failed.")

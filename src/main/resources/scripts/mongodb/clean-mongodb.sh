@@ -27,9 +27,13 @@ SERVICE_DIR="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 
 ENV_FILENAME=${1:-".env.local"}
 # Test cleanup uses the shared lease and fixed namespace, never old env test ports.
-if [ "$ENV_FILENAME" = test ] || [ "$ENV_FILENAME" = .env.test ]; then
+if [[ "$ENV_FILENAME" == test ]]; then
   cd "$SERVICE_DIR"
   exec bash scripts/docker/run-tooling.sh clean-test
+fi
+if [[ "${ENV_FILENAME##*/}" == .env.test ]]; then
+  echo "ERROR: .env.test is retired. Use 'clean-mongodb.sh test' for test cleanup." >&2
+  exit 1
 fi
 ENV_FILE="$SERVICE_DIR/$ENV_FILENAME"
 
