@@ -55,7 +55,7 @@ class SummarizePatch {
         var summary = new StringBuilder("## Coverage on changed lines\n\n")
                 .append("Advisory. Counts use changed executable lines and source methods that overlap the diff.\n\n");
         if (Files.isRegularFile(REPORT)) {
-            appendReport(summary, changedLines(System.getenv("PR_BASE_SHA")));
+            appendReport(summary, changedLines(System.getenv("PR_BASE_SHA")), baseClasses());
         } else {
             summary.append("Coverage report unavailable.\n");
         }
@@ -64,7 +64,8 @@ class SummarizePatch {
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
-    private static void appendReport(StringBuilder summary, Map<String, Set<Integer>> changes) throws Exception {
+    private static void appendReport(StringBuilder summary, Map<String, Set<Integer>> changes,
+                                     Set<String> baseClasses) throws Exception {
         var factory = DocumentBuilderFactory.newInstance();
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
@@ -76,6 +77,8 @@ class SummarizePatch {
         var branches = new Counter();
         var methods = new Counter();
         var instructions = new Counter();
+        var classes = new Counter();
+        var uncoveredClasses = new ArrayList<String>();
         var ranges = methodRanges(changes);
         for (Element pkg : children(report, "package")) {
             String prefix = SOURCE_ROOT + pkg.getAttribute("name") + "/";
@@ -92,6 +95,10 @@ class SummarizePatch {
                 }
             }
             for (Element cls : children(pkg, "class")) {
+                String className = cls.getAttribute("name");
+                if (baseClasses != null && !baseClasses.contains(className)) {
+                    countNewClass(cls, classes, uncoveredClasses);
+                }
                 String path = prefix + cls.getAttribute("sourcefilename");
                 var changed = changes.getOrDefault(path, Set.of());
                 for (Element method : children(cls, "method")) {
@@ -105,6 +112,46 @@ class SummarizePatch {
                 .append(branches.row("BRANCH", 75))
                 .append(methods.row("METHOD", 85))
                 .append(instructions.row("INSTRUCTION", 85));
+        if (baseClasses == null) {
+            summary.append("| CLASS | N/A | N/A | N/A | 100% | Base classes unavailable |\n");
+        } else {
+            summary.append(classes.row("CLASS", 100))
+                    .append("\nCLASS counts measurable classes absent from the compiled PR merge base.\n");
+        }
+        if (!uncoveredClasses.isEmpty()) {
+            summary.append("\nNew classes without coverage:\n\n");
+            uncoveredClasses.stream().sorted().forEach(name -> summary.append("- `").append(name).append("`\n"));
+        }
+    }
+
+    private static Set<String> baseClasses() throws Exception {
+        String directory = System.getenv("PR_BASE_CLASSES");
+        if (directory == null || !Files.isDirectory(Path.of(directory))) {
+            return null;
+        }
+        Path root = Path.of(directory);
+        Set<String> names = new HashSet<>();
+        try (var paths = Files.walk(root)) {
+            paths.filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".class"))
+                    .map(path -> root.relativize(path).toString().replace('\\', '/'))
+                    .map(path -> path.substring(0, path.length() - ".class".length()))
+                    .forEach(names::add);
+        }
+        return names;
+    }
+
+    private static void countNewClass(Element cls, Counter classes, List<String> uncoveredClasses) {
+        for (Element counter : children(cls, "counter")) {
+            if ("CLASS".equals(counter.getAttribute("type"))) {
+                int covered = number(counter, "covered");
+                int missed = number(counter, "missed");
+                classes.add(covered, covered + missed);
+                if (missed > 0) {
+                    uncoveredClasses.add(cls.getAttribute("name").replace('/', '.'));
+                }
+                return;
+            }
+        }
     }
 
     private static void countMethod(Element method, String path, Set<Integer> changed,

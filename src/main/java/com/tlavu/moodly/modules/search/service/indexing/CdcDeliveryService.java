@@ -4,7 +4,6 @@ import com.tlavu.moodly.modules.search.exception.CdcConfigurationException;
 
 import com.tlavu.moodly.modules.search.exception.CdcPayloadSerializationException;
 
-import com.tlavu.moodly.modules.search.exception.CdcDeliveryStateException;
 
 import com.tlavu.moodly.shared.error.logging.ExceptionLogSummary;
 
@@ -274,9 +273,8 @@ public class CdcDeliveryService {
 			AttemptCount attempts
 	) {
 		ElasticsearchTransportException lastIoFailure = null;
-		ElasticsearchException lastRuntimeFailure = null;
 
-		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+		for (int attempt = 1; ; attempt++) {
 			attempts.record(attempt);
 			try {
 				operation.run();
@@ -290,7 +288,7 @@ public class CdcDeliveryService {
 				lastIoFailure = exception;
 
 				if (attempt == maxAttempts) {
-					break;
+					throw exception;
 				}
 
 				waitBeforeRetry(
@@ -305,10 +303,8 @@ public class CdcDeliveryService {
 					throw exception;
 				}
 
-				lastRuntimeFailure = exception;
-
 				if (attempt == maxAttempts) {
-					break;
+					throw lastIoFailure != null ? lastIoFailure : exception;
 				}
 
 				waitBeforeRetry(
@@ -320,15 +316,6 @@ public class CdcDeliveryService {
 				);
 			}
 		}
-
-		if (lastIoFailure != null) {
-			throw lastIoFailure;
-		}
-		if (lastRuntimeFailure != null) {
-			throw lastRuntimeFailure;
-		}
-
-		throw new CdcDeliveryStateException("CDC delivery ended without an Elasticsearch failure");
 	}
 
 	private void waitBeforeRetry(

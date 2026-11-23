@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.search.listener;
 
 import com.tlavu.moodly.modules.search.exception.CdcEventProcessingException;
+import com.tlavu.moodly.modules.search.exception.CdcCheckpointException;
 import com.tlavu.moodly.modules.search.exception.CdcEventMalformedException;
 import com.tlavu.moodly.modules.search.repository.CdcResumeTokenRepository;
 
@@ -107,6 +108,20 @@ class DailyEntryChangeStreamListenerTest {
 		listener = new DailyEntryChangeStreamListener(
 				listenerContainer, resumeTokenRepository, deliveryService, reindexService, monitor,
 				"entries-test", "stream-test", () -> Instant.parse("2026-11-02T00:00:00Z"));
+	}
+
+	@Test
+	void missingMongoOperationTimePreventsReindexAndCheckpointCreation() {
+		var withoutOperationTime = new DailyEntryChangeStreamListener(
+				listenerContainer, resumeTokenRepository, deliveryService, reindexService, monitor,
+				"entries-test", "stream-test", () -> null);
+		when(resumeTokenRepository.findById("stream-test")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(withoutOperationTime::start)
+				.isInstanceOf(CdcCheckpointException.class)
+				.hasMessage("MongoDB did not return an operation time");
+		verify(resumeTokenRepository, never()).save(any());
+		verifyNoInteractions(reindexService, listenerContainer, monitor);
 	}
 
 	@Test

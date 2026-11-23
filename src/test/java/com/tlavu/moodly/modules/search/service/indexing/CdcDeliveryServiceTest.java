@@ -1,11 +1,13 @@
 package com.tlavu.moodly.modules.search.service.indexing;
 
 import com.tlavu.moodly.modules.search.exception.CdcConfigurationException;
+import com.tlavu.moodly.modules.search.exception.CdcPayloadSerializationException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 
 @ExtendWith(MockitoExtension.class)
 class CdcDeliveryServiceTest {
@@ -90,6 +93,51 @@ class CdcDeliveryServiceTest {
 
 		verify(searchWriter).index(eq("entry-1"), any(DailyEntrySearchDocument.class));
 		verifyNoInteractions(deadLetterRepository, retrySleeper);
+	}
+
+	@Test
+	void serializationFailurePreventsDeliveryAndKeepsItsCause() {
+		DailyEntry entry = new DailyEntry("user-1", java.time.LocalDate.of(2026, 8, 6));
+		entry.setId("entry-1");
+		var failure = mock(JacksonException.class);
+		when(objectMapper.writeValueAsString(any(DailyEntrySearchDocument.class))).thenThrow(failure);
+
+		assertThatThrownBy(() -> service().deliverUpsert("event-1", "insert", entry))
+				.isInstanceOf(CdcPayloadSerializationException.class)
+				.hasCause(failure);
+		verifyNoInteractions(searchWriter, deadLetterRepository, retrySleeper);
+	}
+
+	@Test
+	void preservesTransportFailureWhenTheLastRetryReturnsHttp503() {
+		var transportFailure = new ElasticsearchTransportException("Elasticsearch unavailable");
+		doThrow(transportFailure).doThrow(new ElasticsearchException(503))
+				.when(searchWriter).delete("entry-1");
+		var service = new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 2, 0);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(monitor).deadLettered(transportFailure);
+	}
+
+	@Test
+	void deadLettersTheLastHttp503WhenAllAttemptsFail() {
+		var firstFailure = new ElasticsearchException(503);
+		var lastFailure = new ElasticsearchException(503);
+		doThrow(firstFailure).doThrow(lastFailure).when(searchWriter).delete("entry-1");
+		var service = new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 2, 0);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		var deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		verify(deadLetterRepository).save(deadLetter.capture());
+		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(2);
+		assertThat(deadLetter.getValue().getEventId()).isEqualTo("event-1");
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(monitor).deadLettered(lastFailure);
 	}
 
 	@Test

@@ -280,7 +280,7 @@ erDiagram
 | **API Documentation** | Springdoc OpenAPI 3.1.1 | Automated contract generation with zero-drift schema checks |
 | **Build & Tooling** | Maven Wrapper 3.9.16 / Make | Strict reproducible builds, multi-stage caching |
 | **Testing** | JUnit 5, AssertJ, Mockito, Test MockMvc | Unit, Security, and Docker-backed Integration Test Suites |
-| **Code Quality** | JaCoCo 0.8.14 | Repository-wide coverage gate (Line ≥ 85%, Branch ≥ 75%, Method ≥ 85%, Instruction ≥ 85%) |
+| **Code Quality** | JaCoCo 0.8.14 | Repository-wide coverage gate (Line ≥ 85%, Branch ≥ 75%, Method ≥ 85%, Instruction ≥ 85%, Class = 100%) |
 | **CI / CD** | GitHub Actions | Automated PR testing, container building, and Dependabot auto-updates |
 | **Containerization** | Docker & Docker Compose | Multi-stage JRE Alpine container with non-root security |
 | **Hosting** | Render | Target image-backed deployment; provisioning is a separate operator step |
@@ -637,10 +637,13 @@ Run `make verify` locally. GitHub Actions runs Maven `verify` in the shared back
 | Branch | 75% | 75% |
 | Method | 85% | 85% |
 | Instruction | 85% | 85% |
+| Class | 100% | 100% for new classes |
 
 The PR job summary uses the diff from the PR merge base to the tested checkout. Line, branch, and instruction counts come from JaCoCo XML entries on added or modified executable lines. Method counts use Java source declarations whose signatures or bodies overlap the diff, matched to JaCoCo methods by name and entry line. Each matched method counts once and is covered if JaCoCo marks it as executed. Generated methods without a matching source declaration are outside this PR metric.
 
 The summary displays `N/A` when a metric has no measurable units. PR targets are advisory. The Maven thresholds control the required coverage gate.
+
+For the CLASS row, CI compiles the PR merge base and compares its class names with the measurable classes in the JaCoCo report for the tested checkout. The summary lists any new class with no executed code. The project-wide 100% gate already fails when any measurable class is uncovered, including newly added classes.
 
 ### SonarQube Cloud
 
