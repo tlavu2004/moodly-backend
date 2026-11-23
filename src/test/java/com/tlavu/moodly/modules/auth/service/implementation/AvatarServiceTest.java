@@ -1,14 +1,18 @@
 package com.tlavu.moodly.modules.auth.service.implementation;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarCleanupTaskException;
+import com.tlavu.moodly.modules.auth.exception.AssetSignatureException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.tlavu.moodly.modules.auth.exception.AvatarException;
@@ -29,6 +33,7 @@ import com.tlavu.moodly.modules.auth.service.view.AvatarView;
 import com.tlavu.moodly.modules.auth.service.view.UploadSignatureView;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -78,6 +83,21 @@ class AvatarServiceTest {
 				+ "&timestamp=" + payload.timestamp() + "&upload_preset=test-presettest-secret"));
 		verify(userProfileService).synchronizeCurrent();
 		verify(pendingUploads).save(any(PendingAvatarUpload.class));
+	}
+
+	@Test
+	void signingFailurePreservesItsCauseAndLeavesNoPendingUpload() {
+		when(currentUser.id()).thenReturn(SUBJECT);
+		var unavailable = new NoSuchAlgorithmException("SHA-256 unavailable");
+		try (var digest = mockStatic(MessageDigest.class, CALLS_REAL_METHODS)) {
+			digest.when(() -> MessageDigest.getInstance("SHA-256")).thenThrow(unavailable);
+
+			assertThatThrownBy(() -> service.createSignature(new CreateUploadSignatureInput("image/png", 1024)))
+					.isInstanceOf(AssetSignatureException.class)
+					.hasMessage("SHA-256 is unavailable for asset signing")
+					.hasCause(unavailable);
+		}
+		verifyNoInteractions(pendingUploads);
 	}
 
 	@Test
