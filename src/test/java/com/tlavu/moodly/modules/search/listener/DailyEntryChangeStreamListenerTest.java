@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +34,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.bson.BsonDocument;
 import org.bson.BsonObjectId;
 import org.bson.BsonString;
+import org.bson.BsonTimestamp;
+import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.messaging.DefaultMessageListenerContainer;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.messaging.Message;
 import org.springframework.data.mongodb.core.messaging.Subscription;
 
@@ -65,6 +69,16 @@ class DailyEntryChangeStreamListenerTest {
 	private ChangeStreamDocument<org.bson.Document> raw;
 
 	private DailyEntryChangeStreamListener listener;
+
+	@Test
+	void readsMongoOperationTimeBeyondTheSignedIntegerBoundary() {
+		MongoTemplate mongo = mock(MongoTemplate.class);
+		when(mongo.executeCommand(new Document("ping", 1)))
+				.thenReturn(new Document("operationTime", new BsonTimestamp(Integer.MIN_VALUE, 3)));
+
+		assertThat(DailyEntryChangeStreamListener.mongoOperationTime(mongo))
+				.isEqualTo(Instant.ofEpochSecond(1L << 31));
+	}
 
 	@Test
 	void rejectsMalformedEventsWithoutSavingACheckpoint() {

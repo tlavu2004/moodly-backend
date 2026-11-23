@@ -38,7 +38,7 @@ public final class DevelopmentLauncher {
 				case "container-build" -> { SharedInfrastructure.progress("Building local backend container image..."); SharedInfrastructure.command(configuration, null, "build", "backend"); }
 				case "container-stop" -> InfrastructureSessions.forConfiguration(configuration).stopBackend();
 				case "clean-test" -> {
-					try (var lease = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE)) {
+					try (var _ = SharedInfrastructure.lease(SharedInfrastructure.LOCK_FILE)) {
 						System.out.print("Drop reserved MongoDB database moodly_test? Type yes: ");
 						String response = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
 						if ("yes".equals(response)) {

@@ -73,7 +73,7 @@ class InfrastructureSessionsTest {
 	void containerRecoveryCannotStopAnActiveLauncher() {
 		var services = new FakeServices();
 		var registry = registry(services);
-		try (var launcher = registry.join(InfrastructureSessions.Kind.LOCAL)) {
+		try (var _ = registry.join(InfrastructureSessions.Kind.LOCAL)) {
 			assertThatIllegalStateException().isThrownBy(registry::stopBackend);
 		}
 	}
@@ -165,7 +165,7 @@ class InfrastructureSessionsTest {
 	@Test
 	void localAndManualBackendsCannotClaimTheSharedHttpPortTogether() {
 		var registry = registry(new FakeServices());
-		try (var first = registry.join(InfrastructureSessions.Kind.LOCAL)) {
+		try (var _ = registry.join(InfrastructureSessions.Kind.LOCAL)) {
 			assertThatIllegalStateException().isThrownBy(() -> registry.join(InfrastructureSessions.Kind.MANUAL));
 			assertThatIllegalStateException().isThrownBy(() -> registry.join(InfrastructureSessions.Kind.LOCAL));
 		}

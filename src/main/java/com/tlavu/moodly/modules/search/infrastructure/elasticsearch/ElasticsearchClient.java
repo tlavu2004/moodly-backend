@@ -55,7 +55,11 @@ public class ElasticsearchClient implements AutoCloseable {
 			);
 		}
 
-		base = endpoint.replaceAll("/+$", "");
+		int end = endpoint.length();
+		while (end > 0 && endpoint.charAt(end - 1) == '/') {
+			end--;
+		}
+		base = endpoint.substring(0, end);
 		authorization = username.isEmpty()
 				? null
 				: "Basic " + Base64.getEncoder()

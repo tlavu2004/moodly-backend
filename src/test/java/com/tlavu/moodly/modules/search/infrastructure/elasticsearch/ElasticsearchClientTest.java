@@ -3,6 +3,7 @@ package com.tlavu.moodly.modules.search.infrastructure.elasticsearch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -52,8 +53,7 @@ class ElasticsearchClientTest {
 	@Test
 	void retainsHttpStatusFailuresForCallerClassification() throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(429);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
 
@@ -71,8 +71,7 @@ class ElasticsearchClientTest {
 	})
 	void rejectsIncompleteDeleteByUserEvenWhenHttpSucceeds(String body) throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(200);
 		when(response.body()).thenReturn(body);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
@@ -87,8 +86,7 @@ class ElasticsearchClientTest {
 	@Test
 	void propagatesForbiddenDeleteByUserWithoutRefreshingOrRetrying() throws Exception {
 		HttpClient http = mock(HttpClient.class);
-		@SuppressWarnings("unchecked")
-		HttpResponse<String> response = mock(HttpResponse.class);
+		HttpResponse<String> response = mock();
 		when(response.statusCode()).thenReturn(403);
 		doReturn(response).when(http).send(any(HttpRequest.class), any());
 
@@ -96,12 +94,13 @@ class ElasticsearchClientTest {
 			assertThatThrownBy(() -> client.deleteByUser("entries", "user-1"))
 					.isInstanceOfSatisfying(ElasticsearchException.class,
 							failure -> assertThat(failure.status()).isEqualTo(403));
-			verify(http).send(any(HttpRequest.class), any());
+			verify(http).send(argThat(request -> request.uri().toString()
+					.equals("http://localhost:9200/entries/_delete_by_query?refresh=true")), any());
 		}
 	}
 
 	private ElasticsearchClient client(HttpClient http) {
-		ElasticsearchClient client = new ElasticsearchClient(new ObjectMapper(), "http://localhost:9200", "", "");
+		ElasticsearchClient client = new ElasticsearchClient(new ObjectMapper(), "http://localhost:9200///", "", "");
 		client.close();
 		ReflectionTestUtils.setField(client, "http", http);
 		return client;

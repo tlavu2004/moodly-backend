@@ -351,7 +351,7 @@ public class DailyEntryChangeStreamListener {
 		return false;
 	}
 
-	private static Instant mongoOperationTime(MongoTemplate mongoTemplate) {
+	static Instant mongoOperationTime(MongoTemplate mongoTemplate) {
 		Document response = mongoTemplate.executeCommand(
 				new Document("ping", 1)
 		);
@@ -361,6 +361,6 @@ public class DailyEntryChangeStreamListener {
 
 		return timestamp == null
 				? null
-				: Instant.ofEpochSecond(timestamp.getTime());
+				: Instant.ofEpochSecond(Integer.toUnsignedLong(timestamp.getTime()));
 	}
 }

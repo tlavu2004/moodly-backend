@@ -62,6 +62,7 @@ public class SecurityConfiguration {
 		boolean production = environment.acceptsProfiles(
 			Profiles.of("prod", "production")
 		);
+		// Mutation endpoints require explicit credentials in request headers rather than browser session cookies.
 		http.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

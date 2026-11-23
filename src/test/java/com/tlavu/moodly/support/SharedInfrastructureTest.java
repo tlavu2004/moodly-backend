@@ -123,7 +123,7 @@ class SharedInfrastructureTest {
 	@Test
 	void leaseRejectsContentionAndCanBeReacquiredAfterRelease() {
 		Path file = temporary.resolve("lease.lock");
-		try (var lease = SharedInfrastructure.lease(file)) {
+		try (var _ = SharedInfrastructure.lease(file)) {
 			assertThatIllegalStateException().isThrownBy(() -> SharedInfrastructure.lease(file));
 		}
 		try (var next = SharedInfrastructure.lease(file)) { assertThat(next.lock().isValid()).isTrue(); }

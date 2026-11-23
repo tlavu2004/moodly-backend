@@ -88,8 +88,8 @@ public final class SharedInfrastructure {
 		JsonNode mongo = services.path("mongodb");
 		JsonNode search = services.path("elasticsearch");
 		Map<String, String> environment = runtimeEnvironment(file);
-		validateResources(mongo.path("labels").path("io.moodly.local-database").asText(),
-				search.path("labels").path("io.moodly.local-index").asText(), TEST_DATABASE, TEST_INDEX);
+		validateResources(mongo.path("labels").path("io.moodly.local-database").asString(),
+				search.path("labels").path("io.moodly.local-index").asString(), TEST_DATABASE, TEST_INDEX);
 		String mongoHost = environment.get("MONGODB_HOST");
 		String searchHost = environment.get("ELASTICSEARCH_HOST");
 		if (!Set.of("localhost", "127.0.0.1").contains(mongoHost == null ? "" : mongoHost)
@@ -97,16 +97,16 @@ public final class SharedInfrastructure {
 			throw new IllegalStateException("Shared local/test hosts must be loopback hosts");
 		}
 		return new Configuration(file, Map.copyOf(environment), mongoHost, publishedPort(mongo),
-				mongo.path("environment").path("MONGODB_CONTAINER_PORT").asText(),
-				mongo.path("environment").path("MONGODB_REPLICA_SET").asText(), searchHost, publishedPort(search));
+				mongo.path("environment").path("MONGODB_CONTAINER_PORT").asString(),
+				mongo.path("environment").path("MONGODB_REPLICA_SET").asString(), searchHost, publishedPort(search));
 	}
 
 	static String publishedPort(JsonNode service) {
 		JsonNode ports = service.path("ports");
-		if (ports.size() != 1 || !"127.0.0.1".equals(ports.path(0).path("host_ip").asText())) {
+		if (ports.size() != 1 || !"127.0.0.1".equals(ports.path(0).path("host_ip").asString())) {
 			throw new IllegalStateException("Shared services must publish exactly one loopback port");
 		}
-		return ports.path(0).path("published").asText();
+		return ports.path(0).path("published").asString();
 	}
 
 	public static void validateResources(String localDatabase, String localIndex, String database, String index) {
@@ -167,7 +167,8 @@ public final class SharedInfrastructure {
 			JsonNode resolved = JSON.readTree(compose(file, definition, "config", "--format", "json"))
 					.path("services").path("runtime").path("environment");
 			Map<String, String> environment = new LinkedHashMap<>(System.getenv());
-			resolved.properties().forEach(entry -> environment.put(entry.getKey(), entry.getValue().asText().replace("$$", "$")));
+			resolved.properties().forEach(entry ->
+					environment.put(entry.getKey(), entry.getValue().asString().replace("$$", "$")));
 			return environment;
 		} catch (IOException failure) {
 			throw new IllegalStateException("Could not read the selected local env file", failure);
@@ -283,7 +284,7 @@ public final class SharedInfrastructure {
 		JsonNode state = JSON.readTree(execute(List.of("docker", "inspect", "--format", "{{json .State}}", BACKEND_CONTAINER), null, null));
 		if (!state.path("Running").asBoolean() && !state.path("Restarting").asBoolean()) { return ""; }
 		JsonNode labels = JSON.readTree(execute(List.of("docker", "inspect", "--format", "{{json .Config.Labels}}", BACKEND_CONTAINER), null, null));
-		String mode = labels.path("io.moodly.backend.mode").asText();
+		String mode = labels.path("io.moodly.backend.mode").asString();
 		if (Set.of("local", "manual").contains(mode)) { return mode; }
 		throw new IllegalStateException("Unexpected backend container ownership label");
 	}
