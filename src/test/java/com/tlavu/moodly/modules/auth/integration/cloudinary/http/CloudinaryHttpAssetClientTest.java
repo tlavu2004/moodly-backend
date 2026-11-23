@@ -167,9 +167,8 @@ class CloudinaryHttpAssetClientTest {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private <T> HttpResponse<T> response(int status, T body) {
-		HttpResponse<T> response = mock(HttpResponse.class);
+		HttpResponse<T> response = mock();
 		when(response.statusCode()).thenReturn(status);
 		when(response.body()).thenReturn(body);
 		return response;

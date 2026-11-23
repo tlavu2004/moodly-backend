@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class E2eUserResetServiceTest {
 	@Test
-	@SuppressWarnings("unchecked")
 	void treatsFoundSearchDocumentWithoutSourceAsUnverified() throws Exception {
 		HabitRepository habits = mock(HabitRepository.class);
 		DailyEntryRepository entries = mock(DailyEntryRepository.class);
@@ -54,7 +53,6 @@ class E2eUserResetServiceTest {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void rejectsStaleSearchDocumentEvenWhenItBelongsToTheSyntheticUser() throws Exception {
 		HabitRepository habits = mock(HabitRepository.class);
 		DailyEntryRepository entries = mock(DailyEntryRepository.class);

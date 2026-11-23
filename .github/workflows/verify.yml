@@ -2,6 +2,11 @@ name: Backend verification
 
 on:
   workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: false
+      CODECOV_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -17,6 +22,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') && '0' || '1' }}
 
       - name: Set up Java 25
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
@@ -109,6 +116,13 @@ jobs:
               summary_file.write(output)
           PY
 
+      - name: Summarize changed-line coverage
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: java scripts/coverage/SummarizePatch.java
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -117,6 +131,38 @@ jobs:
           path: target/site/jacoco/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Analyze with SonarQube Cloud
+        if: >-
+          ${{ success() && env.SONAR_TOKEN != '' &&
+              vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' &&
+              ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+               (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          ./mvnw --batch-mode org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
+            "-Dsonar.organization=$SONAR_ORGANIZATION" \
+            "-Dsonar.projectKey=$SONAR_PROJECT_KEY" \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+      - name: Upload coverage to Codecov
+        if: >-
+          ${{ success() && env.CODECOV_TOKEN != '' &&
+              ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+               (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        continue-on-error: true
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: target/site/jacoco/jacoco.xml
+          disable_search: true
 
       - name: Generate and validate OpenAPI document
         run: |

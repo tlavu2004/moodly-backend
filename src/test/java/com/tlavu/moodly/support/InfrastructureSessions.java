@@ -192,7 +192,7 @@ public final class InfrastructureSessions {
 			try {
 				Files.createDirectories(directory);
 				try (var channel = FileChannel.open(directory.resolve("registry.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-						var lock = channel.lock()) {
+						var _ = channel.lock()) {
 					Path file = directory.resolve("state.json");
 					State state = Files.exists(file) ? JSON.readValue(Files.readString(file), State.class) : new State();
 					state.participants.values().removeIf(participant -> !alive(participant));

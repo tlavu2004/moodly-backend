@@ -24,7 +24,14 @@ Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform*
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Deployment (Render)](#deployment-render)
-- [Deep-Dive Operations & Runbook](#deep-dive-operations--runbook) - [OpenAPI Contract Synchronization](#openapi-contract-synchronization) - [CI/CD & Container Publishing](#cicd--container-publishing) - [Auth0 Resilience & Startup Network Handling](#auth0-resilience--startup-network-handling) - [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing) - [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict) - [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard) - [Automated Integration Test Harness](#automated-integration-test-harness)
+- [Deep-Dive Operations & Runbook](#deep-dive-operations--runbook)
+- [OpenAPI Contract Synchronization](#openapi-contract-synchronization)
+- [CI/CD & Container Publishing](#cicd--container-publishing)
+- [Auth0 Resilience & Startup Network Handling](#auth0-resilience--startup-network-handling)
+- [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing)
+- [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict)
+- [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard)
+- [Automated Integration Test Harness](#automated-integration-test-harness)
 - [Authors](#authors)
 - [License](#license)
 
@@ -619,6 +626,33 @@ Expect BUILD SUCCESS, coverage/format gates passing, and dependency containers s
 | **22120443** | Trương Lê Anh Vũ | [@tlavu2004](https://github.com/tlavu2004) |
 
 ---
+
+## Test Coverage
+
+Run `make verify` locally. GitHub Actions runs Maven `verify` in the shared backend verification workflow for PR CI and releases. JaCoCo enforces the following thresholds across the application bundle.
+
+| Metric | Required project coverage | Advisory PR target |
+| --- | ---: | ---: |
+| Line | 85% | 85% |
+| Branch | 75% | 75% |
+| Method | 85% | 85% |
+| Instruction | 85% | 85% |
+
+The PR job summary uses the diff from the PR merge base to the tested checkout. Line, branch, and instruction counts come from JaCoCo XML entries on added or modified executable lines. Method counts use Java source declarations whose signatures or bodies overlap the diff, matched to JaCoCo methods by name and entry line. Each matched method counts once and is covered if JaCoCo marks it as executed. Generated methods without a matching source declaration are outside this PR metric.
+
+The summary displays `N/A` when a metric has no measurable units. PR targets are advisory. The Maven thresholds control the required coverage gate.
+
+### SonarQube Cloud
+
+Import the backend repository into SonarQube Cloud and select CI-based analysis. Disable Automatic Analysis for that project. Set the GitHub Actions repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY`, and store the analysis token as the `SONAR_TOKEN` repository secret.
+
+After Maven verify succeeds, the scanner imports the JaCoCo XML report on pushes to `main` and pull requests from this repository. The scanner runs in advisory mode. GitHub branch protection can enforce a SonarQube check separately after the rollout is validated.
+
+### Codecov
+
+Enable the backend repository in Codecov and add the `CODECOV_TOKEN` GitHub Actions repository secret. CI uploads JaCoCo XML on pushes to `main` and pull requests from this repository after Maven verify succeeds. Run a build on `main` first to establish a baseline.
+
+Codecov's project status and 85% patch target are informational. The PR job summary reports the four Moodly metrics separately, and Maven enforces the project coverage thresholds.
 
 ## Contribution
 
