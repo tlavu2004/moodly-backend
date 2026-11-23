@@ -96,7 +96,7 @@ jobs:
               total = missed + covered
               coverage = f"{covered / total:.2%}" if total else "—"
               minimum = thresholds[metric]
-              minimum_label = f"{minimum:.0%}" if minimum is not None else "—"
+              minimum_label = f"{minimum:.2%}" if minimum is not None else "—"
               result = "—"
               if minimum is not None and total:
                   result = "Pass" if covered >= minimum * total else "Fail"
