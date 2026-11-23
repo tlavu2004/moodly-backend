@@ -123,6 +123,24 @@ class CdcDeliveryServiceTest {
 	}
 
 	@Test
+	void deadLettersTheLastHttp503WhenAllAttemptsFail() {
+		var firstFailure = new ElasticsearchException(503);
+		var lastFailure = new ElasticsearchException(503);
+		doThrow(firstFailure).doThrow(lastFailure).when(searchWriter).delete("entry-1");
+		var service = new CdcDeliveryService(searchWriter, deadLetterRepository, monitor,
+				objectMapper, retrySleeper, 2, 0);
+
+		service.deliverDelete("event-1", "entry-1");
+
+		var deadLetter = ArgumentCaptor.forClass(CdcDeadLetter.class);
+		verify(deadLetterRepository).save(deadLetter.capture());
+		assertThat(deadLetter.getValue().getAttempts()).isEqualTo(2);
+		assertThat(deadLetter.getValue().getEventId()).isEqualTo("event-1");
+		verify(searchWriter, times(2)).delete("entry-1");
+		verify(monitor).deadLettered(lastFailure);
+	}
+
+	@Test
 	void retriesTransientDeliveryAndSucceeds() throws Exception {
 		doThrow(new ElasticsearchTransportException("Elasticsearch unavailable"))
 				.doThrow(new ElasticsearchTransportException("Elasticsearch unavailable"))
