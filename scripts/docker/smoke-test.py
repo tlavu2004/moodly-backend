@@ -52,12 +52,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", help="Already built/loaded backend image")
     args = parser.parse_args()
-    # Share the maintained image pin/workaround without reading private dotenv files.
+    # Share the maintained image pin without reading private dotenv files.
     fixture = dict(line.split("=", 1) for line in
                    (Path(__file__).resolve().parents[2] / ".env.local.example").read_text().splitlines()
-                   if line.startswith(("MONGODB_VERSION=", "MONGODB_GLIBC_TUNABLES=")))
+                   if line.startswith("MONGODB_VERSION="))
     mongo_image = "mongo:" + fixture["MONGODB_VERSION"]
-    mongo_tunables = "GLIBC_TUNABLES=" + fixture["MONGODB_GLIBC_TUNABLES"]
     prefix = "moodly-smoke-" + uuid.uuid4().hex[:12]
     containers = []
 
@@ -72,7 +71,7 @@ def main():
     try:
         docker("network", "create", prefix)
         mongo = start("mongodb", mongo_image, "mongod", "--replSet", "rs0", "--bind_ip_all",
-                      options=("--tmpfs", "/data/db", "--tmpfs", "/data/configdb", "-e", mongo_tunables))
+                      options=("--tmpfs", "/data/db", "--tmpfs", "/data/configdb"))
         wait_for("MongoDB ping", lambda: mongo_shell(
             mongo, "--eval",
             "quit(db.adminCommand({ping:1}).ok ? 0 : 1)", check=False
