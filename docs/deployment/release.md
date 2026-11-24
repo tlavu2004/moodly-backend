@@ -24,10 +24,10 @@ Tags such as `latest` are discovery conveniences, not deployment identities. The
 Download the artifact from a successful Release run for the intended application commit. To regenerate its candidate locally:
 
 ```bash
-python3 scripts/deployment/render_blueprint.py release-image.json render.yaml target/render-release.yaml
+bash scripts/docker/run-tooling.sh automation render-candidate release-image.json render.yaml target/render-release.yaml ghcr.io/tlavu2004/moodly-backend
 ```
 
-Use `python` on Windows if needed. The helper reads only the provided record and public Blueprint, validates the complete commit and repository-specific digest, and writes a candidate. It never contacts Render or GHCR, edits its inputs, or deploys. Do not treat an arbitrary JSON file as verified release provenance; obtain the record from the successful repository workflow.
+The helper reads only the provided record and public Blueprint, validates the complete commit and repository-specific digest, and writes a candidate. It never contacts Render or GHCR, edits its inputs, or deploys. Do not treat an arbitrary JSON file as verified release provenance; obtain the record from the successful repository workflow.
 
 Review the diff between `render.yaml` and the candidate. For a normal promotion, only the source-commit comment and image URL change. Copy the reviewed candidate to `render.yaml` in a small promotion PR. A push that changes only `render.yaml` skips the Release image build; PR verification still validates configuration. A version tag can explicitly trigger a new image release.
 
