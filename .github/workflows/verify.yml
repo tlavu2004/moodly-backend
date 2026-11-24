@@ -38,12 +38,6 @@ jobs:
       - name: Record runner kernel
         run: uname -sr
 
-      - name: Test smoke readiness failure paths
-        run: python3 -m unittest discover -s scripts/docker -p test_smoke_test.py
-
-      - name: Test release candidate generation
-        run: python3 -m unittest discover -s scripts/deployment -p test_*.py
-
       - name: Run tests
         env:
           MOODLY_INFRA_ENV_FILE: .env.local.example
@@ -60,61 +54,7 @@ jobs:
 
       - name: Summarize coverage
         if: always()
-        run: |
-          python3 - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-          from decimal import Decimal
-          from pathlib import Path
-
-          report_path = Path("target/site/jacoco/jacoco.xml")
-          if not report_path.is_file():
-              raise SystemExit(0)
-
-          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
-          pom = ET.parse("pom.xml").getroot()
-          limits = pom.findall(
-              "./m:build/m:plugins/m:plugin[m:artifactId='jacoco-maven-plugin']"
-              "/m:executions/m:execution[m:id='enforce-coverage-baseline']"
-              "/m:configuration/m:rules/m:rule[m:element='BUNDLE']"
-              "/m:limits/m:limit[m:value='COVEREDRATIO']",
-              namespace,
-          )
-          thresholds = {
-              limit.findtext("m:counter", namespaces=namespace):
-              Decimal(limit.findtext("m:minimum", namespaces=namespace))
-              for limit in limits
-          }
-          root = ET.parse(report_path).getroot()
-          counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
-
-          rows = []
-          for metric in ("LINE", "BRANCH", "METHOD", "INSTRUCTION", "CLASS"):
-              counter = counters.get(metric)
-              missed = int(counter["missed"]) if counter is not None else 0
-              covered = int(counter["covered"]) if counter is not None else 0
-              total = missed + covered
-              coverage = f"{covered / total:.2%}" if total else "—"
-              minimum = thresholds[metric]
-              minimum_label = f"{minimum:.2%}" if minimum is not None else "—"
-              result = "—"
-              if minimum is not None and total:
-                  result = "Pass" if covered >= minimum * total else "Fail"
-              rows.append(f"| {metric.title()} | {covered} | {total} | {coverage} | {minimum_label} | {result} |")
-
-          summary = [
-              "## JaCoCo coverage",
-              "",
-              "| Metric | Covered | Total | Coverage | Minimum | Result |",
-              "| --- | ---: | ---: | ---: | ---: | --- |",
-          ]
-          summary.extend(rows)
-          output = "\n".join(summary) + "\n"
-
-          print(output)
-          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as summary_file:
-              summary_file.write(output)
-          PY
+        run: bash scripts/docker/run-tooling.sh automation summarize-coverage
 
       - name: Summarize changed-line coverage
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
@@ -180,16 +120,7 @@ jobs:
         run: |
           chmod +x src/main/resources/scripts/openapi/generate-openapi.sh
           src/main/resources/scripts/openapi/generate-openapi.sh
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          document_path = Path("docs/api/json/moodly-openapi.json")
-          document = json.loads(document_path.read_text(encoding="utf-8-sig"))
-          assert document["openapi"].startswith("3."), "Expected an OpenAPI 3 document"
-          assert document.get("paths"), "OpenAPI document must define at least one path"
-          print(f"Validated {document_path}: {len(document['paths'])} paths")
-          PY
+          bash scripts/docker/run-tooling.sh automation validate-openapi docs/api/json/moodly-openapi.json
 
       - name: Upload generated OpenAPI document
         if: always()

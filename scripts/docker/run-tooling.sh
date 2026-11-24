@@ -25,7 +25,7 @@ backend_status() {
 # Reuse the project's Java/Jackson dependencies; no extra interpreter is needed.
 # Send Maven diagnostics to stderr so modes such as docs-port have clean stdout.
 bootstrap_status=0
-./mvnw --batch-mode --quiet -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=target/development-classpath.txt >&2 || bootstrap_status=$?
+bash ./mvnw --batch-mode --quiet -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=target/development-classpath.txt >&2 || bootstrap_status=$?
 if [ "$bootstrap_status" -ne 0 ]; then
   backend_status "$bootstrap_status"
   exit $?

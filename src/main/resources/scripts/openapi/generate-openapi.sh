@@ -25,24 +25,7 @@ readonly max_openapi_attempts=45
 for ((attempt=1; attempt<=max_openapi_attempts; attempt++)); do
   if curl --fail --silent --show-error "http://127.0.0.1:${SERVER_PORT}/v3/api-docs" >"$response_path" 2>/dev/null; then
     mkdir -p "$(dirname "$output_path")"
-    python3 - "$response_path" "$output_path" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as source:
-    document = json.load(source)
-
-# SpringDoc can emit response codes in a different order between runs.
-document["tags"] = sorted(document.get("tags", []), key=lambda tag: tag["name"])
-for path in document.get("paths", {}).values():
-    for operation in path.values():
-        if isinstance(operation, dict) and isinstance(operation.get("responses"), dict):
-            operation["responses"] = dict(sorted(operation["responses"].items()))
-
-with open(sys.argv[2], "w", encoding="utf-8") as output:
-    json.dump(document, output, indent=2, ensure_ascii=False)
-    output.write("\n")
-PY
+    bash scripts/docker/run-tooling.sh automation normalize-openapi "$response_path" "$output_path"
     exit 0
   fi
   if ! kill -0 "$application_pid" 2>/dev/null; then
