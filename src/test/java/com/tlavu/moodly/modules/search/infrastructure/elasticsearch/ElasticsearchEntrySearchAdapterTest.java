@@ -44,7 +44,7 @@ class ElasticsearchEntrySearchAdapterTest {
 				.thenReturn(json.readTree(
 						"""
 								{"hits":{"hits":[{"_id":"entry-1","_source":{"date":"2026-08-06"},"highlight":{
-								  "mood.tags":["<em>tired</em>"],"mood.note":["I felt <em>tired</em>."],"habits.note":["<em>tired</em> habit"]
+								  "mood.tags":["<em>tired</em>"],"mood.note":["😴 <em>tired</em> today."],"habits.note":["<em>tired</em> habit"]
 								}}]}}
 								"""));
 		ElasticsearchEntrySearchAdapter adapter = new ElasticsearchEntrySearchAdapter(elasticsearchClient,
@@ -60,8 +60,10 @@ class ElasticsearchEntrySearchAdapterTest {
 			assertThatThrownBy(() -> searchResult.highlights().clear())
 					.isInstanceOf(UnsupportedOperationException.class);
 			assertThat(searchResult.highlights().get("mood.note")).singleElement().satisfies(fragment -> {
-				assertThat(fragment.text()).isEqualTo("I felt tired.");
-				assertThat(fragment.ranges()).containsExactly(new HighlightRangeView(7, 12));
+				assertThat(fragment.text()).isEqualTo("😴 tired today.");
+				assertThat(fragment.ranges()).containsExactly(new HighlightRangeView(3, 8));
+				var range = fragment.ranges().getFirst();
+				assertThat(fragment.text().substring(range.start(), range.end())).isEqualTo("tired");
 			});
 		});
 		verify(elasticsearchClient).search(org.mockito.ArgumentMatchers.any(), searchRequest.capture());

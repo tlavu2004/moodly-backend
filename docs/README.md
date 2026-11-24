@@ -12,6 +12,7 @@
 - [Module Boundaries](architecture/moodly-architecture.md): package ownership and dependency rules.
 - [Shared Development Infrastructure and Test Data Isolation](architecture/shared-infrastructure-isolation.md): reusable architecture and engine/framework alternatives.
 - [Committed OpenAPI Contract](api/json/moodly-openapi.json): machine-readable API contract; compare it with code and contract tests before changing FE clients.
+- [Client Integration](api/markdown/client-integration.md): habit and journal writes, avatar reset, and search highlights.
 - [HTTP Rate Limiting](api/markdown/http-rate-limiting.md): quota behavior and validation.
 - [Manual Backend Verification](blueprint/backend-verification-guide.md): hosted-service scenarios requiring dedicated test identities.
 

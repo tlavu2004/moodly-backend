@@ -8,7 +8,10 @@ import java.util.List;
 		name = "HighlightFragment",
 		requiredProperties = {"text", "ranges"}
 )
-public record HighlightFragmentResponse(String text, List<HighlightRangeResponse> ranges) {
+public record HighlightFragmentResponse(
+		@Schema(description = "Plain-text search snippet with highlight markers removed; it may be shorter than the original field.") String text,
+		@Schema(description = "Matches within this snippet's text, measured in UTF-16 code units.") List<HighlightRangeResponse> ranges
+) {
 	public static HighlightFragmentResponse from(HighlightFragmentView view) {
 		return new HighlightFragmentResponse(
 				view.text(),

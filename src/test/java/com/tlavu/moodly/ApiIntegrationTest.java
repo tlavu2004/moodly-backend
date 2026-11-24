@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,16 @@ class ApiIntegrationTest {
 				.andReturn().getResponse().getContentAsString();
 		String habitId = new tools.jackson.databind.ObjectMapper().readTree(createHabitResponse).path("data").path("id").asString();
 
+		for (String done : List.of("", ",\"done\":null")) {
+			mockMvc.perform(patch("/entries/today")
+					.with(jwt().jwt(token -> token.subject(USER_ID)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"habitId\":\"" + habitId + "\"" + done + "}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+		}
+		assertThat(dailyEntryRepository.findByUserId(USER_ID)).isEmpty();
+
 		mockMvc.perform(get("/habits").with(jwt().jwt(token -> token.subject(USER_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(1))
@@ -119,7 +130,10 @@ class ApiIntegrationTest {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"habitId\":\"" + readingId + "\",\"done\":false,\"note\":\"Missed\"}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.habits.length()").value(2));
+				.andExpect(jsonPath("$.data.habits.length()").value(2))
+				.andExpect(jsonPath("$.data.habits[1].habitId").value(readingId))
+				.andExpect(jsonPath("$.data.habits[1].done").value(false))
+				.andExpect(jsonPath("$.data.habits[1].note").value("Missed"));
 
 		mockMvc.perform(put("/entries/today/mood")
 					.with(jwt().jwt(token -> token.subject(USER_ID)))
@@ -150,7 +164,10 @@ class ApiIntegrationTest {
 				.andExpect(jsonPath("$.data.items.length()").value(1))
 				.andExpect(jsonPath("$.data.page").value(0))
 				.andExpect(jsonPath("$.data.totalElements").value(1))
-				.andExpect(jsonPath("$.data.hasNext").value(false));
+				.andExpect(jsonPath("$.data.hasNext").value(false))
+				.andExpect(jsonPath("$.data.items[0].habits[1].habitId").value(readingId))
+				.andExpect(jsonPath("$.data.items[0].habits[1].done").value(false))
+				.andExpect(jsonPath("$.data.items[0].habits[1].note").value("Missed"));
 
 		mockMvc.perform(get("/stats/mood-trend")
 					.with(jwt().jwt(token -> token.subject(USER_ID))))

@@ -16,7 +16,7 @@ public record EntrySearchResponse(
 		String entryId,
 		LocalDate date,
 		@Schema(
-				description = "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets."
+				description = "Snippets grouped by source field: mood.note (mood note), habits.note (habit log note), or mood.tags (mood tag). Only matching fields have snippets. A habit note snippet does not identify an individual habit."
 		) Map<String, List<HighlightFragmentResponse>> highlights
 ) {
 	public static EntrySearchResponse from(EntrySearchView view) {
