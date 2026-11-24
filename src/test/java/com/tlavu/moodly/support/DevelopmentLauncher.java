@@ -20,6 +20,10 @@ public final class DevelopmentLauncher {
 	public static void main(String[] args) {
 		try {
 			if (args.length == 0) { throw new IllegalArgumentException("Use local, manual, up, config, docs-port or clean-test"); }
+			if (args[0].equals("automation")) {
+				AutomationTooling.run(args);
+				return;
+			}
 			if (args[0].equals("docs-port")) {
 				System.out.println(docsPort());
 				return;

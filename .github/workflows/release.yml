@@ -39,6 +39,13 @@ jobs:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -74,48 +81,17 @@ jobs:
       - name: Smoke test the release image
         env:
           SMOKE_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
-        run: python3 scripts/docker/smoke-test.py "$SMOKE_IMAGE"
+        run: bash scripts/docker/run-tooling.sh automation container-smoke "$SMOKE_IMAGE"
 
       - name: Push the tested image and record its digest
         env:
           IMAGE_METADATA: ${{ steps.meta.outputs.json }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-          import subprocess
-          from pathlib import Path
-
-          tags = json.loads(os.environ["IMAGE_METADATA"])["tags"]
-          repository = f"{os.environ['REGISTRY']}/{os.environ['IMAGE_NAME'].lower()}"
-          if not tags or any(not re.fullmatch(re.escape(repository) + r":[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag) for tag in tags):
-              raise RuntimeError("Release tags must belong to the expected repository")
-          image = json.loads(subprocess.check_output(["docker", "image", "inspect", tags[0]], text=True))[0]
-          if image.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") != os.environ["GITHUB_SHA"]:
-              raise RuntimeError("Loaded image revision does not match the verified commit")
-          if image.get("Os") != "linux" or image.get("Architecture") != "amd64":
-              raise RuntimeError("Render release image must target linux/amd64")
-          for tag in tags:
-              subprocess.run(["docker", "push", tag], check=True)
-          published = json.loads(subprocess.check_output(["docker", "image", "inspect", tags[0]], text=True))[0]
-          if published["Id"] != image["Id"]:
-              raise RuntimeError("Image identity changed during publication")
-          digests = [value for value in published["RepoDigests"] if re.fullmatch(re.escape(repository) + r"@sha256:[0-9a-f]{64}", value)]
-          if len(digests) != 1:
-              raise RuntimeError("Expected exactly one published digest for the release repository")
-          record = {"schemaVersion": 1, "commit": os.environ["GITHUB_SHA"], "repository": repository, "tags": tags, "images": digests}
-          Path("release-image.json").write_text(json.dumps(record, indent=2) + "\n")
-          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
-              summary.write("## Verified release image\n\n")
-              summary.write(f"Commit: `{record['commit']}`\n\n")
-              summary.write("\n".join(f"- `{digest}`" for digest in digests) + "\n")
-          PY
+        run: bash scripts/docker/run-tooling.sh automation publish-release
 
       - name: Render the reviewed deployment candidate
         env:
           RELEASE_REPOSITORY: ${{ env.REGISTRY }}/${{ github.repository }}
-        run: python3 scripts/deployment/render_blueprint.py release-image.json render.yaml render-release.yaml --repository "${RELEASE_REPOSITORY,,}"
+        run: bash scripts/docker/run-tooling.sh automation render-candidate release-image.json render.yaml render-release.yaml "${RELEASE_REPOSITORY,,}"
 
       - name: Upload release image record
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
