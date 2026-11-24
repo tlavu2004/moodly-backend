@@ -115,8 +115,7 @@ class SummarizePatch {
         if (baseClasses == null) {
             summary.append("| CLASS | N/A | N/A | N/A | 100% | Base classes unavailable |\n");
         } else {
-            summary.append(classes.row("CLASS", 100))
-                    .append("\nCLASS counts measurable classes absent from the compiled PR merge base.\n");
+            summary.append(classes.row("CLASS", 100));
         }
         if (!uncoveredClasses.isEmpty()) {
             summary.append("\nNew classes without coverage:\n\n");
