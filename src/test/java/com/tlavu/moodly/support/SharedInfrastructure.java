@@ -327,7 +327,7 @@ public final class SharedInfrastructure {
 			}
 		}
 		if (!ready) { throw new IllegalStateException("Timed out waiting for MongoDB after 60 readiness attempts", lastFailure); }
-		command(configuration, Path.of("scripts/docker/init-replica-set.js"), "exec", "-T", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh", "mongodb", "sh", "-c",
+		command(configuration, Path.of("src/test/resources/scripts/mongodb/init-replica-set.js"), "exec", "-T", "-e", "HOME=/tmp", "-e", "XDG_CONFIG_HOME=/tmp/moodly-mongosh", "mongodb", "sh", "-c",
 				"exec mongosh --quiet --host 127.0.0.1 --port \"$MONGODB_CONTAINER_PORT\" --file /dev/stdin");
 		command(configuration, null, "up", "-d", "--wait", "--wait-timeout", "120", "mongodb", "elasticsearch");
 	}
