@@ -61,7 +61,7 @@ For rollback, prepare a small configuration change restoring the previous known-
 
 Dockerfile base images use readable tags plus digests. Review dependency updates with image build and smoke verification. MongoDB fixture pins live in `.env.local.example` and are shared with smoke; the existing Dockerfile updater is not proof those dotenv pins update automatically. Remove the temporary rseq workaround only after validating a published patched image against the actual runner kernel.
 
-Backend business dates, JVM defaults, and application log timestamps use `Asia/Ho_Chi_Minh`; persisted `Instant` values remain UTC. Native MongoDB/Elasticsearch logs can use different timestamp conventions. See [Backend Execution Modes](../testing/backend-execution-modes.md) for local commands and data ownership.
+Backend business dates, JVM defaults, and application log timestamps use `Asia/Ho_Chi_Minh`; persisted `Instant` values remain UTC. Native MongoDB/Elasticsearch logs can use different timestamp conventions. See [Backend Execution Modes](../testing/markdown/BACKEND_EXECUTION_MODES.md) for local commands and data ownership.
 
 ## References
 

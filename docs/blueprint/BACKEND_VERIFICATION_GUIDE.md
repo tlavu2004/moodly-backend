@@ -275,7 +275,7 @@ The completed items above prove the core local flow, but Phase 3 is not complete
 
 Only after section 15 passes:
 
-1. Tick the matching `[~]` items in `moodly-blueprint.md` as complete and mark the local Phase 3 checkpoint complete.
+1. Tick the matching `[~]` items in `MOODLY_BLUEPRINT.md` as complete and mark the local Phase 3 checkpoint complete.
 2. Run `./mvnw verify` with Docker available; the full suite must pass before committing.
 3. Inspect `git diff` and Git status. Remove any token, secret, test media, or local environment file from the change set.
 4. Commit the Phase 3 verification with `test(auth): verify local Auth0, CDC, and Cloudinary flows`.

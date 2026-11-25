@@ -7,9 +7,9 @@ Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform*
 > [!NOTE]
 > - This repository contains the **Full Backend & Infrastructure Stack** (Spring Boot + MongoDB Replica Set + Elasticsearch).
 > - The **Frontend Client** (React 19 + TypeScript + Vite + Tailwind CSS) is managed in a separate repository: [moodly-frontend](https://github.com/tlavu2004/moodly-frontend).
-> - Planned roadmap: [Mood trend period navigation](docs/roadmap/mood-trend-periods.md).
-> - Exception handling follows the [Moodly Exception Standard](docs/blueprint/exception-standardization-blueprint.md).
-> - Architectural phases and MongoDB pipeline exercises: [Moodly Blueprint](docs/blueprint/moodly-blueprint.md).
+> - Planned roadmap: [Mood trend period navigation](docs/roadmap/MOOD_TREND_PERIODS.md).
+> - Exception handling follows the [Moodly Exception Standard](docs/blueprint/EXCEPTION_STANDARDIZATION_BLUEPRINT.md).
+> - Architectural phases and MongoDB pipeline exercises: [Moodly Blueprint](docs/blueprint/MOODLY_BLUEPRINT.md).
 
 ---
 
@@ -340,7 +340,7 @@ The local template supplies non-secret infrastructure defaults. Edit `.env.local
 
 ### Step 2: Start Infrastructure & Run the Application
 
-One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The Compose project is `moodly-backend-local`; established local container and volume names are preserved. The optional backend container and host/container lifecycle are documented in [Backend Execution Modes](docs/testing/backend-execution-modes.md). Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/shared-infrastructure-isolation.md).
+One shared infrastructure definition, `compose.local.yaml`, serves local and test. Commands select it explicitly with `-f`. The Compose project is `moodly-backend-local`; established local container and volume names are preserved. The optional backend container and host/container lifecycle are documented in [Backend Execution Modes](docs/testing/markdown/BACKEND_EXECUTION_MODES.md). Test data uses reserved namespaces on those same engines; see [Shared Development Infrastructure and Test Data Isolation](docs/architecture/SHARED_INFRASTRUCTURE_ISOLATION.md).
 
 #### Option A: Using Make (Recommended)
 
@@ -426,7 +426,7 @@ make cdc-test
 
 ## Deployment (Render)
 
-The primary flow is a verified GHCR image deployed to Render by immutable digest. `render.yaml` defines the reviewed image-backed service, while each successful Release artifact includes a candidate with the newly published digest. See [Release and Production Deployment](docs/deployment/release.md) for promotion, first setup, credentials, and rollback.
+The primary flow is a verified GHCR image deployed to Render by immutable digest. `render.yaml` defines the reviewed image-backed service, while each successful Release artifact includes a candidate with the newly published digest. See [Release and Production Deployment](docs/deployment/RELEASE.md) for promotion, first setup, credentials, and rollback.
 
 The multi-stage Dockerfile builds with Maven/Java 25 and runs a non-root Java 25 JRE. Both base images are pinned by tag and digest. Dependabot reviews Dockerfile dependencies; updates still require build and smoke verification. The JVM heap cap is 75% of container memory, not a guarantee that total process RSS fits a hosting plan. Check memory limits and representative load before deployment.
 
@@ -451,7 +451,7 @@ git diff -- docs/api/json/moodly-openapi.json
 
 ### CI/CD & Container Publishing
 
-The reviewed `render.yaml` uses an image-backed Render service pinned by GHCR digest. Release artifacts include a matching Blueprint candidate for a manual promotion PR and approved Blueprint sync. Publishing an image does not deploy Render; see [the release runbook](docs/deployment/release.md).
+The reviewed `render.yaml` uses an image-backed Render service pinned by GHCR digest. Release artifacts include a matching Blueprint candidate for a manual promotion PR and approved Blueprint sync. Publishing an image does not deploy Render; see [the release runbook](docs/deployment/RELEASE.md).
 
 Run `bash scripts/docker/run-tooling.sh automation container-smoke IMAGE` after building/loading an image. The smoke test creates a unique test network and fresh MongoDB (tmpfs), Elasticsearch, and local OIDC fixture containers; it reads only the tracked MongoDB fixture keys from `.env.local.example`, never private env files or the manual local/test stacks. MongoDB shell probes keep HOME/config state outside `/data/db` to avoid racing entrypoint ownership initialization, and fail early if the fixture stops. It checks the production profile, Docker healthcheck, public health privacy, unauthenticated API rejection, reset/docs unavailability, CDC-created search mapping, and non-root runtime. It removes only its own containers/network. This validates issuer discovery without hosted Auth0, but does not replace real-token E2E, Cloudinary uploads, or rate-limit behavior tests.
 
@@ -559,19 +559,19 @@ Both responses should report the same configured `userId`, `habits: 2`, `entries
 - `.env.local` supplies local runtime settings and shared infrastructure; its example is the fresh-checkout default. Local database names are preserved when they already contain development data.
 - There is no separate test dotenv template. Manual test uses the same local env file, with the same `SERVER_PORT` (normally 8080) and fixed reserved database/index names. Automated test fixtures live in `src/test/resources/application-test.yaml`. Retired `.env.test` files are not loaded.
 - `.env.docs.example` supplies deterministic, non-secret documentation fixtures and `SERVER_PORT=8081`; optional ignored `.env.docs` overrides them. These files use unquoted `KEY=VALUE` syntax compatible with Java properties. The generation script reads the same port as the docs profile; it does not require credentials or a running Docker daemon.
-- `.env.production.example` documents production variables. A container receives them through `docker run --env-file .env.production` or hosting environment injection; real env files are never baked into images. Hosted credentials and live services are configured separately; see the [release runbook](docs/deployment/release.md).
+- `.env.production.example` documents production variables. A container receives them through `docker run --env-file .env.production` or hosting environment injection; real env files are never baked into images. Hosted credentials and live services are configured separately; see the [release runbook](docs/deployment/RELEASE.md).
 
 Use the provided runners to load local/manual dotenv files. A bare Maven/Java/IDE launch must receive equivalent environment variables explicitly; Spring does not automatically treat arbitrary dotenv files as process environment. Startup-critical profile selection and destructive-operation guards remain code-controlled. Framework booleans that disable real side effects in docs mode are safety invariants, not arbitrary runtime tuning.
 
 Keep `application-test.yaml`, Java test-support code, and the lease mechanism while automated tests exist. Both `.env.test.example` and the retired private `.env.test` have been removed. Neither is needed by the launcher, JUnit, or CI. Ignore rules remain to protect any stale private files in other checkouts. The zero-byte `.moodly-test.lock` is recreated automatically and uses no ongoing CPU/RAM; leave it ignored and do not unlink it while a session might hold its OS lock. Deleting configuration files does not reclaim a running container's memory.
 
-See [Java Development Tooling Migration](docs/testing/java-tooling-migration.md) for the kept/removed/converted file inventory and verification results.
+See [Java Development Tooling Migration](docs/testing/markdown/JAVA_TOOLING_MIGRATION.md) for the kept/removed/converted file inventory and verification results.
 
 The shell entry points are thin adapters to `scripts/docker/run-tooling.sh`. It uses Maven Wrapper to compile test-side tooling and resolve the existing Jackson classpath, then starts `DevelopmentLauncher` with the project's Java runtime. `SharedInfrastructure` provides Compose parsing, namespace validation, idempotent startup, and the OS lease for both launcher and JUnit. These classes remain outside the production artifact. This adds a short Maven bootstrap on developer commands instead of requiring Python for infrastructure orchestration.
 
 ### Shared Infrastructure and Automated Test Isolation
 
-See [the reusable architecture and migration guide](docs/architecture/shared-infrastructure-isolation.md) for engine/framework alternatives, resource ownership, concurrency, safety limits, and operation details.
+See [the reusable architecture and migration guide](docs/architecture/SHARED_INFRASTRUCTURE_ISOLATION.md) for engine/framework alternatives, resource ownership, concurrency, safety limits, and operation details.
 
 There is one workstation infrastructure project: `moodly-backend-local`, using `compose.local.yaml`. Local keeps its configured database/index; tests exclusively own MongoDB database `moodly_test` and Elasticsearch index `daily_entries_search_test`. These test resources are disposable. The launcher and integration harness reject collisions with configured local resource names and never accept arbitrary reset targets. These are safeguards for cooperating development tools, not per-database access control on the unauthenticated local engines.
 
@@ -600,11 +600,11 @@ The lease file `.moodly-test.lock` is outside Maven `target/` so `clean` cannot 
 
 Infrastructure ownership is recorded under ignored `.moodly-infrastructure/` using a short cross-process registry lock, PID/start-time identities, and per-session tokens. JUnit can coexist with the local backend; the last consumer stops only automatically started services. `make local-up` pins the stack even during an active session. `local-stop`/`local-down` refuse active sessions. Normal Ctrl+C stops backend writers before test-data cleanup and session release. A force-killed process cannot run shutdown hooks; the next session prunes stale records and recovers ownership. Do not edit/unlink registry files while sessions are active. Direct Docker commands and other checkouts bypass this per-checkout coordination. The old test infrastructure management targets (`test-up`, `test-stop`, `test-down`, `test-clean`, `config-test`, and `validate-test`) and `compose.test.yaml` have been removed. Existing old test containers/volumes are not deleted by this migration. If any are still running, stop them explicitly when no longer needed; review volume deletion separately. `clean-mongodb.sh test` uses the same Java lease and exact test database, with interactive confirmation. The retired `.env.test` argument is rejected.
 
-Normal Ctrl+C after successful cleanup no longer produces a Make recipe Error 130. GNU Make may itself still return SIGINT status 130 when the terminal interrupts it. Real startup/cleanup failures remain errors; see [Backend Ctrl+C Exit Handling](docs/testing/interrupt-exit-status.md).
+Normal Ctrl+C after successful cleanup no longer produces a Make recipe Error 130. GNU Make may itself still return SIGINT status 130 when the terminal interrupts it. Real startup/cleanup failures remain errors; see [Backend Ctrl+C Exit Handling](docs/testing/markdown/INTERRUPT_EXIT_STATUS.md).
 
 ### Verify Once from a Cold Stack
 
-See [Session Ownership Verification](docs/testing/session-ownership-verification.md) for lifecycle scenarios and measured results.
+See [Session Ownership Verification](docs/testing/markdown/SESSION_OWNERSHIP_VERIFICATION.md) for lifecycle scenarios and measured results.
 
 Run at the repository root in Git Bash/WSL with Java 25 and Docker available:
 

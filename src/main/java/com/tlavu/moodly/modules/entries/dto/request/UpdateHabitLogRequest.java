@@ -1,6 +1,7 @@
 package com.tlavu.moodly.modules.entries.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record UpdateHabitLogRequest(
@@ -12,10 +13,11 @@ public record UpdateHabitLogRequest(
 		@Schema(
 				description = "Whether the habit was completed today",
 				example = "true"
-		) boolean done,
+		) @NotNull Boolean done,
 
 		@Schema(
-				description = "Optional completion note",
+				description = "Replacement note for this log. Omit it or send null to clear the note.",
+				nullable = true,
 				example = "Walked for 30 minutes."
 		) String note
 ) {}

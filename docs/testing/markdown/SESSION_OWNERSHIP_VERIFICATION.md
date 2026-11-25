@@ -1,6 +1,6 @@
 # Shared Backend Port and Infrastructure Session Verification
 
-> Historical implementation record. Test totals and intermediate designs below describe their recorded milestone. For current commands, ports, container modes, and cleanup behavior, use [the documentation index](../README.md).
+> Historical implementation record. Test totals and intermediate designs below describe their recorded milestone. For current commands, ports, container modes, and cleanup behavior, use [the documentation index](../../README.md).
 
 ## Final Behavior
 
@@ -59,4 +59,4 @@ Run make openapi separately to regenerate/compare the API contract. Backend usag
 
 The Makefile explicitly declares Bash and Bash shell flags for its recipes. Native Windows GNU Make can otherwise use cmd.exe even when invoked from Git Bash; this breaks ./mvnw, single-quoted test selectors, and environment-assignment recipes.
 
-The actual make verify target was executed through Windows GNU Make in Git Bash: 265 tests passed, along with coverage and Spotless. The isolated Windows Ctrl+C probe was repeated with the same shell flags; clean interrupted cleanup still did not emit a Make recipe Error 130. Make may retain its own SIGINT exit status as documented in [Backend Ctrl+C Exit Handling](interrupt-exit-status.md).
+The actual make verify target was executed through Windows GNU Make in Git Bash: 265 tests passed, along with coverage and Spotless. The isolated Windows Ctrl+C probe was repeated with the same shell flags; clean interrupted cleanup still did not emit a Make recipe Error 130. Make may retain its own SIGINT exit status as documented in [Backend Ctrl+C Exit Handling](INTERRUPT_EXIT_STATUS.md).

@@ -1,6 +1,6 @@
 # Java Development Tooling Migration
 
-> Historical implementation record. Test totals and intermediate designs below describe their recorded milestone. For current commands, ports, container modes, and cleanup behavior, use [the documentation index](../README.md).
+> Historical implementation record. Test totals and intermediate designs below describe their recorded milestone. For current commands, ports, container modes, and cleanup behavior, use [the documentation index](../../README.md).
 
 ## Decision
 

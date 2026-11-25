@@ -1894,12 +1894,16 @@
             "example": true
           },
           "note": {
-            "type": "string",
-            "description": "Optional completion note",
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Replacement note for this log. Omit it or send null to clear the note.",
             "example": "Walked for 30 minutes."
           }
         },
         "required": [
+          "done",
           "habitId"
         ]
       },
@@ -2231,7 +2235,7 @@
                 "$ref": "#/components/schemas/HighlightFragment"
               }
             },
-            "description": "Plain-text fragments keyed only by mood.note, habits.note, or mood.tags; ranges use zero-based, end-exclusive offsets."
+            "description": "Snippets grouped by source field: mood.note (mood note), habits.note (habit log note), or mood.tags (mood tag). Only matching fields have snippets. A habit note snippet does not identify an individual habit."
           }
         },
         "required": [
@@ -2244,10 +2248,12 @@
         "type": "object",
         "properties": {
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "Plain-text search snippet with highlight markers removed; it may be shorter than the original field."
           },
           "ranges": {
             "type": "array",
+            "description": "Matches within this snippet's text, measured in UTF-16 code units.",
             "items": {
               "$ref": "#/components/schemas/HighlightRange"
             }
@@ -2263,11 +2269,13 @@
         "properties": {
           "start": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Zero-based inclusive UTF-16 offset into the containing fragment's text."
           },
           "end": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Exclusive UTF-16 offset into the containing fragment's text."
           }
         },
         "required": [
