@@ -3,18 +3,18 @@
 ## Start Here
 
 - [Project README](../README.md): features, setup, public API overview, and everyday commands.
-- [Backend Execution Modes](testing/backend-execution-modes.md): host versus container, shared infrastructure, ports, lifecycle, and orphan recovery.
-- [Shared Infrastructure Verification](testing/shared-infrastructure-verification.md): current test and migration procedure.
-- [Release and Production Deployment](deployment/release.md): verified image identity, Render configuration, promotion, and rollback.
+- [Backend Execution Modes](testing/markdown/BACKEND_EXECUTION_MODES.md): host versus container, shared infrastructure, ports, lifecycle, and orphan recovery.
+- [Shared Infrastructure Verification](testing/markdown/SHARED_INFRASTRUCTURE_VERIFICATION.md): current test and migration procedure.
+- [Release and Production Deployment](deployment/RELEASE.md): verified image identity, Render configuration, promotion, and rollback.
 
 ## Architecture and API
 
-- [Module Boundaries](architecture/moodly-architecture.md): package ownership and dependency rules.
-- [Shared Development Infrastructure and Test Data Isolation](architecture/shared-infrastructure-isolation.md): reusable architecture and engine/framework alternatives.
+- [Module Boundaries](architecture/MOODLY_ARCHITECTURE.md): package ownership and dependency rules.
+- [Shared Development Infrastructure and Test Data Isolation](architecture/SHARED_INFRASTRUCTURE_ISOLATION.md): reusable architecture and engine/framework alternatives.
 - [Committed OpenAPI Contract](api/json/moodly-openapi.json): machine-readable API contract; compare it with code and contract tests before changing FE clients.
-- [Client Integration](api/markdown/client-integration.md): habit and journal writes, avatar reset, and search highlights.
-- [HTTP Rate Limiting](api/markdown/http-rate-limiting.md): quota behavior and validation.
-- [Manual Backend Verification](blueprint/backend-verification-guide.md): hosted-service scenarios requiring dedicated test identities.
+- [Client Integration](api/markdown/CLIENT_INTEGRATION.md): habit and journal writes, avatar reset, and search highlights.
+- [HTTP Rate Limiting](api/markdown/HTTP_RATE_LIMITING.md): quota behavior and validation.
+- [Manual Backend Verification](blueprint/BACKEND_VERIFICATION_GUIDE.md): hosted-service scenarios requiring dedicated test identities.
 
 ## Language and Sources of Truth
 
@@ -26,9 +26,9 @@ Habit `targetFrequency` currently supports `DAILY`. Weekly/monthly statistics pe
 
 ## Historical Implementation Records
 
-- [Development Blueprint](blueprint/moodly-blueprint.md).
-- [Java Tooling Migration](testing/java-tooling-migration.md).
-- [Session Ownership Verification](testing/session-ownership-verification.md).
-- [Interrupt Exit Handling](testing/interrupt-exit-status.md).
+- [Development Blueprint](blueprint/MOODLY_BLUEPRINT.md).
+- [Java Tooling Migration](testing/markdown/JAVA_TOOLING_MIGRATION.md).
+- [Session Ownership Verification](testing/markdown/SESSION_OWNERSHIP_VERIFICATION.md).
+- [Interrupt Exit Handling](testing/markdown/INTERRUPT_EXIT_STATUS.md).
 
 Keep useful evidence, but follow the current execution and verification guides when operating the application. Never commit private env files, tokens, local test-account details, or hosted credentials to documentation.

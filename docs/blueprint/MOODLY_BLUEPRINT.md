@@ -21,7 +21,7 @@
 
 Before creating the first phase branch, make two small commits on `main`:
 
-1. Commit this file as `docs/blueprint/moodly-blueprint.md` with: `docs: add Moodly learning blueprint`.
+1. Commit this file as `docs/blueprint/MOODLY_BLUEPRINT.md` with: `docs: add Moodly learning blueprint`.
 2. Commit the existing generated Spring Boot skeleton with: `chore(app): initialise Moodly project`.
 
 Create the first phase branch with:
@@ -189,7 +189,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 | Spring Boot application skeleton            | `[x]` Setup       | Create the Spring Boot application structure.                                                                   |
 | MongoDB dependency                          | `[x]` Setup       | Add the MongoDB starter dependency to `pom.xml`.                                                                |
 | Web and validation dependencies             | `[x]` Setup       | Add WebMVC and Validation starters.                                                                             |
-| Modular-monolith packages                   | `[x]` Setup       | Feature package markers and `docs/architecture.md` exist.                                                       |
+| Modular-monolith packages                   | `[x]` Setup       | Feature package markers and `docs/architecture/MOODLY_ARCHITECTURE.md` exist.                                                       |
 | MongoDB Docker/replica set                  | `[x]` Verified    | `mongo:8.3.7` and idempotent `mongodb-init` are running successfully.                                           |
 | MongoDB connection                          | `[x]` Verified    | `mongosh` reports `rs0` with one `PRIMARY` member.                                                              |
 | Domain models and repositories              | `[ ]` Not started | Implement Phase 1 persistence.                                                                                  |
@@ -205,7 +205,7 @@ This track applies to the whole project rather than to Phase 1 alone. Update it 
 - [x] Create one Spring Boot application.
 - [x] Add the MongoDB starter dependency to `pom.xml`.
 - [x] Create the initial feature-module package structure (`auth`, `habits`, `entries`, `stats`, `search`, `cdc`, and `shared`) inside the single Spring Boot application.
-- [x] Document explicit module boundaries in `docs/architecture.md`; enforce them with an architecture test once controllers and repositories are added.
+- [x] Document explicit module boundaries in `docs/architecture/MOODLY_ARCHITECTURE.md`; enforce them with an architecture test once controllers and repositories are added.
 - [x] Define reproducible local and test MongoDB replica-set Compose configurations, using `.env.local` and `.env.test` respectively.
 - [x] Configure the shared `application.yaml`, `application-local.yaml`, and `application-test.yaml` profiles. Maven integration tests use a Testcontainers-managed replica set rather than either Compose database.
 - [x] Verify the connection through `mongosh`: MongoDB is healthy and replica set `rs0` reports one `PRIMARY` member.

@@ -4,7 +4,7 @@
 
 One Compose project, `moodly-backend-local`, serves host development, optional backend container sessions, and integration tests. MongoDB and Elasticsearch retain their established physical volumes. Tests own only database `moodly_test` and concrete index `daily_entries_search_test`; local data is retained.
 
-This is the current verification procedure. Earlier Python harness experiments, test totals, and the retired separate test stack are historical implementation evidence, not current setup requirements. See [Backend Execution Modes](backend-execution-modes.md) for commands, network boundaries, ownership, and recovery.
+This is the current verification procedure. Earlier Python harness experiments, test totals, and the retired separate test stack are historical implementation evidence, not current setup requirements. See [Backend Execution Modes](BACKEND_EXECUTION_MODES.md) for commands, network boundaries, ownership, and recovery.
 
 ## Prerequisites
 
