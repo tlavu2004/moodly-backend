@@ -227,6 +227,14 @@ class ApiIntegrationTest {
 				.andReturn().getResponse().getContentAsString();
 
 		JsonNode openApi = new tools.jackson.databind.ObjectMapper().readTree(document);
+		JsonNode schemas = openApi.path("components").path("schemas");
+		assertNullableReference(schemas, "ApiResponseDailyEntryResponse", "data", "DailyEntryResponse");
+		assertNullableReference(schemas, "ApiResponseDailyEntryResponse", "error", "ApiError");
+		assertNullableReference(schemas, "ApiResponseListHabitResponse", "error", "ApiError");
+		assertNullableReference(schemas, "TodayEntryResponse", "entry", "DailyEntryResponse");
+		assertNullableReference(schemas, "DailyEntryResponse", "mood", "MoodResponse");
+		assertNullableReference(schemas, "DashboardResponse", "todayEntry", "DailyEntryResponse");
+		assertThat(schemas.at("/ApiResponseApiError/properties/data/type").asString()).isEqualTo("null");
 		JsonNode examples = openApi.path("components").path("examples");
 		JsonNode badRequestExample = openApi.path("components").path("responses")
 			.path("BadRequest").path("content").path("application/json")
@@ -262,6 +270,15 @@ class ApiIntegrationTest {
 				.isEqualTo("{\"success\":true,\"data\":{\"id\":\"example-id\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
 		assertThat(examples.path("ErrorEnvelope").path("value").toString())
 				.isEqualTo("{\"success\":false,\"error\":{\"status\":400,\"code\":\"INVALID_REQUEST\",\"message\":\"The request is invalid.\",\"path\":\"/example\",\"errors\":[],\"requestId\":\"2ea18f35-e92e-4ed0-a629-c3f2fbffc45d\"},\"timestamp\":\"2026-09-12T10:00:00Z\"}");
+	}
+
+	private static void assertNullableReference(JsonNode schemas, String component, String property, String target) {
+		JsonNode schema = schemas.path(component).path("properties").path(property);
+		assertThat(schema.has("$ref")).isFalse();
+		assertThat(schema.has("type")).isFalse();
+		assertThat(schema.path("anyOf").size()).isEqualTo(2);
+		assertThat(schema.at("/anyOf/0/$ref").asString()).isEqualTo("#/components/schemas/" + target);
+		assertThat(schema.at("/anyOf/1/type").asString()).isEqualTo("null");
 	}
 
 	@Test

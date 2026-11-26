@@ -1,5 +1,9 @@
 # Client Integration
 
+## OpenAPI Nullability
+
+OpenAPI 3.1 uses `anyOf` with an object reference and a `null` branch for nullable object fields, such as today's entry, its mood, and the response envelope's typed data and error. The JSON response keeps its existing shape. Envelope fields with null values are omitted by the runtime.
+
 ## Habits and Journal
 
 Use `GET /habits?status=active` for today's habit selection and `GET /habits?status=all` to join journal logs or statistics to the user's current habit names and icons by ID. The `archived` status lists only archived habits. Names reflect the current habit record, including renames, so clients should provide a fallback for unresolved IDs.
