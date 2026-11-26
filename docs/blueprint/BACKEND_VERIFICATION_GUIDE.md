@@ -97,7 +97,7 @@ The ignored `environments/local.bru` now contains empty placeholders for all fou
 
 To obtain the different-audience token without changing the user-A or user-B credential, first create a disposable Auth0 API with identifier `https://api.moodly-wrong-audience.local` and RS256 signing. Then run `Acquire wrong-audience token`; it uses the separate `moodly-wrong-audience-local` OAuth credential and must itself receive `401` from Moodly. Copy its acquired access token into the local Bruno Secret `wrongAudienceAccessToken` only when you also want to run the separate raw-Bearer request.
 
-## 5. User a Habits and Daily Entries
+## 5. Habits and Daily Entries for User A
 
 ### 5.1 Bootstrap the Application Profile
 
@@ -137,7 +137,7 @@ Verify that the mood trend contains the submitted data, most-missed returns a va
 
 Search uses CDC and is eventually consistent. If data is not visible, wait a few seconds and retry. If it is still absent, check health, run `Rebuild CDC index`, and search again. Reindexing must not create duplicate documents.
 
-## 7. User a and User B Isolation
+## 7. Isolation Between User A and User B
 
 Keep the data created by user A, then run these requests as **user B**:
 
@@ -230,7 +230,7 @@ X-Maintenance-Key: {{maintenanceKey}}
 
 Expect HTTP `200`. Search again and verify complete data, correct ownership, and no duplicates.
 
-### 13.2 Dead-letter Replay
+### 13.2 Dead-Letter Replay
 
 This test requires a real dead letter:
 

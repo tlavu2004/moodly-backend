@@ -436,7 +436,7 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint:** `feat(stats): add mood trend, missed habit, and streak statistics`
 
-#### Polish (optional, If Time Remains)
+#### Polish (Optional, If Time Remains)
 
 - [x] Add basic validation: mood score must be 1–5; date ranges must not be reversed or in the future.
 - [x] Add a minimal `GlobalExceptionHandler`.
@@ -458,7 +458,7 @@ db.daily_entries.deleteMany({ userId: "user_pipeline_demo" });
 
 **Commit checkpoint:** `test(mongo-core): enhance integration tests for MongoDB core services and API validation`
 
-### Phase 2 — Elasticsearch Via MongoDB Change Streams (CDC Pattern) (Evening 2)
+### Phase 2 — Elasticsearch via MongoDB Change Streams (CDC Pattern) (Evening 2)
 
 Elasticsearch is a derived search index only. MongoDB remains the source of truth; the request/response flow must not write directly to Elasticsearch.
 
