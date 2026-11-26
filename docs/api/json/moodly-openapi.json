@@ -1351,7 +1351,10 @@
             "description": "Optional note for the day",
             "example": "Finished the release plan."
           }
-        }
+        },
+        "required": [
+          "score"
+        ]
       },
       "ApiError": {
         "type": "object",
@@ -1585,7 +1588,8 @@
           }
         },
         "required": [
-          "contentType"
+          "contentType",
+          "sizeBytes"
         ]
       },
       "ApiResponseUploadSignatureResponse": {
@@ -1659,7 +1663,8 @@
           }
         },
         "required": [
-          "publicId"
+          "publicId",
+          "version"
         ]
       },
       "ApiResponseAvatarResponse": {

@@ -22,6 +22,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -33,6 +35,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 
 @SpringBootTest
@@ -418,6 +421,28 @@ class ApiIntegrationTest {
 					.content("{invalid"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = {
+		"PUT | /entries/today/mood | {} | SetMoodRequest | score",
+		"POST | /me/avatar/upload-signature | {\"contentType\":\"image/png\"} | UploadRequest | sizeBytes",
+		"POST | /me/avatar/confirm | {\"publicId\":\"example\"} | ConfirmRequest | version"
+	})
+	void rejectsMissingFieldsThatOpenApiMarksRequired(
+			String method, String path, String body, String schema, String field
+	) throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.components.schemas." + schema + ".required",
+						org.hamcrest.Matchers.hasItem(field)));
+
+		MockHttpServletRequestBuilder request = "PUT".equals(method) ? put(path) : post(path);
+		mockMvc.perform(request.with(jwt().jwt(token -> token.subject(USER_ID)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 	}
 

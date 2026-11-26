@@ -9,7 +9,8 @@ import java.util.List;
 public record SetMoodRequest(
 		@Schema(
 				description = "Mood score, from 1 (lowest) to 5 (highest)",
-				example = "4"
+				example = "4",
+				requiredMode = Schema.RequiredMode.REQUIRED
 		)
 		@Min(1) @Max(5) int score,
 
