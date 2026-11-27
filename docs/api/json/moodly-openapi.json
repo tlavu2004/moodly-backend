@@ -1399,13 +1399,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/DailyEntryResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DailyEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1432,8 +1444,14 @@
             "format": "date"
           },
           "mood": {
-            "type": "null",
-            "$ref": "#/components/schemas/MoodResponse"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoodResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "habits": {
             "type": "array",
@@ -1523,13 +1541,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/ProfileResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1599,13 +1629,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/UploadSignatureResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadSignatureResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1674,13 +1716,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/AvatarResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvatarResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1718,13 +1772,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/CdcReindexResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CdcReindexResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1782,13 +1848,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/HabitResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HabitResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1929,8 +2007,14 @@
             }
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -1976,8 +2060,14 @@
             }
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2029,8 +2119,14 @@
             }
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2050,13 +2146,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/HabitStreakResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HabitStreakResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2092,13 +2200,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/PageResponseDailyEntryResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageResponseDailyEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2156,13 +2276,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/TodayEntryResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TodayEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2186,8 +2318,14 @@
             "type": "boolean"
           },
           "entry": {
-            "type": "null",
-            "$ref": "#/components/schemas/DailyEntryResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DailyEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "The complete entry, or null when the user has not checked in today."
           }
         },
@@ -2203,13 +2341,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/PageResponseEntrySearchResult",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageResponseEntrySearchResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2333,13 +2483,25 @@
             "type": "boolean"
           },
           "data": {
-            "type": "null",
-            "$ref": "#/components/schemas/DashboardResponse",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for successful responses."
           },
           "error": {
-            "type": "null",
-            "$ref": "#/components/schemas/ApiError",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Present for error responses."
           },
           "timestamp": {
@@ -2356,8 +2518,14 @@
         "type": "object",
         "properties": {
           "todayEntry": {
-            "type": "null",
-            "$ref": "#/components/schemas/DailyEntryResponse"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DailyEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "activeHabits": {
             "type": "array",
@@ -2421,7 +2589,7 @@
             "example": false
           },
           "data": {
-            "type": "object"
+            "type": "null"
           },
           "error": {
             "$ref": "#/components/schemas/ApiError"

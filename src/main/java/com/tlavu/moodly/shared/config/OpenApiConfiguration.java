@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
@@ -75,6 +76,12 @@ public class OpenApiConfiguration {
 	OpenApiCustomizer standardErrorResponses() {
 		return openApi -> {
 			Components components = openApi.getComponents();
+			components.getSchemas().values().forEach(schema -> {
+				Map<String, Schema> properties = schema.getProperties();
+				if (properties != null) {
+					properties.values().forEach(this::normalizeNullableReference);
+				}
+			});
 			components.addSchemas("ApiResponseApiError", errorEnvelopeSchema());
 			addEnvelopeExamples(components);
 			addReusableErrorResponses(components);
@@ -83,6 +90,24 @@ public class OpenApiConfiguration {
 			addUnavailableResponses(openApi);
 			addModuleErrorResponses(openApi);
 		};
+	}
+
+	private void normalizeNullableReference(Schema<?> schema) {
+		String reference = schema.get$ref();
+		if (reference != null && Set.of("null").equals(schema.getTypes())) {
+			// In OpenAPI 3.1, a sibling type constrains the referenced schema as well.
+			schema.set$ref(null);
+			schema.setTypes(null);
+			schema.setNullable(null);
+			schema.addAnyOfItem(new Schema<>().$ref(reference));
+			schema.addAnyOfItem(nullSchema());
+		}
+	}
+
+	private Schema<?> nullSchema() {
+		Schema<?> schema = new Schema<>();
+		schema.addType("null");
+		return schema;
 	}
 
 	private void addEnvelopeExamples(Components components) {
@@ -501,7 +526,7 @@ public class OpenApiConfiguration {
 		return new ObjectSchema()
 				.required(List.of("success", "error", "timestamp"))
 				.addProperty("success", new BooleanSchema().example(false))
-				.addProperty("data", new ObjectSchema().nullable(true))
+				.addProperty("data", nullSchema())
 				.addProperty("error", new Schema<>().$ref("#/components/schemas/ApiError"))
 				.addProperty("timestamp", new DateTimeSchema().example("2026-09-12T10:00:00Z"));
 	}
