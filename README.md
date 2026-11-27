@@ -31,7 +31,7 @@ Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform*
 - [CDC Maintenance, Dead-Letter Queue & Reindexing](#cdc-maintenance-dead-letter-queue--reindexing)
 - [Mutation Replay & Concurrency Contracts (409 Conflict)](#mutation-replay--concurrency-contracts-409-conflict)
 - [E2E Playwright Synthetic User Reset Guard](#e2e-playwright-synthetic-user-reset-guard)
-- [Automated Integration Test Harness](#automated-integration-test-harness)
+- [Shared Infrastructure and Automated Test Isolation](#shared-infrastructure-and-automated-test-isolation)
 - [Authors](#authors)
 - [License](#license)
 
@@ -40,42 +40,50 @@ Moodly is a production-grade, modular-monolith **Habit & Mood Tracking Platform*
 ## Key Features
 
 ### Habit Management & Streak Calculation
+
 - **Habit Lifecycle**: Create, update, archive, and restore habits with daily target frequency (`DAILY`).
 - **Real-Time Streak Tracking**: Dynamic calculation of current and best completion streaks calculated across the user's entry timeline.
 - **Optimistic Concurrency Control**: All mutations enforce version checking (`@Version`) returning `409 Conflict` on concurrent stale writes.
 
 ### Daily Entries & Mood Journaling
+
 - **Atomic Daily Journaling**: One canonical entry per day per user, capturing mood scores (1–5 scale), textual reflections, and habit check-ins.
 - **Field-Level Atomic Upserts**: Simultaneous updates to disparate daily logs resolve safely without race conditions.
 - **Last-Writer-Wins Semantics**: Conflicting edits to identical fields resolve predictably.
 
 ### Asynchronous Change Data Capture (CDC)
+
 - **Oplog-Driven Streaming**: Taps directly into the MongoDB Replica Set Change Stream to stream daily entry mutations into Elasticsearch asynchronously.
 - **Resilient Delivery**: Automatic retry with exponential backoff (3 attempts) on transport failures.
 - **Dead-Letter Queue (DLQ)**: Poison pills or exhausted events are persisted in `cdc_dead_letters` and report `DEGRADED` health for zero data loss.
 - **Operator Replay**: Internal administrative endpoints allow manual single-event replaying or full index rebuilds.
 
 ### Full-Text Elasticsearch Search
+
 - **Fuzzy & Range Queries**: Fast multi-term search across user notes and entry history via Elasticsearch OSS 7.10.2.
 - **Search Highlighting**: Server-side extraction and normalization of matched keyword fragments with highlight ranges.
 - **Strict Data Isolation**: Search queries are strictly partitioned by authenticated subject (`userId`), preventing cross-tenant data leakage.
 
 ### HTTP Rate Limiting & User Quota Isolation
+
 - **Per-Subject Quota**: Token-bucket algorithm with nanosecond precision isolating distinct authenticated users (default: 120 req/60s).
 - **Graceful Throttling**: Throttled requests receive standard `429 Too Many Requests` responses with a dynamic `Retry-After` header.
 - **Unified Error Envelope**: Structured error responses exposing `RATE_LIMIT_EXCEEDED`, timestamp, path, and tracing `X-Request-ID`.
 
 ### Auth0 Enterprise Security
+
 - **Stateless OAuth2 Resource Server**: Validates signed RS256 JWT tokens against Auth0 JWKS endpoints.
 - **Idempotent User Bootstrapping**: `PUT /auth/profile` bootstraps application-managed user profiles with no hidden side effects.
 - **Custom Access Denied & Authentication Entry Points**: Traps 401/403 failures into standardized JSON envelopes without leaking stack traces.
 
 ### Cloudinary Media Lifecycle Management
+
 - **Signed Upload Signatures**: Server-generated HMAC-SHA1 signatures ensuring zero client-side credential exposure.
 - **Strict Media Constraints**: Enforces whitelist MIME checks (`jpg`, `jpeg`, `png`, `webp`) and file size limits (5 MiB).
 - **Orphan Asset Cleanup**: Automated scheduled background jobs (`PendingAssetDeletionCleanup`) continuously delete stale/replaced avatars from Cloudinary.
 
 ### E2E Synthetic Reset Guard
+
 - **Automated Test Guard**: Dedicated reset endpoint (`/internal/e2e/reset`) for automated Playwright browser tests.
 - **Double Protection**: Hard-disabled in production via `@Profile("!prod & !production")` and guarded by a cryptographic constant-time token check.
 
@@ -120,6 +128,7 @@ graph TD
 ```
 
 ### Module Boundaries
+
 ```
 src/main/java/com/tlavu/moodly/
 ├── modules/
@@ -302,16 +311,14 @@ Base URL: `http://localhost:8080` (or your Render domain)
 | **E2E Reset** | `/internal/e2e/reset` | Reset synthetic browser test account (strictly disabled on prod) | Non-prod + Secret Token |
 | **Observability** | `/actuator/health` | Service readiness, MongoDB status, Elasticsearch & CDC health | Public (components masked in prod) |
 
-OpenAPI specification is committed at:
-```
-docs/api/json/moodly-openapi.json
-```
+The [OpenAPI specification](docs/api/json/moodly-openapi.json) is committed to the repository.
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - **Java 25** (Eclipse Temurin recommended)
 - **Maven Wrapper** (included; downloads the pinned Maven version on first use)
 - **Python 3** for container smoke, OpenAPI normalization, CI summaries, and release-artifact helpers; local/test infrastructure and backend tests use Java
@@ -333,6 +340,7 @@ cp .env.local.example .env.local
 ```
 
 The local template supplies non-secret infrastructure defaults. Edit `.env.local` with your development credentials:
+
 - **Auth0**: Create an API in your Auth0 dashboard, note its Identifier (`AUTH0_AUDIENCE`) and Domain (`AUTH0_ISSUER_URI`).
 - **Cloudinary**: Create a signed upload preset (`moodly_local_signed`), set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`.
 
@@ -468,12 +476,14 @@ External actions are pinned to full commit SHAs, with their major versions recor
 JWT discovery and JWKS downloads require HTTPS access to your Auth0 tenant even when the local Docker services are healthy. The backend uses 10-second connect and read timeouts, with at most three attempts and a 500 ms delay for connection refusals/timeouts. Persistent failures still stop startup; issuer, audience, signature and expiry validation remain mandatory. HTTP errors and TLS certificate errors are not retried.
 
 Optional Spring properties:
+
 - `moodly.auth0.http.connect-timeout`
 - `moodly.auth0.http.read-timeout`
 - `moodly.auth0.http.max-attempts` (1–5)
 - `moodly.auth0.http.retry-delay`
 
 Their environment equivalents are:
+
 - `MOODLY_AUTH0_HTTP_CONNECT_TIMEOUT`
 - `MOODLY_AUTH0_HTTP_READ_TIMEOUT`
 - `MOODLY_AUTH0_HTTP_MAX_ATTEMPTS`
@@ -484,7 +494,9 @@ No new secret is required. If all attempts fail, check network/proxy/firewall ac
 Before first use, copy `.env.local.example` to `.env.local` if the environment files are not already present. `.env.local` is ignored by Git; it is also where Auth0 and Cloudinary development credentials belong.
 
 #### Auth0 and Cloudinary Local Services Configuration
+
 Before starting the backend, configure the hosted development services and fill the corresponding values in `.env.local`:
+
 - In Auth0, create a Moodly API with a stable identifier and use it as `AUTH0_AUDIENCE`. Set `AUTH0_ISSUER_URI` to the tenant issuer URL, including `https://` and its trailing slash. Create a local SPA client, then add the local frontend URL (for example, `http://localhost:5173` for Vite and `http://127.0.0.1:4173` for Playwright) to its allowed callback, logout, and web-origin URLs.
 - In Cloudinary, create the signed `moodly_local_signed` upload preset, accept only `jpg`, `jpeg`, `png`, and `webp`, store its Media Library assets in `moodly/local`, and disable overwrite. Set its values as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_UPLOAD_PRESET`. Never copy `CLOUDINARY_API_SECRET` into frontend configuration.
 - Set `CLOUDINARY_FOLDER` to `moodly/local`. The backend will append the resource type and owner, for example `users/{userId}/avatar/{uuid}`. Set `APP_CORS_ALLOWED_ORIGINS` to the exact comma-separated local frontend origins allowed to call the API. Do not add production URLs here yet.

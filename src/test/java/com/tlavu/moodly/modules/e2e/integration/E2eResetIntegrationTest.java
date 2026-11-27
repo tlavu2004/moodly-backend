@@ -88,8 +88,6 @@ class E2eResetIntegrationTest {
 	void prepareState() throws Exception {
 		listener.stop();
 		cdcSearchTestSupport.clearState();
-		listener.start();
-		assertThat(listener.awaitRegistration(Duration.ofSeconds(10))).isTrue();
 	}
 
 	@AfterEach
@@ -100,6 +98,9 @@ class E2eResetIntegrationTest {
 
 	@Test
 	void resetEndpointRequiresItsTokenAndLeavesOtherUsersDataUntouched() throws Exception {
+		listener.start();
+		assertThat(listener.awaitRegistration(Duration.ofSeconds(10))).isTrue();
+
 		String target = TEST_E2E_USER_ID;
 		String other = "synthetic|another-e2e-account";
 		Habit targetHabit = habitRepository.save(new Habit("before-reset-target", target, "Old target habit", null, TargetFrequency.DAILY, true));
@@ -150,9 +151,9 @@ class E2eResetIntegrationTest {
 
 	@Test
 	void refreshesAndRetriesResetAfterElasticsearchConflict() throws Exception {
-		listener.stop();
+		String deletePath = deleteByUserPath();
 		doThrow(new ElasticsearchException(409)).doCallRealMethod()
-				.when(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+				.when(elasticsearchClient).request(eq("POST"), eq(deletePath), any());
 
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
 				.andExpect(status().isOk())
@@ -163,9 +164,9 @@ class E2eResetIntegrationTest {
 
 	@Test
 	void returnsServiceUnavailableWhenElasticsearchConflictPersists() throws Exception {
-		listener.stop();
+		String deletePath = deleteByUserPath();
 		doThrow(new ElasticsearchException(409))
-				.when(elasticsearchClient).request(eq("POST"), eq(deleteByUserPath()), any());
+				.when(elasticsearchClient).request(eq("POST"), eq(deletePath), any());
 
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))
 				.andExpect(status().isServiceUnavailable())
@@ -190,7 +191,6 @@ class E2eResetIntegrationTest {
 
 	@Test
 	void returnsServiceUnavailableWhenIndexingFails() throws Exception {
-		listener.stop();
 		doThrow(new ElasticsearchTransportException("connection refused"))
 				.when(searchWriter).index(any(DailyEntry.class));
 
@@ -203,7 +203,6 @@ class E2eResetIntegrationTest {
 
 	@Test
 	void returnsServiceUnavailableWhenSeededDocumentsCannotBeVerified() throws Exception {
-		listener.stop();
 		doNothing().when(searchWriter).index(any(DailyEntry.class));
 
 		mockMvc.perform(post("/internal/e2e/reset").header("X-E2E-Reset-Token", "test-e2e-reset-token"))

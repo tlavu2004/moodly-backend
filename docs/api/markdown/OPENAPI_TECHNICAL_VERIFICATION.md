@@ -1,4 +1,4 @@
-# Follow-up Task for Technical Verification of the OpenAPI Contract
+# Follow-Up Task for Technical Verification of the OpenAPI Contract
 
 ## What Does CI Currently Guarantee?
 
