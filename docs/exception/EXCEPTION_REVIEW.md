@@ -29,7 +29,7 @@ This table records the first review; the follow-up fixes and the official standa
 - Review whether returning the persisted avatar state while an obsolete Cloudinary asset remains queued matches the product's intended completion semantics.
 - Review the operational alert for a CDC programming failure: the listener stays unhealthy and requires a corrected deployment or explicit restart. Transient MongoDB connection failures restart from the persisted resume token.
 
-## Follow-up Fixes
+## Follow-Up Fixes
 
 - Cloudinary catches only transport and JSON parsing failures for avatar verification, and transport failures for deletion. Unexpected runtime failures reach the internal 500 fallback instead of being reported as provider unavailability. SHA-1 catches only `NoSuchAlgorithmException`.
 - Avatar cleanup queues deletion failures after profile persistence. Unexpected client failures are logged at error level, and scheduled cleanup reschedules them while continuing to process other assets.
@@ -37,7 +37,7 @@ This table records the first review; the follow-up fixes and the official standa
 - E2E reset compares each seeded search document with the expected projection. A missing source or stale content is failed verification and returns the existing `SEARCH_UNAVAILABLE` 503 response.
 - The CDC listener schedules a restart after transient MongoDB failures and resumes from its persisted token. It keeps a programming failure unhealthy without automatic replay of the same poison event.
 
-## Recovery Follow-up
+## Recovery Follow-Up
 
 - A history-lost CDC stream now records a MongoDB operation-time checkpoint captured before rebuilding the search index. The previous token remains persisted if the rebuild fails. A successful rebuild saves the operation-time checkpoint before registering the stream, so a process restart can replay changes made during the rebuild. MongoDB error code 286 is identified from the exception cause chain rather than message text.
 - Expired avatar uploads are cleaned independently. Unexpected client failures retain their pending record and do not stop cleanup of later uploads. A confirmed avatar remains protected if deletion of its pending-upload record failed.
@@ -48,7 +48,7 @@ This table records the first review; the follow-up fixes and the official standa
 
 The adjacent `moodly-frontend` currently stores `error.code` in `ApiRequestError`, but its feature code does not branch on the former shared 400/404/409 codes or `SEARCH_UNAVAILABLE`. `getUserFacingError` maps 5xx responses to a generic safe message. No frontend code migration is required for the module-code changes in this branch. A missing-source 500 has the same generic client message as other internal failures; operators distinguish it by the backend hit-ID log and request ID, not by a new public error code.
 
-## Follow-up for Safe Production Diagnostics
+## Follow-Up for Safe Production Diagnostics
 
 The failed replay-state persistence log in `CdcDeliveryService.handleReplayFailure` uses `ExceptionLogSummary`. It includes bounded cause types and selected stack locations. Full stack frames and suppressed failures are currently absent from this summary. Although the original persistence failure is retained as a suppressed exception, routine production logs may provide too little context to diagnose it.
 
