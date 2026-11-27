@@ -1,5 +1,9 @@
 # Client Integration
 
+## OpenAPI Nullability
+
+OpenAPI 3.1 uses `anyOf` with an object reference and a `null` branch for nullable object fields, such as today's entry, its mood, and the response envelope's typed data and error. The JSON response keeps its existing shape. Envelope fields with null values are omitted by the runtime.
+
 ## Habits and Journal
 
 `PUT /entries/today/mood` requires a `score` from 1 to 5. A missing score returns HTTP 400 `INVALID_REQUEST`.
