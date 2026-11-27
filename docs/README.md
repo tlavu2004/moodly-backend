@@ -5,6 +5,8 @@
 - [Project README](../README.md): features, setup, public API overview, and everyday commands.
 - [Backend Execution Modes](testing/markdown/BACKEND_EXECUTION_MODES.md): host versus container, shared infrastructure, ports, lifecycle, and orphan recovery.
 - [Shared Infrastructure Verification](testing/markdown/SHARED_INFRASTRUCTURE_VERIFICATION.md): current test and migration procedure.
+- [Backend Performance](testing/markdown/BACKEND_PERFORMANCE.md) explains how to measure server request p95 and p99.
+- [System Performance](testing/markdown/SYSTEM_PERFORMANCE.md) defines the shared FE and BE benchmark and reporting procedure.
 - [Release and Production Deployment](deployment/RELEASE.md): verified image identity, Render configuration, promotion, and rollback.
 
 ## Architecture and API
